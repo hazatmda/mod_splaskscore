@@ -25,7 +25,7 @@ Fail `mod_splaskscore_update.xml` menyediakan maklumat kemaskini dan disemak sec
 ## Maklumat Tambahan
 
 - Dibangunkan oleh: **Muhammad Azizan Hazim**
-- Versi: **1.1.3**
+- Versi: **1.1.4**
 - Tarikh: **20 Julai 2025**
 
 

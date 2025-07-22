@@ -60,10 +60,11 @@ $token = $params->get('splask_token', '');
 
 <script>
 function getEvaluation(score) {
-  if (score >= 95) return 'A';
-  if (score >= 91) return 'B';
-  if (score >= 86) return 'C';
-  return 'GAGAL';
+  if (score === 100) return 'Gred A';
+  if (score >= 95 && score <= 99) return 'Gred B';
+  if (score >= 91 && score <= 94) return 'Gred C';
+  if (score >= 86 && score <= 90) return 'Gred D';
+  return 'Gred GAGAL';
 }
 function getColor(score) {
   if (score >= 95) return '#28a745'; // Hijau A

@@ -2,8 +2,8 @@
 <extension type="module" client="administrator" method="upgrade">
     <name>mod_splaskscore</name>
     <author>Muhammad Azizan Hazim</author>
-    <version>1.1.5</version>
-    <description>Module to display SPLaSK Score in Joomla Admin Dashboard (Gred calculation updated for v1.1.5)</description>
+    <version>1.1.6</version>
+    <description>Module to display SPLaSK Score in Joomla Admin Dashboard (Logik & label gred versi 1.1.6)</description>
     <files>
         <filename module="mod_splaskscore">mod_splaskscore.php</filename>
     </files>
@@ -20,7 +20,7 @@
             </fieldset>
         </fields>
     </config>
-  <creationDate>2025-07-20</creationDate>
+  <creationDate>2025-07-22</creationDate>
   <packagename>mod_splaskscore</packagename>
   <license>GNU General Public License v3.0</license>
 </extension>

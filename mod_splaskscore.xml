@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="module" client="administrator" method="upgrade">
+    <name>mod_splaskscore</name>
+    <author>Muhammad Azizan Hazim</author>
+    <version>1.1.5</version>
+    <description>Module to display SPLaSK Score in Joomla Admin Dashboard (Gred calculation updated for v1.1.5)</description>
+    <files>
+        <filename module="mod_splaskscore">mod_splaskscore.php</filename>
+    </files>
+    <config>
+        <fields name="params">
+            <fieldset name="basic">
+                <field
+                    name="splask_token"
+                    type="text"
+                    label="SPLaSK Token"
+                    description="Masukkan token SPLaSK anda untuk paparan markah."
+                    required="true"
+                />
+            </fieldset>
+        </fields>
+    </config>
+  <creationDate>2025-07-20</creationDate>
+  <packagename>mod_splaskscore</packagename>
+  <license>GNU General Public License v3.0</license>
+</extension>

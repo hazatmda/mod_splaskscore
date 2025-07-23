@@ -20,7 +20,12 @@
             </fieldset>
         </fields>
     </config>
-  <creationDate>2025-07-22</creationDate>
-  <packagename>mod_splaskscore</packagename>
-  <license>GNU General Public License v3.0</license>
+    <creationDate>2025-07-22</creationDate>
+    <packagename>mod_splaskscore</packagename>
+    <license>GNU General Public License v3.0</license>
+    <updateservers>
+        <server type="extension" name="SplaskScore Updates">
+            https://raw.githubusercontent.com/hazatmda/mod_splaskscore/main/mod_splaskscore_update.xml
+        </server>
+    </updateservers>
 </extension>

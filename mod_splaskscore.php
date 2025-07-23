@@ -1,7 +1,9 @@
 <?php
 defined('_JEXEC') or die;
 
+// Get token parameter securely and escape it for safe JS embedding
 $token = $params->get('splask_token', '');
+$token_escaped = htmlspecialchars($token, ENT_QUOTES, 'UTF-8');
 ?>
 
 <style>
@@ -44,8 +46,8 @@ $token = $params->get('splask_token', '');
 <div class="card mt-3 text-center">
   <div class="card-header bg-dark text-white">Markah Penilaian SPLaSK :</div>
   <div class="card-body">
-    <div class="splask-meter mb-2">
-      <svg width="150" height="150">
+    <div class="splask-meter mb-2" aria-label="SPLaSK Markah">
+      <svg width="150" height="150" aria-hidden="true">
         <circle class="bg" cx="75" cy="75" r="60"/>
         <circle id="progress-circle" class="progress" cx="75" cy="75" r="60" stroke="#ccc" stroke-dasharray="377" stroke-dashoffset="377"/>
       </svg>
@@ -87,7 +89,7 @@ fetch("https://splask-api.jdn.gov.my/api/get_my_score", {
   headers: {
     "Content-Type": "application/json"
   },
-  body: JSON.stringify({ _token: "<?php echo $token; ?>" })
+  body: JSON.stringify({ _token: "<?php echo $token_escaped; ?>" })
 })
 .then(res => res.json())
 .then(data => {

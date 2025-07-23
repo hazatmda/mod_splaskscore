@@ -3,7 +3,7 @@
     <name>mod_splaskscore</name>
     <author>Muhammad Azizan Hazim</author>
     <version>1.1.6</version>
-    <description>Module to display SPLaSK Score in Joomla Admin Dashboard (Logik & label gred versi 1.1.6)</description>
+    <description>Module to display SPLaSK Score in Joomla Admin Dashboard (Logik and label gred versi 1.1.6)</description>
     <files>
         <filename module="mod_splaskscore">mod_splaskscore.php</filename>
     </files>

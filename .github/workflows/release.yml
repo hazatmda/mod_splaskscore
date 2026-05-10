@@ -29,6 +29,18 @@ jobs:
             -path './tests' -prune -o \
             -type f -name '*.php' -print0)
 
+      - name: Validate Joomla update metadata
+        run: |
+          set -euo pipefail
+
+          TAG_NAME="${GITHUB_REF_NAME}"
+          VERSION="${TAG_NAME#v}"
+          ZIP_NAME="mod_splaskscore_v${VERSION}.zip"
+          EXPECTED_ZIP_URL="https://github.com/hazatmda/mod_splaskscore/releases/download/${TAG_NAME}/${ZIP_NAME}"
+
+          python3 scripts/validate_release_metadata.py --version "$VERSION"
+          echo "Validated release ZIP URL: ${EXPECTED_ZIP_URL}"
+
       - name: Build clean Joomla installation ZIP
         run: |
           set -euo pipefail
@@ -74,7 +86,7 @@ jobs:
           unzip -l "$zip_path"
           unzip -l "$zip_path" | grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+mod_splaskscore\.xml$'
           ! unzip -l "$zip_path" | grep -Eq '(^|/)(\.git|\.github|tests?)(/|$)'
-          ! unzip -l "$zip_path" | grep -Eq '(^|/)(AUDIT_AND_REFACTOR_PLAN\.md|README\.md|mod_splaskscore_update\.xml)$'
+          ! unzip -l "$zip_path" | grep -Eq '(^|/)(AUDIT_AND_REFACTOR_PLAN\.md|README\.md|updates\.xml|mod_splaskscore_update\.xml|scripts)(/|$)'
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4

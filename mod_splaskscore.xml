@@ -6,6 +6,8 @@
     <description>Module to display SPLaSK Score in Joomla Admin Dashboard (Logik and label gred versi 1.1.6)</description>
     <files>
         <filename module="mod_splaskscore">mod_splaskscore.php</filename>
+        <filename>helper.php</filename>
+        <folder>tmpl</folder>
     </files>
     <config>
         <fields name="params">
@@ -17,6 +19,15 @@
                     description="Masukkan token SPLaSK anda untuk paparan markah."
                     required="true"
                 />
+                <field
+                    name="design_preset"
+                    type="list"
+                    label="Design Preset"
+                    description="Pilih reka bentuk paparan markah SPLaSK."
+                    default="modern_circle"
+                >
+                    <option value="modern_circle">Modern Circle</option>
+                </field>
             </fieldset>
         </fields>
     </config>

@@ -1,0 +1,90 @@
+name: Release Joomla module
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish Joomla install ZIP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate PHP syntax
+        run: |
+          set -euo pipefail
+
+          while IFS= read -r -d '' file; do
+            php -l "$file"
+          done < <(find . \
+            -path './.git' -prune -o \
+            -path './.github' -prune -o \
+            -path './tests' -prune -o \
+            -type f -name '*.php' -print0)
+
+      - name: Build clean Joomla installation ZIP
+        run: |
+          set -euo pipefail
+
+          TAG_NAME="${GITHUB_REF_NAME}"
+          VERSION="${TAG_NAME#v}"
+          ZIP_NAME="mod_splaskscore_v${VERSION}.zip"
+          STAGING_DIR="build/mod_splaskscore"
+
+          rm -rf build dist
+          mkdir -p "$STAGING_DIR" dist
+
+          install -m 0644 mod_splaskscore.php "$STAGING_DIR/mod_splaskscore.php"
+          install -m 0644 helper.php "$STAGING_DIR/helper.php"
+          install -m 0644 mod_splaskscore.xml "$STAGING_DIR/mod_splaskscore.xml"
+
+          for optional_file in LICENSE LICENSE.txt; do
+            if [ -f "$optional_file" ]; then
+              install -m 0644 "$optional_file" "$STAGING_DIR/$optional_file"
+            fi
+          done
+
+          for optional_dir in tmpl media language; do
+            if [ -d "$optional_dir" ]; then
+              mkdir -p "$STAGING_DIR/$optional_dir"
+              cp -R "$optional_dir/." "$STAGING_DIR/$optional_dir/"
+            fi
+          done
+
+          (
+            cd "$STAGING_DIR"
+            zip -r "../../dist/$ZIP_NAME" .
+          )
+
+          echo "zip_name=$ZIP_NAME" >> "$GITHUB_ENV"
+          echo "zip_path=dist/$ZIP_NAME" >> "$GITHUB_ENV"
+
+      - name: Validate Joomla package contents
+        run: |
+          set -euo pipefail
+
+          test -f "$zip_path"
+          unzip -l "$zip_path"
+          unzip -l "$zip_path" | grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+mod_splaskscore\.xml$'
+          ! unzip -l "$zip_path" | grep -Eq '(^|/)(\.git|\.github|tests?)(/|$)'
+          ! unzip -l "$zip_path" | grep -Eq '(^|/)(AUDIT_AND_REFACTOR_PLAN\.md|README\.md|mod_splaskscore_update\.xml)$'
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.zip_name }}
+          path: ${{ env.zip_path }}
+          if-no-files-found: error
+
+      - name: Attach ZIP to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.zip_path }}
+          fail_on_unmatched_files: true

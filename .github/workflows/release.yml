@@ -183,9 +183,11 @@ jobs:
           grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+packages/$' package-contents.txt
           grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+packages/plg_task_splaskscoreanalytics\.zip$' package-contents.txt
           grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+packages/plg_system_splaskscoreautomation\.zip$' package-contents.txt
-          unzip -p "$zip_path" script.php | grep -Eq "packages/plg_task_splaskscoreanalytics\.zip"
-          unzip -p "$zip_path" script.php | grep -Eq "packages/plg_system_splaskscoreautomation\.zip"
-          unzip -p "$zip_path" script.php | grep -Eq "Installer::getInstance\(\)->install"
+          unzip -p "$zip_path" script.php > packaged-script.php
+          grep -Eq "resolvePackagesPath|/packages" packaged-script.php
+          grep -Eq "plg_task_splaskscoreanalytics\.zip" packaged-script.php
+          grep -Eq "plg_system_splaskscoreautomation\.zip" packaged-script.php
+          grep -Eq "Installer::getInstance\(\)->install" packaged-script.php
           unzip -p "$zip_path" packages/plg_task_splaskscoreanalytics.zip > /tmp/plg_task_splaskscoreanalytics.zip
           unzip -p "$zip_path" packages/plg_system_splaskscoreautomation.zip > /tmp/plg_system_splaskscoreautomation.zip
           unzip -l /tmp/plg_task_splaskscoreanalytics.zip | grep -Eq 'splaskscoreanalytics\.(php|xml)'

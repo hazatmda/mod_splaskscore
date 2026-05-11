@@ -9,7 +9,7 @@
 
 defined('_JEXEC') or die;
 
-$splaskPreset = 'modern_circle';
-$splaskPresetLabel = 'Modern Circle';
+$splaskPreset = 'minimal_clean';
+$splaskPresetLabel = 'Minimal Clean';
 
 require __DIR__ . '/_score_card.php';

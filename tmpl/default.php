@@ -9,4 +9,7 @@
 
 defined('_JEXEC') or die;
 
-require __DIR__ . '/modern_circle.php';
+$splaskPreset = 'default';
+$splaskPresetLabel = 'Default Card';
+
+require __DIR__ . '/_score_card.php';

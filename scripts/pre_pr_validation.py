@@ -167,9 +167,20 @@ def inspect_package(zip_path: Path, version: str) -> None:
         if "<scriptfile>script.php</scriptfile>" not in packaged_manifest:
             raise AssertionError("Module manifest must register installer script for plugin install/upgrade flow")
         script_body = archive.read("script.php").decode("utf-8")
-        for token in ["Installer::getInstance()->install", "enablePlugin", "splaskscoreanalytics", "splaskscoreautomation"]:
+        for token in [
+            "InstallerHelper::unpack",
+            "Installer::getInstance()->install($installPath)",
+            "InstallerHelper::cleanupInstall",
+            "is_dir($packagesPath)",
+            "is_dir($installPath)",
+            "enablePlugin",
+            "splaskscoreanalytics",
+            "splaskscoreautomation",
+        ]:
             if token not in script_body:
                 raise AssertionError(f"Install/upgrade flow validation missing token: {token}")
+        if "Installer::getInstance()->install($pluginZip)" in script_body:
+            raise AssertionError("Bundled plugin ZIPs must be unpacked before Installer::install() to avoid Install path warnings")
 
         declares_sql = module_root.find("files/folder[.='sql']") is not None
         if declares_sql and not any(name.startswith("sql/") for name in names):

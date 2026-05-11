@@ -20,6 +20,7 @@ EXTENSION_ELEMENT = "mod_splaskscore"
 MODULE_MANIFEST = Path("mod_splaskscore.xml")
 UPDATE_MANIFEST = Path("updates.xml")
 VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?")
+DESCRIPTION_VERSION_PATTERN = re.compile(r"(versi\s+)\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", re.IGNORECASE)
 
 
 class MetadataSyncError(ValueError):
@@ -70,6 +71,20 @@ def set_required_text(parent: ET.Element, path: str, source: Path, value: str) -
     return old_value, value
 
 
+def sync_description_version(module_root: ET.Element, module_manifest: Path, version: str) -> tuple[str, str] | None:
+    description = required_child(module_root, "description", module_manifest)
+    old_value = (description.text or "").strip()
+    if not old_value:
+        raise MetadataSyncError(f"{module_manifest}: empty <description>")
+
+    new_value, replacements = DESCRIPTION_VERSION_PATTERN.subn(rf"\g<1>{version}", old_value)
+    if replacements == 0:
+        return None
+
+    description.text = new_value
+    return old_value, new_value
+
+
 def indent_xml(tree: ET.ElementTree) -> None:
     # ET.indent is available on the Python versions provided by GitHub-hosted
     # runners and keeps generated XML readable for diagnostics/artifacts.
@@ -107,6 +122,11 @@ def sync_metadata(module_manifest: Path, update_manifest: Path, version: str) ->
     changes: list[str] = []
     old, new = set_required_text(module_root, "version", module_manifest, version)
     changes.append(f"{module_manifest}: <version> {old} -> {new}")
+
+    description_change = sync_description_version(module_root, module_manifest, version)
+    if description_change is not None:
+        old, new = description_change
+        changes.append(f"{module_manifest}: <description> {old} -> {new}")
 
     old, new = set_required_text(update, "version", update_manifest, version)
     changes.append(f"{update_manifest}: <version> {old} -> {new}")

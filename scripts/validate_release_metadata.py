@@ -13,6 +13,7 @@ REPOSITORY = "hazatmda/mod_splaskscore"
 EXTENSION_ELEMENT = "mod_splaskscore"
 MODULE_MANIFEST = Path("mod_splaskscore.xml")
 UPDATE_MANIFEST = Path("updates.xml")
+DESCRIPTION_VERSION_PATTERN = re.compile(r"versi\s+(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)", re.IGNORECASE)
 
 
 def text_at(parent: ET.Element, path: str, source: Path) -> str:
@@ -54,9 +55,16 @@ def validate(module_manifest: Path, update_manifest: Path, version: str | None) 
 
     module_name = text_at(module_root, "name", module_manifest)
     module_version = text_at(module_root, "version", module_manifest)
+    module_description = text_at(module_root, "description", module_manifest)
     if module_name != EXTENSION_ELEMENT:
         raise ValueError(f"{module_manifest}: <name> must be {EXTENSION_ELEMENT}")
     validate_version(module_version)
+    description_versions = DESCRIPTION_VERSION_PATTERN.findall(module_description)
+    for description_version in description_versions:
+        if description_version != module_version:
+            raise ValueError(
+                f"{module_manifest}: description version {description_version} does not match manifest version {module_version}"
+            )
 
     update_server = module_root.find("updateservers/server")
     if update_server is None:

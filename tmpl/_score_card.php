@@ -17,6 +17,7 @@ $presetLabel = $splaskPresetLabel ?? 'Modern Circle';
 $moduleId = isset($module) ? (int) $module->id : 0;
 $rootId = 'mod-splaskscore-' . $moduleId . '-' . preg_replace('/[^a-z0-9_-]/i', '-', $preset);
 $assetBase = Uri::root(true) . '/media/mod_splaskscore';
+$appearanceMode = ModSplaskscoreHelper::getAppearanceMode($params);
 
 $document = Factory::getApplication()->getDocument();
 $document->addStyleSheet($assetBase . '/css/splaskscore.css');
@@ -25,10 +26,13 @@ $document->addScript($assetBase . '/js/splaskscore.js', ['defer' => true]);
 
 <div
   id="<?php echo htmlspecialchars($rootId, ENT_QUOTES, 'UTF-8'); ?>"
-  class="splask-widget splask-preset-<?php echo htmlspecialchars($preset, ENT_QUOTES, 'UTF-8'); ?> mt-3"
+  class="splask-widget splask-preset-<?php echo htmlspecialchars($preset, ENT_QUOTES, 'UTF-8'); ?> splask-appearance-<?php echo htmlspecialchars($appearanceMode, ENT_QUOTES, 'UTF-8'); ?> mt-3"
+  style="<?php echo ModSplaskscoreHelper::getGradeThemeStyle(); ?>"
   data-splask-widget
   data-splask-token="<?php echo $token_escaped; ?>"
   data-splask-grade-rules="<?php echo ModSplaskscoreHelper::getGradeRulesJson(); ?>"
+  data-splask-appearance-mode="<?php echo htmlspecialchars($appearanceMode, ENT_QUOTES, 'UTF-8'); ?>"
+  data-splask-appearance="<?php echo $appearanceMode === 'auto' ? 'auto' : htmlspecialchars($appearanceMode, ENT_QUOTES, 'UTF-8'); ?>"
 >
   <section class="splask-card" aria-labelledby="<?php echo htmlspecialchars($rootId, ENT_QUOTES, 'UTF-8'); ?>-title">
     <header class="splask-header">

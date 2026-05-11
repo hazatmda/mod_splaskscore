@@ -29,6 +29,10 @@ final class ModSplaskscoreHelper
             'gradient_ring',
             'compact_badge',
             'dashboard_tile',
+            'neon_glass',
+            'minimal_oled',
+            'enterprise_kpi',
+            'arc_reactor',
         ];
     }
 
@@ -44,6 +48,62 @@ final class ModSplaskscoreHelper
         $layout = (string) $params->get('design_preset', 'modern_circle');
 
         return in_array($layout, self::getAllowedDesignPresets(), true) ? $layout : 'modern_circle';
+    }
+
+    /**
+     * Return the appearance modes supported by the module.
+     *
+     * @return  string[]
+     */
+    public static function getAllowedAppearanceModes(): array
+    {
+        return [
+            'light',
+            'dark',
+            'auto',
+        ];
+    }
+
+    /**
+     * Resolve the requested appearance mode to a supported value.
+     *
+     * The light fallback preserves the existing module rendering for sites that
+     * have not explicitly opted into adaptive dark-mode behavior.
+     *
+     * @param   object  $params  Joomla module parameters registry.
+     *
+     * @return  string
+     */
+    public static function getAppearanceMode($params): string
+    {
+        $mode = (string) $params->get('appearance_mode', 'light');
+
+        return in_array($mode, self::getAllowedAppearanceModes(), true) ? $mode : 'light';
+    }
+
+    /**
+     * Return centralized CSS custom properties for each grade.
+     *
+     * @return  string
+     */
+    public static function getGradeThemeStyle(): string
+    {
+        $declarations = [];
+
+        foreach (self::getGradeRules() as $rule) {
+            $key = preg_replace('/[^a-z0-9_-]/i', '', (string) $rule['key']);
+
+            foreach (['color', 'accent', 'surface', 'text'] as $token) {
+                $declarations[] = sprintf(
+                    '--splask-grade-%s-%s:%s',
+                    $key,
+                    $token,
+                    $rule[$token]
+                );
+            }
+        }
+
+        return htmlspecialchars(implode(';', $declarations), ENT_QUOTES, 'UTF-8');
     }
 
     /**

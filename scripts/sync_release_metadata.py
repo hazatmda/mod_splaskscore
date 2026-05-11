@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Synchronize Joomla release metadata from a Git tag/version.
 
-This script intentionally patches only the version-dependent XML values used by
-GitHub Releases and the Joomla update server. The release workflow uses it both
-for the temporary packaging workspace and for the default-branch metadata
-commit-back step so both paths share one source of release truth.
+This script patches all version-dependent manifest, update-server, package,
+plugin, and helper engine metadata used by GitHub Releases and Joomla installs.
+The release workflow uses it both for the temporary packaging workspace and for
+the default-branch metadata commit-back step so both paths share one source of
+release truth.
 """
 
 from __future__ import annotations
@@ -20,6 +21,10 @@ EXTENSION_ELEMENT = "mod_splaskscore"
 MODULE_MANIFEST = Path("mod_splaskscore.xml")
 UPDATE_MANIFEST = Path("updates.xml")
 LEGACY_UPDATE_MANIFEST = Path("mod_splaskscore_update.xml")
+PACKAGE_MANIFEST = Path("pkg_splaskscore.xml")
+PLUGIN_MANIFEST = Path("plugins/task/splaskscoreanalytics/splaskscoreanalytics.xml")
+SYSTEM_PLUGIN_MANIFEST = Path("plugins/system/splaskscoreautomation/splaskscoreautomation.xml")
+HELPER_FILE = Path("helper.php")
 VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?")
 DESCRIPTION_VERSION_PATTERN = re.compile(r"(versi\s+)\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", re.IGNORECASE)
 BRACKET_VERSION_PATTERN = re.compile(r"(\[v)\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?(\])", re.IGNORECASE)
@@ -98,6 +103,38 @@ def write_xml(tree: ET.ElementTree, path: Path) -> None:
     tree.write(path, encoding="utf-8", xml_declaration=True, short_empty_elements=True)
 
 
+def sync_manifest_version(manifest: Path, version: str, expected_type: str | None = None) -> list[str]:
+    if not manifest.exists():
+        return []
+
+    tree = parse_xml(manifest)
+    root = tree.getroot()
+    if root.tag != "extension":
+        raise MetadataSyncError(f"{manifest}: root element must be <extension>")
+    if expected_type is not None and root.attrib.get("type") != expected_type:
+        raise MetadataSyncError(f"{manifest}: extension type must be {expected_type!r}")
+
+    old, new = set_required_text(root, "version", manifest, version)
+    write_xml(tree, manifest)
+    return [f"{manifest}: <version> {old} -> {new}"]
+
+
+def sync_helper_engine_version(helper_file: Path, version: str) -> list[str]:
+    if not helper_file.exists():
+        return []
+
+    text = helper_file.read_text()
+    pattern = re.compile(r"(private\s+const\s+ENGINE_VERSION\s*=\s*['\"])" + VERSION_PATTERN.pattern + r"(['\"]\s*;)")
+    match = pattern.search(text)
+    if match is None:
+        raise MetadataSyncError(f"{helper_file}: missing ENGINE_VERSION constant")
+
+    old_version = match.group(0).split(match.group(1), 1)[1].rsplit(match.group(2), 1)[0]
+    new_text = pattern.sub(rf"\g<1>{version}\g<2>", text, count=1)
+    helper_file.write_text(new_text)
+    return [f"{helper_file}: ENGINE_VERSION {old_version} -> {version}"]
+
+
 def sync_legacy_update_manifest(legacy_manifest: Path, version: str) -> list[str]:
     if not legacy_manifest.exists():
         return []
@@ -141,7 +178,16 @@ def sync_legacy_update_manifest(legacy_manifest: Path, version: str) -> list[str
     return changes
 
 
-def sync_metadata(module_manifest: Path, update_manifest: Path, legacy_update_manifest: Path, version: str) -> list[str]:
+def sync_metadata(
+    module_manifest: Path,
+    update_manifest: Path,
+    legacy_update_manifest: Path,
+    package_manifest: Path,
+    plugin_manifest: Path,
+    system_plugin_manifest: Path,
+    helper_file: Path,
+    version: str,
+) -> list[str]:
     module_tree = parse_xml(module_manifest)
     update_tree = parse_xml(update_manifest)
     module_root = module_tree.getroot()
@@ -187,6 +233,10 @@ def sync_metadata(module_manifest: Path, update_manifest: Path, legacy_update_ma
     write_xml(module_tree, module_manifest)
     write_xml(update_tree, update_manifest)
     changes.extend(sync_legacy_update_manifest(legacy_update_manifest, version))
+    changes.extend(sync_manifest_version(package_manifest, version, expected_type="package"))
+    changes.extend(sync_manifest_version(plugin_manifest, version, expected_type="plugin"))
+    changes.extend(sync_manifest_version(system_plugin_manifest, version, expected_type="plugin"))
+    changes.extend(sync_helper_engine_version(helper_file, version))
     return changes
 
 
@@ -197,6 +247,10 @@ def main() -> int:
     parser.add_argument("--module-manifest", type=Path, default=MODULE_MANIFEST)
     parser.add_argument("--update-manifest", type=Path, default=UPDATE_MANIFEST)
     parser.add_argument("--legacy-update-manifest", type=Path, default=LEGACY_UPDATE_MANIFEST)
+    parser.add_argument("--package-manifest", type=Path, default=PACKAGE_MANIFEST)
+    parser.add_argument("--plugin-manifest", type=Path, default=PLUGIN_MANIFEST)
+    parser.add_argument("--system-plugin-manifest", type=Path, default=SYSTEM_PLUGIN_MANIFEST)
+    parser.add_argument("--helper-file", type=Path, default=HELPER_FILE)
     args = parser.parse_args()
 
     source = args.tag or args.version
@@ -206,7 +260,16 @@ def main() -> int:
 
     try:
         version = normalize_version(source)
-        changes = sync_metadata(args.module_manifest, args.update_manifest, args.legacy_update_manifest, version)
+        changes = sync_metadata(
+            args.module_manifest,
+            args.update_manifest,
+            args.legacy_update_manifest,
+            args.package_manifest,
+            args.plugin_manifest,
+            args.system_plugin_manifest,
+            args.helper_file,
+            version,
+        )
     except MetadataSyncError as exc:
         print(f"release metadata synchronization failed: {exc}", file=sys.stderr)
         return 1

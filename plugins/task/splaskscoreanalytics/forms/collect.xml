@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fields name="params">
+        <fieldset name="basic">
+            <field name="schedule_note" type="note" label="PLG_TASK_SPLASKSCOREANALYTICS_COLLECT_LABEL" description="PLG_TASK_SPLASKSCOREANALYTICS_COLLECT_DESC" />
+        </fieldset>
+    </fields>
+</form>

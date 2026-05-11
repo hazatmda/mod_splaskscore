@@ -14,6 +14,10 @@ EXTENSION_ELEMENT = "mod_splaskscore"
 MODULE_MANIFEST = Path("mod_splaskscore.xml")
 UPDATE_MANIFEST = Path("updates.xml")
 LEGACY_UPDATE_MANIFEST = Path("mod_splaskscore_update.xml")
+PACKAGE_MANIFEST = Path("pkg_splaskscore.xml")
+PLUGIN_MANIFEST = Path("plugins/task/splaskscoreanalytics/splaskscoreanalytics.xml")
+SYSTEM_PLUGIN_MANIFEST = Path("plugins/system/splaskscoreautomation/splaskscoreautomation.xml")
+HELPER_FILE = Path("helper.php")
 DESCRIPTION_VERSION_PATTERN = re.compile(r"versi\s+(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)", re.IGNORECASE)
 BRACKET_VERSION_PATTERN = re.compile(r"\[v(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)\]", re.IGNORECASE)
 
@@ -81,7 +85,46 @@ def validate_legacy_update_manifest(legacy_manifest: Path, version: str) -> None
             )
 
 
-def validate(module_manifest: Path, update_manifest: Path, legacy_update_manifest: Path, version: str | None) -> None:
+def validate_manifest_version(manifest: Path, version: str, expected_type: str) -> None:
+    if not manifest.exists():
+        raise ValueError(f"{manifest}: missing manifest")
+
+    root = parse_xml(manifest)
+    if root.tag != "extension":
+        raise ValueError(f"{manifest}: root element must be <extension>")
+    if root.attrib.get("type") != expected_type:
+        raise ValueError(f"{manifest}: extension type must be {expected_type!r}")
+
+    manifest_version = text_at(root, "version", manifest)
+    if manifest_version != version:
+        raise ValueError(f"{manifest}: <version> {manifest_version} does not match release version {version}")
+
+
+def validate_helper_engine_version(helper_file: Path, version: str) -> None:
+    if not helper_file.exists():
+        raise ValueError(f"{helper_file}: missing helper file")
+
+    text = helper_file.read_text()
+    pattern = re.compile(r"private\s+const\s+ENGINE_VERSION\s*=\s*['\"]" + r"(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)" + r"['\"]\s*;")
+    match = pattern.search(text)
+    if match is None:
+        raise ValueError(f"{helper_file}: missing ENGINE_VERSION constant")
+
+    engine_version = match.group(1)
+    if engine_version != version:
+        raise ValueError(f"{helper_file}: ENGINE_VERSION {engine_version} does not match release version {version}")
+
+
+def validate(
+    module_manifest: Path,
+    update_manifest: Path,
+    legacy_update_manifest: Path,
+    package_manifest: Path,
+    plugin_manifest: Path,
+    system_plugin_manifest: Path,
+    helper_file: Path,
+    version: str | None,
+) -> None:
     module_root = parse_xml(module_manifest)
     update_root = parse_xml(update_manifest)
 
@@ -165,6 +208,10 @@ def validate(module_manifest: Path, update_manifest: Path, legacy_update_manifes
         raise ValueError(f"Download URL must be {expected_url}, got {download_url}")
 
     validate_legacy_update_manifest(legacy_update_manifest, module_version)
+    validate_manifest_version(package_manifest, module_version, "package")
+    validate_manifest_version(plugin_manifest, module_version, "plugin")
+    validate_manifest_version(system_plugin_manifest, module_version, "plugin")
+    validate_helper_engine_version(helper_file, module_version)
 
 
 def main() -> int:
@@ -173,10 +220,23 @@ def main() -> int:
     parser.add_argument("--module-manifest", type=Path, default=MODULE_MANIFEST)
     parser.add_argument("--update-manifest", type=Path, default=UPDATE_MANIFEST)
     parser.add_argument("--legacy-update-manifest", type=Path, default=LEGACY_UPDATE_MANIFEST)
+    parser.add_argument("--package-manifest", type=Path, default=PACKAGE_MANIFEST)
+    parser.add_argument("--plugin-manifest", type=Path, default=PLUGIN_MANIFEST)
+    parser.add_argument("--system-plugin-manifest", type=Path, default=SYSTEM_PLUGIN_MANIFEST)
+    parser.add_argument("--helper-file", type=Path, default=HELPER_FILE)
     args = parser.parse_args()
 
     try:
-        validate(args.module_manifest, args.update_manifest, args.legacy_update_manifest, args.version)
+        validate(
+            args.module_manifest,
+            args.update_manifest,
+            args.legacy_update_manifest,
+            args.package_manifest,
+            args.plugin_manifest,
+            args.system_plugin_manifest,
+            args.helper_file,
+            args.version,
+        )
     except ValueError as exc:
         print(f"release metadata validation failed: {exc}", file=sys.stderr)
         return 1

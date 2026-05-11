@@ -23,6 +23,7 @@ UPDATE_MANIFEST = Path("updates.xml")
 LEGACY_UPDATE_MANIFEST = Path("mod_splaskscore_update.xml")
 PACKAGE_MANIFEST = Path("pkg_splaskscore.xml")
 PLUGIN_MANIFEST = Path("plugins/task/splaskscoreanalytics/splaskscoreanalytics.xml")
+SYSTEM_PLUGIN_MANIFEST = Path("plugins/system/splaskscoreautomation/splaskscoreautomation.xml")
 HELPER_FILE = Path("helper.php")
 VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?")
 DESCRIPTION_VERSION_PATTERN = re.compile(r"(versi\s+)\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", re.IGNORECASE)
@@ -183,6 +184,7 @@ def sync_metadata(
     legacy_update_manifest: Path,
     package_manifest: Path,
     plugin_manifest: Path,
+    system_plugin_manifest: Path,
     helper_file: Path,
     version: str,
 ) -> list[str]:
@@ -233,6 +235,7 @@ def sync_metadata(
     changes.extend(sync_legacy_update_manifest(legacy_update_manifest, version))
     changes.extend(sync_manifest_version(package_manifest, version, expected_type="package"))
     changes.extend(sync_manifest_version(plugin_manifest, version, expected_type="plugin"))
+    changes.extend(sync_manifest_version(system_plugin_manifest, version, expected_type="plugin"))
     changes.extend(sync_helper_engine_version(helper_file, version))
     return changes
 
@@ -246,6 +249,7 @@ def main() -> int:
     parser.add_argument("--legacy-update-manifest", type=Path, default=LEGACY_UPDATE_MANIFEST)
     parser.add_argument("--package-manifest", type=Path, default=PACKAGE_MANIFEST)
     parser.add_argument("--plugin-manifest", type=Path, default=PLUGIN_MANIFEST)
+    parser.add_argument("--system-plugin-manifest", type=Path, default=SYSTEM_PLUGIN_MANIFEST)
     parser.add_argument("--helper-file", type=Path, default=HELPER_FILE)
     args = parser.parse_args()
 
@@ -262,6 +266,7 @@ def main() -> int:
             args.legacy_update_manifest,
             args.package_manifest,
             args.plugin_manifest,
+            args.system_plugin_manifest,
             args.helper_file,
             version,
         )

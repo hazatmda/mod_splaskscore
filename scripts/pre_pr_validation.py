@@ -246,6 +246,7 @@ def validate_schema_and_workflows() -> None:
     helper = (ROOT / "helper.php").read_text()
     module_manifest = MODULE_MANIFEST.read_text()
     readme = (ROOT / "README.md").read_text()
+    release_workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text()
     script = (ROOT / "media" / "js" / "splaskscore.js").read_text()
     template = (ROOT / "tmpl" / "_score_card.php").read_text()
 
@@ -258,6 +259,27 @@ def validate_schema_and_workflows() -> None:
     missing_helper = [token for token in helper_tokens if token not in helper]
     if missing_helper:
         raise AssertionError("Install/upgrade/manual/scheduler helper validation missing: " + ", ".join(missing_helper))
+
+    health_failure_tokens = [
+        "strcmp($lastFailed, $effectiveSuccess) > 0",
+        "must not be masked by an older successful collection",
+        "'status' => $status",
+    ]
+    missing_health_tokens = [token for token in health_failure_tokens if token not in helper]
+    if missing_health_tokens:
+        raise AssertionError("Health failure precedence validation missing: " + ", ".join(missing_health_tokens))
+
+    release_workflow_tokens = [
+        "install -m 0644 script.php",
+        "packages/plg_task_splaskscoreanalytics.zip",
+        "packages/plg_system_splaskscoreautomation.zip",
+        r"<scriptfile>script\.php</scriptfile>",
+        r"Installer::getInstance\(\)->install",
+        "--system-plugin-manifest",
+    ]
+    missing_release_workflow = [token for token in release_workflow_tokens if token not in release_workflow]
+    if missing_release_workflow:
+        raise AssertionError("Release workflow packaging validation missing: " + ", ".join(missing_release_workflow))
 
     scheduler_guidance_tokens = [
         "Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment",

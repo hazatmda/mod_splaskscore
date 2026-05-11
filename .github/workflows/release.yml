@@ -115,14 +115,29 @@ jobs:
           set -euo pipefail
 
           STAGING_DIR="build/${EXTENSION_NAME}"
+          PACKAGE_DIR="$STAGING_DIR/packages"
           ZIP_PATH="dist/${zip_name}"
+          TASK_PLUGIN_ZIP="build/plg_task_splaskscoreanalytics.zip"
+          SYSTEM_PLUGIN_ZIP="build/plg_system_splaskscoreautomation.zip"
 
           rm -rf build dist
-          mkdir -p "$STAGING_DIR" dist
+          mkdir -p "$STAGING_DIR" "$PACKAGE_DIR" dist
+
+          (
+            cd plugins/task/splaskscoreanalytics
+            zip -r "$GITHUB_WORKSPACE/$TASK_PLUGIN_ZIP" .
+          )
+          (
+            cd plugins/system/splaskscoreautomation
+            zip -r "$GITHUB_WORKSPACE/$SYSTEM_PLUGIN_ZIP" .
+          )
 
           install -m 0644 mod_splaskscore.php "$STAGING_DIR/mod_splaskscore.php"
           install -m 0644 helper.php "$STAGING_DIR/helper.php"
+          install -m 0644 script.php "$STAGING_DIR/script.php"
           install -m 0644 mod_splaskscore.xml "$STAGING_DIR/mod_splaskscore.xml"
+          install -m 0644 "$TASK_PLUGIN_ZIP" "$PACKAGE_DIR/plg_task_splaskscoreanalytics.zip"
+          install -m 0644 "$SYSTEM_PLUGIN_ZIP" "$PACKAGE_DIR/plg_system_splaskscoreautomation.zip"
 
           for optional_file in LICENSE LICENSE.txt; do
             if [ -f "$optional_file" ]; then
@@ -148,6 +163,9 @@ jobs:
             echo "## Package"
             echo "- Built: ${ZIP_PATH}"
             echo "- Release asset name: ${zip_name}"
+            echo "- Bundled installer script: script.php"
+            echo "- Bundled scheduler plugin: packages/plg_task_splaskscoreanalytics.zip"
+            echo "- Bundled module-save automation plugin: packages/plg_system_splaskscoreautomation.zip"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Validate Joomla package contents
@@ -158,7 +176,20 @@ jobs:
           unzip -l "$zip_path" | tee package-contents.txt
           unzip -p "$zip_path" mod_splaskscore.xml > packaged-manifest.xml
           grep -Eq "<version>${release_version}</version>" packaged-manifest.xml
+          grep -Eq '<scriptfile>script\.php</scriptfile>' packaged-manifest.xml
+          grep -Eq '<folder>packages</folder>' packaged-manifest.xml
           grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+mod_splaskscore\.xml$' package-contents.txt
+          grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+script\.php$' package-contents.txt
+          grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+packages/$' package-contents.txt
+          grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+packages/plg_task_splaskscoreanalytics\.zip$' package-contents.txt
+          grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+packages/plg_system_splaskscoreautomation\.zip$' package-contents.txt
+          unzip -p "$zip_path" script.php | grep -Eq "packages/plg_task_splaskscoreanalytics\.zip"
+          unzip -p "$zip_path" script.php | grep -Eq "packages/plg_system_splaskscoreautomation\.zip"
+          unzip -p "$zip_path" script.php | grep -Eq "Installer::getInstance\(\)->install"
+          unzip -p "$zip_path" packages/plg_task_splaskscoreanalytics.zip > /tmp/plg_task_splaskscoreanalytics.zip
+          unzip -p "$zip_path" packages/plg_system_splaskscoreautomation.zip > /tmp/plg_system_splaskscoreautomation.zip
+          unzip -l /tmp/plg_task_splaskscoreanalytics.zip | grep -Eq 'splaskscoreanalytics\.(php|xml)'
+          unzip -l /tmp/plg_system_splaskscoreautomation.zip | grep -Eq 'splaskscoreautomation\.(php|xml)'
 
           if grep -Eq '<folder>sql</folder>' packaged-manifest.xml; then
             grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+sql/$' package-contents.txt
@@ -194,14 +225,34 @@ jobs:
           python3 scripts/sync_release_metadata.py \
             --tag "${release_tag}" \
             --module-manifest "${METADATA_WORKTREE}/mod_splaskscore.xml" \
-            --update-manifest "${METADATA_WORKTREE}/updates.xml"
+            --update-manifest "${METADATA_WORKTREE}/updates.xml" \
+            --legacy-update-manifest "${METADATA_WORKTREE}/mod_splaskscore_update.xml" \
+            --package-manifest "${METADATA_WORKTREE}/pkg_splaskscore.xml" \
+            --plugin-manifest "${METADATA_WORKTREE}/plugins/task/splaskscoreanalytics/splaskscoreanalytics.xml" \
+            --system-plugin-manifest "${METADATA_WORKTREE}/plugins/system/splaskscoreautomation/splaskscoreautomation.xml" \
+            --helper-file "${METADATA_WORKTREE}/helper.php"
 
           python3 scripts/validate_release_metadata.py \
             --version "${release_version}" \
             --module-manifest "${METADATA_WORKTREE}/mod_splaskscore.xml" \
-            --update-manifest "${METADATA_WORKTREE}/updates.xml"
+            --update-manifest "${METADATA_WORKTREE}/updates.xml" \
+            --legacy-update-manifest "${METADATA_WORKTREE}/mod_splaskscore_update.xml" \
+            --package-manifest "${METADATA_WORKTREE}/pkg_splaskscore.xml" \
+            --plugin-manifest "${METADATA_WORKTREE}/plugins/task/splaskscoreanalytics/splaskscoreanalytics.xml" \
+            --system-plugin-manifest "${METADATA_WORKTREE}/plugins/system/splaskscoreautomation/splaskscoreautomation.xml" \
+            --helper-file "${METADATA_WORKTREE}/helper.php"
 
-          if git -C "${METADATA_WORKTREE}" diff --quiet -- mod_splaskscore.xml updates.xml; then
+          METADATA_PATHS=(
+            mod_splaskscore.xml
+            updates.xml
+            mod_splaskscore_update.xml
+            pkg_splaskscore.xml
+            plugins/task/splaskscoreanalytics/splaskscoreanalytics.xml
+            plugins/system/splaskscoreautomation/splaskscoreautomation.xml
+            helper.php
+          )
+
+          if git -C "${METADATA_WORKTREE}" diff --quiet -- "${METADATA_PATHS[@]}"; then
             echo "Release metadata on ${DEFAULT_BRANCH} already matches ${release_tag}."
             {
               echo "## Persisted update metadata"
@@ -211,8 +262,8 @@ jobs:
             exit 0
           fi
 
-          git -C "${METADATA_WORKTREE}" status --short -- mod_splaskscore.xml updates.xml
-          git -C "${METADATA_WORKTREE}" add mod_splaskscore.xml updates.xml
+          git -C "${METADATA_WORKTREE}" status --short -- "${METADATA_PATHS[@]}"
+          git -C "${METADATA_WORKTREE}" add "${METADATA_PATHS[@]}"
           git -C "${METADATA_WORKTREE}" commit -m "Sync release metadata for ${release_tag}"
           git -C "${METADATA_WORKTREE}" push origin "HEAD:${DEFAULT_BRANCH}"
 

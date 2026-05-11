@@ -1246,8 +1246,15 @@ final class ModSplaskscoreHelper
 
         $fallbackSuccess = $latest ? (string) ($latest->recorded_at ?? $latest->created_at) : '';
         $effectiveSuccess = $lastSuccess ?: $fallbackSuccess;
+        if ($fallbackSuccess !== '' && ($effectiveSuccess === '' || strcmp($fallbackSuccess, $effectiveSuccess) > 0)) {
+            $effectiveSuccess = $fallbackSuccess;
+        }
+
+        // The dashboard must reflect the newest operational event: a failure
+        // after the latest success/history snapshot is release-blocking and
+        // must not be masked by an older successful collection.
         $status = 'UNKNOWN';
-        if ($lastFailed !== null && ($effectiveSuccess === '' || $lastFailed > $effectiveSuccess)) {
+        if ($lastFailed !== null && ($effectiveSuccess === '' || strcmp($lastFailed, $effectiveSuccess) > 0)) {
             $status = 'FAILED';
         } elseif ($effectiveSuccess !== '') {
             $status = 'SUCCESS';

@@ -21,6 +21,30 @@ Modul ini menyokong Joomla Update Server.
 
 Fail `mod_splaskscore_update.xml` menyediakan maklumat kemaskini dan disemak secara automatik oleh Joomla.
 
+
+## Workflow Wajib Sebelum PR / Release
+
+Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
+
+```bash
+python3 scripts/pre_pr_validation.py
+```
+
+Semakan ini adalah disiplin wajib projek dan merangkumi:
+
+- Simulasi pembinaan ZIP installer Joomla di `dist/mod_splaskscore_v<version>.zip`.
+- Pemeriksaan kandungan ZIP yang dijana.
+- Pengesahan pembungkusan direktori `sql` apabila dideklarasikan dalam manifest.
+- Pengesahan fail SQL install/uninstall wujud dan tidak kosong dalam ZIP.
+- Sinkronisasi versi `mod_splaskscore.xml`, `updates.xml`, dan versi dalam deskripsi manifest.
+- Penjajaran tag release `v<version>` dengan metadata manifest/update-server.
+- Lint PHP untuk semua fail PHP modul.
+- Semakan sanity CSS untuk struktur, selector dashboard/analytics, dan mod gelap.
+- Validasi sintaks JS apabila fail JS wujud.
+- Semakan konsistensi rendering analytics/dashboard, format ketepatan markah, serta tingkah laku dark/light appearance.
+
+Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
+
 ## Changelog
 
 **v1.1.6 (22 Julai 2025)**

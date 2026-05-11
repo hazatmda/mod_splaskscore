@@ -3,6 +3,8 @@
 
   const SELECTOR = '[data-splask-widget]';
   const CIRCLE_LENGTH = 377;
+  const MALAY_WEEKDAYS = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
+  const MALAY_MONTHS = ['Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'];
 
 
   function hasDarkAdminSignal(element) {
@@ -50,28 +52,43 @@
     return rules.find((rule) => numericScore >= Number(rule.min) && numericScore <= Number(rule.max)) || rules[rules.length - 1];
   }
 
-  function formatTo12Hour(dateStr) {
-    if (!dateStr || !dateStr.includes('/')) {
-      return '---';
+  function formatScore(score) {
+    const numericScore = Number(score);
+    return `${Number.isFinite(numericScore) ? numericScore.toFixed(2) : '0.00'}%`;
+  }
+
+  function parseSplaskDate(dateStr) {
+    if (!dateStr) {
+      return null;
     }
 
-    const [day, month, rest] = dateStr.split('/');
-    if (!rest || !rest.includes(' ')) {
-      return dateStr;
+    if (dateStr.includes('/')) {
+      const [day, month, rest] = dateStr.split('/');
+      const [year, time = '00:00:00'] = (rest || '').split(' ');
+      const [hour = '0', minute = '0', second = '0'] = time.split(':');
+      const parsed = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
     }
 
-    const [year, time] = rest.split(' ');
-    const [hour, minute] = time.split(':');
-    const parsedHour = parseInt(hour, 10);
+    const parsed = new Date(dateStr);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
 
-    if (Number.isNaN(parsedHour)) {
-      return dateStr;
+  function formatMalayDate(dateStr) {
+    const parsed = parseSplaskDate(dateStr);
+
+    if (!parsed) {
+      return dateStr || '---';
     }
 
-    const ampm = parsedHour >= 12 ? 'PM' : 'AM';
-    const hour12 = parsedHour % 12 === 0 ? 12 : parsedHour % 12;
+    const weekday = MALAY_WEEKDAYS[parsed.getDay()];
+    const month = MALAY_MONTHS[parsed.getMonth()];
+    const hour = parsed.getHours();
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+    const minute = String(parsed.getMinutes()).padStart(2, '0');
 
-    return `${hour12}:${minute} ${ampm} ${day}/${month}/${year}`;
+    return `${weekday} • ${parsed.getDate()} ${month} ${parsed.getFullYear()} • ${hour12}:${minute} ${ampm}`;
   }
 
   function setText(root, name, value) {
@@ -203,11 +220,11 @@
     nextCheck.setDate(nextCheck.getDate() + 1);
     applyGradeStyles(root, grade, score);
 
-    setText(root, 'score', `${score}%`);
+    setText(root, 'score', formatScore(score));
     setText(root, 'grade', grade.label.toUpperCase());
     setText(root, 'grade-short', grade.shortLabel);
     setText(root, 'status', grade.status);
-    setText(root, 'date', formatTo12Hour(data.last_check));
+    setText(root, 'date', formatMalayDate(data.last_check));
     setText(root, 'next', nextCheck.toLocaleDateString('en-GB'));
 
     if (link && data.verification_url) {

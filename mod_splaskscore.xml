@@ -2,7 +2,7 @@
 <extension type="module" client="administrator" method="upgrade">
     <name>mod_splaskscore</name>
     <author>Muhammad Azizan Hazim</author>
-    <version>1.2.0</version>
+    <version>1.2.1</version>
     <description>Module to display SPLaSK Score in Joomla Admin Dashboard (Logik, label gred, and adaptive presets versi 1.2.0)</description>
     <files>
         <filename module="mod_splaskscore">mod_splaskscore.php</filename>

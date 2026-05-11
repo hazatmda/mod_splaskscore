@@ -101,6 +101,99 @@
     }
   }
 
+  function buildAjaxParams(root, task, values) {
+    const params = new URLSearchParams(values || {});
+    params.set('method', task);
+    params.set('module_id', root.dataset.splaskModuleId || '0');
+    params.set('token', root.dataset.splaskToken || '');
+    params.set(root.dataset.splaskCsrfToken || '', '1');
+
+    return params;
+  }
+
+  function postModuleAjax(root, task, values) {
+    return fetch(root.dataset.splaskAjaxUrl || 'index.php?option=com_ajax&module=splaskscore&format=json', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+      },
+      body: buildAjaxParams(root, task, values).toString()
+    }).then((response) => response.json());
+  }
+
+  function unwrapAjaxResponse(response) {
+    if (response && Array.isArray(response.data)) {
+      return response.data[0] || {};
+    }
+
+    return response && response.data ? response.data : response;
+  }
+
+  function saveHistory(root, data, grade, score) {
+    if (!root.dataset.splaskAjaxUrl || root.dataset.splaskHistorySaved === 'true') {
+      return;
+    }
+
+    root.dataset.splaskHistorySaved = 'true';
+
+    postModuleAjax(root, 'saveHistory', {
+      score: score,
+      grade_key: grade.key,
+      grade_label: grade.label,
+      status_label: grade.status,
+      verification_url: data.verification_url || '',
+      source_checked_at: data.last_check || ''
+    }).catch(() => {
+      root.dataset.splaskHistorySaved = 'false';
+    });
+  }
+
+  function setHistoryLoading(root, message) {
+    const body = root.querySelector('[data-splask-history-body]');
+    if (body) {
+      body.innerHTML = `<div class="splask-history-loading">${message}</div>`;
+    }
+  }
+
+  function loadHistory(root) {
+    const body = root.querySelector('[data-splask-history-body]');
+    if (!body || body.dataset.splaskLoaded === 'true') {
+      return;
+    }
+
+    setHistoryLoading(root, 'Memuatkan sejarah...');
+
+    postModuleAjax(root, 'history', {
+      appearance: root.dataset.splaskAppearance || resolveAppearance(root)
+    })
+      .then(unwrapAjaxResponse)
+      .then((data) => {
+        if (data && data.success && data.html) {
+          body.innerHTML = data.html;
+          body.dataset.splaskLoaded = 'true';
+          return;
+        }
+
+        setHistoryLoading(root, (data && data.message) || 'Sejarah tidak dapat dimuatkan.');
+      })
+      .catch(() => {
+        setHistoryLoading(root, 'Ralat sambungan semasa memuatkan sejarah.');
+      });
+  }
+
+  function bindHistoryModal(root) {
+    const modal = root.querySelector('[data-splask-history-modal-shell]');
+    const trigger = root.querySelector('[data-splask-history-trigger]');
+
+    if (modal) {
+      modal.addEventListener('show.bs.modal', () => loadHistory(root));
+    }
+
+    if (trigger) {
+      trigger.addEventListener('click', () => loadHistory(root));
+    }
+  }
+
   function updateSuccess(root, data, rules) {
     const score = Number(data.final_score) || 0;
     const grade = resolveGrade(score, rules);
@@ -121,6 +214,8 @@
       link.href = data.verification_url;
       link.removeAttribute('aria-disabled');
     }
+
+    saveHistory(root, data, grade, score);
   }
 
   function updateError(root, message) {
@@ -136,6 +231,7 @@
 
     root.dataset.splaskInitialized = 'true';
     applyAppearance(root);
+    bindHistoryModal(root);
 
     let rules = [];
     try {

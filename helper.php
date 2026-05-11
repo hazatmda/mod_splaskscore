@@ -541,7 +541,7 @@ final class ModSplaskscoreHelper
         $series = self::buildTrendSeries($records);
 
         if (count($series) < 2) {
-            return '<div class="splask-history-empty-chart">Carta trend akan dipaparkan selepas sekurang-kurangnya dua rekod disimpan.</div>';
+            return '<div class="splask-history-empty-chart">Trend akan dipaparkan selepas dua rekod berjaya disimpan.</div>';
         }
 
         $width = 640;

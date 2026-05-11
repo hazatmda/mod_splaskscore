@@ -304,6 +304,8 @@ def validate_schema_and_workflows() -> None:
     if missing_guidance:
         raise AssertionError("Scheduler operational guidance validation missing: " + ", ".join(missing_guidance))
 
+    validate_release_workflow_sequence(release_workflow)
+
     workflow_tokens = ["data-splask-refresh-trigger", "refreshAnalytics", "applyHealth", "data-splask-gap-warning"]
     combined = script + template
     missing_workflow = [token for token in workflow_tokens if token not in combined]
@@ -311,10 +313,50 @@ def validate_schema_and_workflows() -> None:
         raise AssertionError("Manual refresh/health UI validation missing: " + ", ".join(missing_workflow))
 
 
+def synchronize_release_metadata(release_tag: str | None) -> None:
+    if release_tag is None:
+        return
+    run([sys.executable, "scripts/sync_release_metadata.py", "--tag", release_tag])
+
+
+def validate_release_workflow_sequence(release_workflow: str) -> None:
+    ordered_tokens = [
+        "Resolve release version",
+        "Synchronize release metadata from tag",
+        "Validate Joomla update metadata",
+        "Build clean Joomla installation ZIP",
+        "Validate Joomla package contents",
+        "Upload workflow artifact",
+        "Attach ZIP to GitHub Release",
+    ]
+    positions = []
+    for token in ordered_tokens:
+        position = release_workflow.find(token)
+        if position == -1:
+            raise AssertionError(f"Release workflow sequencing validation missing step: {token}")
+        positions.append(position)
+
+    if positions != sorted(positions):
+        raise AssertionError(
+            "Release workflow steps must resolve version, synchronize metadata, validate metadata, "
+            "build and validate the package, then publish ZIP assets"
+        )
+
+    upload_tokens = [
+        "path: ${{ env.zip_path }}",
+        "if-no-files-found: error",
+        "files: ${{ env.zip_path }}",
+        "fail_on_unmatched_files: true",
+    ]
+    missing_upload_tokens = [token for token in upload_tokens if token not in release_workflow]
+    if missing_upload_tokens:
+        raise AssertionError("Release ZIP upload validation missing: " + ", ".join(missing_upload_tokens))
+
+
 def validate_release_metadata(version: str, release_tag: str | None) -> None:
-    run([sys.executable, "scripts/validate_release_metadata.py", "--version", version])
     if release_tag is not None and release_tag != f"v{version}":
         raise AssertionError(f"Release tag/version alignment failed: {release_tag} != v{version}")
+    run([sys.executable, "scripts/validate_release_metadata.py", "--version", version])
 
 
 def php_files() -> list[Path]:
@@ -402,8 +444,10 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
+        release_tag = args.release_tag
+        synchronize_release_metadata(release_tag)
         version = release_version()
-        release_tag = args.release_tag or f"v{version}"
+        release_tag = release_tag or f"v{version}"
         print(f"Pre-PR validation for {EXTENSION_NAME} {release_tag}")
         validate_release_metadata(version, release_tag)
         plugin_zip = build_scheduler_plugin(version)

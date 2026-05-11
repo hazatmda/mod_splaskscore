@@ -4,6 +4,47 @@
   const SELECTOR = '[data-splask-widget]';
   const CIRCLE_LENGTH = 377;
 
+
+  function hasDarkAdminSignal(element) {
+    if (!element) {
+      return false;
+    }
+
+    const values = [
+      element.dataset ? element.dataset.bsTheme : '',
+      element.dataset ? element.dataset.colorScheme : '',
+      element.dataset ? element.dataset.theme : '',
+      element.getAttribute('data-bs-theme'),
+      element.getAttribute('data-color-scheme'),
+      element.getAttribute('data-theme'),
+      element.className
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    return /(^|[\s_-])(dark|dark-mode|atum-dark)([\s_-]|$)/.test(values);
+  }
+
+  function resolveAppearance(root) {
+    const mode = root.dataset.splaskAppearanceMode || 'light';
+
+    if (mode === 'light' || mode === 'dark') {
+      return mode;
+    }
+
+    if (hasDarkAdminSignal(document.documentElement) || hasDarkAdminSignal(document.body)) {
+      return 'dark';
+    }
+
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+
+    return 'light';
+  }
+
+  function applyAppearance(root) {
+    root.dataset.splaskAppearance = resolveAppearance(root);
+  }
+
   function resolveGrade(score, rules) {
     const numericScore = Number(score);
     return rules.find((rule) => numericScore >= Number(rule.min) && numericScore <= Number(rule.max)) || rules[rules.length - 1];
@@ -94,6 +135,7 @@
     }
 
     root.dataset.splaskInitialized = 'true';
+    applyAppearance(root);
 
     let rules = [];
     try {
@@ -130,6 +172,19 @@
 
   function initAll() {
     document.querySelectorAll(SELECTOR).forEach(initWidget);
+  }
+
+  if (window.matchMedia) {
+    const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const refreshAutoAppearance = () => {
+      document.querySelectorAll(`${SELECTOR}[data-splask-appearance-mode="auto"]`).forEach(applyAppearance);
+    };
+
+    if (colorSchemeQuery.addEventListener) {
+      colorSchemeQuery.addEventListener('change', refreshAutoAppearance);
+    } else if (colorSchemeQuery.addListener) {
+      colorSchemeQuery.addListener(refreshAutoAppearance);
+    }
   }
 
   if (document.readyState === 'loading') {

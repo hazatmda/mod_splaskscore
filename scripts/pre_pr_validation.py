@@ -16,10 +16,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 EXTENSION_NAME = "mod_splaskscore"
 PLUGIN_NAME = "plg_task_splaskscoreanalytics"
+SYSTEM_PLUGIN_NAME = "plg_system_splaskscoreautomation"
 PACKAGE_NAME = "pkg_splaskscore"
 MODULE_MANIFEST = ROOT / "mod_splaskscore.xml"
 UPDATE_MANIFEST = ROOT / "updates.xml"
 PLUGIN_MANIFEST = ROOT / "plugins" / "task" / "splaskscoreanalytics" / "splaskscoreanalytics.xml"
+SYSTEM_PLUGIN_MANIFEST = ROOT / "plugins" / "system" / "splaskscoreautomation" / "splaskscoreautomation.xml"
 PACKAGE_MANIFEST = ROOT / "pkg_splaskscore.xml"
 BUILD_ROOT = ROOT / "build" / "pre-pr"
 DIST_ROOT = ROOT / "dist"
@@ -50,7 +52,7 @@ def release_version() -> str:
     return text_at(read_xml(MODULE_MANIFEST), "version", MODULE_MANIFEST)
 
 
-def build_package(version: str, plugin_zip: Path | None = None) -> Path:
+def build_package(version: str, plugin_zip: Path | None = None, system_plugin_zip: Path | None = None) -> Path:
     staging = BUILD_ROOT / EXTENSION_NAME
     zip_path = DIST_ROOT / f"{EXTENSION_NAME}_v{version}.zip"
 
@@ -65,10 +67,13 @@ def build_package(version: str, plugin_zip: Path | None = None) -> Path:
         if source.exists():
             shutil.copy2(source, staging / name)
 
+    package_dir = staging / "packages"
     if plugin_zip is not None:
-        package_dir = staging / "packages"
         package_dir.mkdir(exist_ok=True)
         shutil.copy2(plugin_zip, package_dir / "plg_task_splaskscoreanalytics.zip")
+    if system_plugin_zip is not None:
+        package_dir.mkdir(exist_ok=True)
+        shutil.copy2(system_plugin_zip, package_dir / "plg_system_splaskscoreautomation.zip")
 
     for name in ["tmpl", "media", "language", "sql"]:
         source = ROOT / name
@@ -106,7 +111,23 @@ def build_scheduler_plugin(version: str) -> Path:
     return zip_path
 
 
-def build_joomla_package(module_zip: Path, plugin_zip: Path, version: str) -> Path:
+def build_system_plugin(version: str) -> Path:
+    plugin_root = ROOT / "plugins" / "system" / "splaskscoreautomation"
+    DIST_ROOT.mkdir(exist_ok=True)
+    zip_path = DIST_ROOT / f"{SYSTEM_PLUGIN_NAME}_v{version}.zip"
+    if zip_path.exists():
+        zip_path.unlink()
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(plugin_root.rglob("*")):
+            if path.is_file():
+                archive.write(path, path.relative_to(plugin_root).as_posix())
+
+    print(f"Built module-save automation plugin installer simulation: {rel(zip_path)}")
+    return zip_path
+
+
+def build_joomla_package(module_zip: Path, plugin_zip: Path, system_plugin_zip: Path, version: str) -> Path:
     package_zip = DIST_ROOT / f"{PACKAGE_NAME}_v{version}.zip"
     if package_zip.exists():
         package_zip.unlink()
@@ -115,6 +136,7 @@ def build_joomla_package(module_zip: Path, plugin_zip: Path, version: str) -> Pa
         archive.write(PACKAGE_MANIFEST, PACKAGE_MANIFEST.name)
         archive.write(module_zip, "packages/mod_splaskscore.zip")
         archive.write(plugin_zip, "packages/plg_task_splaskscoreanalytics.zip")
+        archive.write(system_plugin_zip, "packages/plg_system_splaskscoreautomation.zip")
 
     print(f"Built Joomla package simulation: {rel(package_zip)}")
     return package_zip
@@ -128,7 +150,7 @@ def inspect_package(zip_path: Path, version: str) -> None:
         for name in sorted(names):
             print(f"- {name}")
 
-        required_files = {"mod_splaskscore.php", "helper.php", "script.php", "mod_splaskscore.xml", "packages/plg_task_splaskscoreanalytics.zip"}
+        required_files = {"mod_splaskscore.php", "helper.php", "script.php", "mod_splaskscore.xml", "packages/plg_task_splaskscoreanalytics.zip", "packages/plg_system_splaskscoreautomation.zip"}
         missing_files = sorted(required_files - names)
         if missing_files:
             raise AssertionError(f"ZIP is missing required files: {', '.join(missing_files)}")
@@ -145,7 +167,7 @@ def inspect_package(zip_path: Path, version: str) -> None:
         if "<scriptfile>script.php</scriptfile>" not in packaged_manifest:
             raise AssertionError("Module manifest must register installer script for plugin install/upgrade flow")
         script_body = archive.read("script.php").decode("utf-8")
-        for token in ["Installer::getInstance()->install", "enableSchedulerPlugin", "splaskscoreanalytics"]:
+        for token in ["Installer::getInstance()->install", "enablePlugin", "splaskscoreanalytics", "splaskscoreautomation"]:
             if token not in script_body:
                 raise AssertionError(f"Install/upgrade flow validation missing token: {token}")
 
@@ -185,6 +207,25 @@ def validate_scheduler_plugin_packaging(plugin_zip: Path, version: str) -> None:
                 raise AssertionError(f"Scheduler registration validation missing token: {token}")
 
 
+def validate_system_plugin_packaging(plugin_zip: Path, version: str) -> None:
+    plugin_root = read_xml(SYSTEM_PLUGIN_MANIFEST)
+    if plugin_root.attrib.get("type") != "plugin" or plugin_root.attrib.get("group") != "system":
+        raise AssertionError("Automation plugin manifest must be a system plugin")
+    if text_at(plugin_root, "version", SYSTEM_PLUGIN_MANIFEST) != version:
+        raise AssertionError("Automation plugin manifest version does not match release version")
+
+    with zipfile.ZipFile(plugin_zip) as archive:
+        names = set(archive.namelist())
+        required = {"splaskscoreautomation.php", "splaskscoreautomation.xml"}
+        missing = sorted(required - names)
+        if missing:
+            raise AssertionError(f"Automation plugin ZIP missing files: {', '.join(missing)}")
+        plugin_code = archive.read("splaskscoreautomation.php").decode("utf-8")
+        for token in ["onContentAfterSave", "synchronizeSchedulerForModule", "mod_splaskscore"]:
+            if token not in plugin_code:
+                raise AssertionError(f"Module-save scheduler synchronization missing token: {token}")
+
+
 def validate_joomla_package(package_zip: Path, version: str) -> None:
     package_root = read_xml(PACKAGE_MANIFEST)
     if package_root.attrib.get("type") != "package":
@@ -194,7 +235,7 @@ def validate_joomla_package(package_zip: Path, version: str) -> None:
 
     with zipfile.ZipFile(package_zip) as archive:
         names = set(archive.namelist())
-        required = {"pkg_splaskscore.xml", "packages/mod_splaskscore.zip", "packages/plg_task_splaskscoreanalytics.zip"}
+        required = {"pkg_splaskscore.xml", "packages/mod_splaskscore.zip", "packages/plg_task_splaskscoreanalytics.zip", "packages/plg_system_splaskscoreautomation.zip"}
         missing = sorted(required - names)
         if missing:
             raise AssertionError(f"Joomla package ZIP missing files: {', '.join(missing)}")
@@ -211,7 +252,7 @@ def validate_schema_and_workflows() -> None:
     if missing_schema:
         raise AssertionError("DB migration/schema validation missing: " + ", ".join(missing_schema))
 
-    helper_tokens = ["migrateHistoryTable", "isDuplicateHistoryRecord", "applyRetentionPolicy", "getAnalyticsHealth", "collectScheduledAnalytics", "refreshAnalyticsAjax"]
+    helper_tokens = ["migrateHistoryTable", "isDuplicateHistoryRecord", "applyRetentionPolicy", "getAnalyticsHealth", "collectScheduledAnalytics", "refreshAnalyticsAjax", "synchronizeSchedulerForModule", "buildSchedulerRules"]
     missing_helper = [token for token in helper_tokens if token not in helper]
     if missing_helper:
         raise AssertionError("Install/upgrade/manual/scheduler helper validation missing: " + ", ".join(missing_helper))
@@ -319,10 +360,12 @@ def main() -> int:
         print(f"Pre-PR validation for {EXTENSION_NAME} {release_tag}")
         validate_release_metadata(version, release_tag)
         plugin_zip = build_scheduler_plugin(version)
-        zip_path = build_package(version, plugin_zip)
-        package_zip = build_joomla_package(zip_path, plugin_zip, version)
+        system_plugin_zip = build_system_plugin(version)
+        zip_path = build_package(version, plugin_zip, system_plugin_zip)
+        package_zip = build_joomla_package(zip_path, plugin_zip, system_plugin_zip, version)
         inspect_package(zip_path, version)
         validate_scheduler_plugin_packaging(plugin_zip, version)
+        validate_system_plugin_packaging(system_plugin_zip, version)
         validate_joomla_package(package_zip, version)
         validate_schema_and_workflows()
         validate_php()

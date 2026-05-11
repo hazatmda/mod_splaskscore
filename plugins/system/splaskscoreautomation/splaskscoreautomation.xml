@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='utf-8'?>
+<extension type="plugin" group="system" method="upgrade">
+    <name>plg_system_splaskscoreautomation</name>
+    <author>Muhammad Azizan Hazim</author>
+    <creationDate>2026-05-11</creationDate>
+    <version>1.2.5</version>
+    <description>Synchronizes SPLaSK Score module automation settings with Joomla Scheduled Tasks.</description>
+    <files>
+        <filename plugin="splaskscoreautomation">splaskscoreautomation.php</filename>
+        <folder>language</folder>
+    </files>
+</extension>

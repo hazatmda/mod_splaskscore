@@ -25,8 +25,8 @@ final class PlgTaskSplaskscoreanalytics extends CMSPlugin implements SubscriberI
     private const TASK_TYPE = 'splaskscore.analytics.collect';
 
     /**
-     * Joomla Scheduler routine map. Site owners should create this task with a
-     * daily execution rule at 6:00 AM in the Joomla Scheduled Tasks UI.
+     * Joomla Scheduler routine map. The module settings manage creation,
+     * enable/disable state, and timing (default 6:00 AM) for this task.
      */
     protected const TASKS_MAP = [
         self::TASK_TYPE => [

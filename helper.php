@@ -39,6 +39,12 @@ final class ModSplaskscoreHelper
 
     private const DEFAULT_MAX_HISTORY_ROWS = 500;
 
+    private const SCHEDULER_TASK_TYPE = 'splaskscore.analytics.collect';
+
+    private const MANUAL_REFRESH_COOLDOWN_SECONDS = 60;
+
+    private const API_RETRY_ATTEMPTS = 3;
+
     /**
      * Return the layout names currently supported by the module.
      *
@@ -313,9 +319,26 @@ final class ModSplaskscoreHelper
             'created_at' => $recordedAt,
         ];
 
-        $db->insertObject(self::getHistoryTableName(), $record);
-        self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', '', $recordedAt);
-        self::applyRetentionPolicy($moduleId, $tokenHash);
+        try {
+            $db->transactionStart();
+            $db->insertObject(self::getHistoryTableName(), $record);
+            self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', '', $recordedAt);
+            self::applyRetentionPolicy($moduleId, $tokenHash);
+            $db->transactionCommit();
+        } catch (\Throwable $exception) {
+            try {
+                $db->transactionRollback();
+            } catch (\Throwable $rollbackException) {
+                self::logAnalyticsEvent('error', 'History transaction rollback failed.', ['module_id' => $moduleId, 'error' => $rollbackException->getMessage()]);
+            }
+
+            self::logAnalyticsEvent('error', 'History transaction failed.', ['module_id' => $moduleId, 'error' => $exception->getMessage()]);
+
+            return [
+                'success' => false,
+                'message' => 'Rekod sejarah gagal disimpan.',
+            ];
+        }
 
         return [
             'success' => true,
@@ -370,7 +393,23 @@ final class ModSplaskscoreHelper
         $token = $input->getString('token', '');
         $appearance = $input->getCmd('appearance', 'light');
         $user = \Joomla\CMS\Factory::getUser();
-        $triggeredBy = $user && !$user->guest ? ('user:' . (int) $user->id) : 'manual';
+
+        if (!$user || $user->guest || (!$user->authorise('core.manage', 'com_modules') && !$user->authorise('core.admin'))) {
+            return [
+                'success' => false,
+                'message' => 'Anda tidak dibenarkan menyegarkan analitik secara manual.',
+            ];
+        }
+
+        if (!self::allowManualRefresh($moduleId, (int) $user->id)) {
+            return [
+                'success' => false,
+                'message' => 'Sila tunggu sebentar sebelum menyegarkan analitik semula.',
+                'throttled' => true,
+            ];
+        }
+
+        $triggeredBy = 'user:' . (int) $user->id;
 
         $result = self::collectSingleModuleAnalytics($moduleId, $token, 'manual', $triggeredBy);
         $tokenHash = hash('sha256', $token);
@@ -625,7 +664,7 @@ final class ModSplaskscoreHelper
         $tokenHash = hash('sha256', $token);
 
         try {
-            $apiData = self::fetchScoreFromApi($token);
+            $apiData = self::fetchScoreFromApiWithRetry($token, $moduleId, $source);
             if (empty($apiData['status'])) {
                 throw new \RuntimeException('Markah tidak dijumpai daripada API SPLaSK.');
             }
@@ -681,6 +720,10 @@ final class ModSplaskscoreHelper
 
         foreach ($modules as $module) {
             $results[] = self::collectSingleModuleAnalytics((int) $module->id, (string) $module->token, 'scheduler', 'joomla-scheduler');
+        }
+
+        if (!$modules) {
+            self::logAnalyticsEvent('info', 'Scheduler run skipped because no published modules have automatic analytics enabled.', ['source' => 'scheduler']);
         }
 
         return [
@@ -754,12 +797,300 @@ final class ModSplaskscoreHelper
         foreach ($rows as $row) {
             $params = json_decode((string) $row->params, true) ?: [];
             $token = trim((string) ($params['splask_token'] ?? ''));
-            if ($token !== '') {
+            $enabled = (string) ($params['analytics_auto_enabled'] ?? '1') === '1';
+            if ($enabled && $token !== '') {
                 $modules[] = (object) ['id' => (int) $row->id, 'token' => $token];
             }
         }
 
         return $modules;
+    }
+
+    /**
+     * Synchronize scheduler settings for the first published SPLaSK module during install/upgrade.
+     *
+     * @return  array<int, array<string, mixed>>
+     */
+    public static function synchronizeSchedulerForAllModules(): array
+    {
+        $db = \Joomla\CMS\Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('id'))
+            ->from($db->quoteName('#__modules'))
+            ->where($db->quoteName('module') . ' = ' . $db->quote('mod_splaskscore'))
+            ->where($db->quoteName('client_id') . ' = 1')
+            ->order($db->quoteName('id') . ' DESC');
+        $db->setQuery($query);
+        $ids = array_map('intval', $db->loadColumn() ?: []);
+        $results = [];
+
+        foreach ($ids as $id) {
+            $results[] = self::synchronizeSchedulerForModule($id);
+            break;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Synchronize Joomla Scheduler with the saved module automation settings.
+     *
+     * @param   int  $moduleId  Module id that owns the operational settings.
+     *
+     * @return  array<string, mixed>
+     */
+    public static function synchronizeSchedulerForModule(int $moduleId): array
+    {
+        $params = self::getModuleParams($moduleId);
+        if ($moduleId <= 0 || !$params) {
+            return ['success' => false, 'status' => 'disabled', 'message' => 'Module settings are unavailable.'];
+        }
+
+        $enabled = (string) ($params['analytics_auto_enabled'] ?? '1') === '1';
+        $frequency = in_array((string) ($params['analytics_frequency'] ?? 'daily'), ['daily', 'hourly'], true) ? (string) $params['analytics_frequency'] : 'daily';
+        $time = self::normaliseCollectionTime((string) ($params['analytics_collection_time'] ?? '06:00'));
+        $status = $enabled ? 'enabled' : 'disabled';
+
+        try {
+            self::ensureSchedulerPluginEnabled();
+            $db = \Joomla\CMS\Factory::getDbo();
+            $columns = self::getTableColumns('#__scheduler_tasks');
+
+            if (!$columns) {
+                self::updateModuleAutomationMetadata($moduleId, 'Scheduler unavailable', '');
+
+                return ['success' => false, 'status' => 'unavailable', 'message' => 'Joomla Scheduler task table is unavailable.'];
+            }
+
+            $task = self::getManagedSchedulerTask();
+            $now = \Joomla\CMS\Factory::getDate()->toSql();
+            $rules = self::buildSchedulerRules($frequency, $time);
+            $taskParams = json_encode([
+                'managed_by' => 'mod_splaskscore',
+                'module_id' => $moduleId,
+                'frequency' => $frequency,
+                'collection_time' => $time,
+                'duplicate_cooldown_minutes' => self::getDuplicateCooldownMinutes($moduleId),
+                'retention_days' => max(1, (int) ($params['analytics_retention_days'] ?? self::DEFAULT_RETENTION_DAYS)),
+                'max_history_records' => max(1, (int) ($params['analytics_max_rows'] ?? self::DEFAULT_MAX_HISTORY_ROWS)),
+            ]);
+
+            $values = [
+                'title' => 'SPLaSK Score Analytics Collection',
+                'type' => self::SCHEDULER_TASK_TYPE,
+                'state' => $enabled ? 1 : 0,
+                'execution_rules' => json_encode($rules['execution_rules']),
+                'cron_rules' => json_encode($rules['cron_rules']),
+                'params' => $taskParams,
+                'note' => 'Managed automatically from the SPLaSK Score module settings. Manual scheduler edits are preserved only until the module is saved again.',
+                'priority' => 5,
+                'cli_exclusive' => 0,
+            ];
+
+            $db->transactionStart();
+            if ($task && !empty($task->id)) {
+                $updates = [];
+                foreach ($values as $column => $value) {
+                    if ($column !== 'state' && isset($columns[$column])) {
+                        $updates[] = $db->quoteName($column) . ' = ' . $db->quote((string) $value);
+                    }
+                }
+                if (isset($columns['state'])) {
+                    $updates[] = $db->quoteName('state') . ' = ' . (int) ($enabled ? 1 : 0);
+                }
+
+                if ($updates) {
+                    $query = $db->getQuery(true)
+                        ->update($db->quoteName('#__scheduler_tasks'))
+                        ->set($updates)
+                        ->where($db->quoteName('id') . ' = ' . (int) $task->id);
+                    $db->setQuery($query)->execute();
+                }
+            } else {
+                $insert = [];
+                foreach ($values as $column => $value) {
+                    if (isset($columns[$column])) {
+                        $insert[$column] = $value;
+                    }
+                }
+                foreach (['created' => $now, 'checked_out_time' => null, 'last_execution' => null, 'next_execution' => null] as $column => $value) {
+                    if (isset($columns[$column])) {
+                        $insert[$column] = $value;
+                    }
+                }
+                foreach (['created_by' => 0, 'ordering' => 0, 'times_executed' => 0, 'times_failed' => 0, 'locked' => 0] as $column => $value) {
+                    if (isset($columns[$column])) {
+                        $insert[$column] = $value;
+                    }
+                }
+
+                $object = (object) $insert;
+                $db->insertObject('#__scheduler_tasks', $object);
+            }
+            $db->transactionCommit();
+
+            $lastSuccess = self::getModuleLastSuccessfulCollection($moduleId);
+            self::updateModuleAutomationMetadata($moduleId, ucfirst($status) . ' (' . $frequency . ($frequency === 'daily' ? ' at ' . $time : '') . ')', $lastSuccess);
+            self::logAnalyticsEvent('info', 'Scheduler synchronized from module settings.', ['module_id' => $moduleId, 'status' => $status, 'frequency' => $frequency, 'time' => $time]);
+
+            return ['success' => true, 'status' => $status, 'frequency' => $frequency, 'time' => $time, 'last_success' => $lastSuccess];
+        } catch (\Throwable $exception) {
+            try {
+                \Joomla\CMS\Factory::getDbo()->transactionRollback();
+            } catch (\Throwable $rollbackException) {
+                // Ignore rollback failures after non-transactional errors.
+            }
+            self::logAnalyticsEvent('error', 'Scheduler synchronization failed.', ['module_id' => $moduleId, 'error' => $exception->getMessage()]);
+            self::updateModuleAutomationMetadata($moduleId, 'Sync failed', '');
+
+            return ['success' => false, 'status' => 'failed', 'message' => $exception->getMessage()];
+        }
+    }
+
+    private static function getManagedSchedulerTask(): ?object
+    {
+        $db = \Joomla\CMS\Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__scheduler_tasks'))
+            ->where($db->quoteName('type') . ' = ' . $db->quote(self::SCHEDULER_TASK_TYPE))
+            ->order($db->quoteName('id') . ' ASC');
+        $db->setQuery($query, 0, 1);
+        $task = $db->loadObject();
+
+        return $task ?: null;
+    }
+
+    private static function buildSchedulerRules(string $frequency, string $time): array
+    {
+        if ($frequency === 'hourly') {
+            return [
+                'execution_rules' => ['rule-type' => 'interval-hours', 'interval-hours' => 1],
+                'cron_rules' => ['type' => 'interval', 'exp' => 'PT1H'],
+            ];
+        }
+
+        [$hour, $minute] = array_map('intval', explode(':', $time));
+
+        return [
+            'execution_rules' => ['rule-type' => 'interval-days', 'interval-days' => 1, 'exec-time' => sprintf('%02d:%02d', $hour, $minute)],
+            'cron_rules' => ['type' => 'cron-expression', 'exp' => sprintf('%d %d * * *', $minute, $hour)],
+        ];
+    }
+
+    private static function normaliseCollectionTime(string $time): string
+    {
+        if (!preg_match('/^(\\d{1,2}):(\\d{2})$/', $time, $matches)) {
+            return '06:00';
+        }
+
+        $hour = max(0, min(23, (int) $matches[1]));
+        $minute = max(0, min(59, (int) $matches[2]));
+
+        return sprintf('%02d:%02d', $hour, $minute);
+    }
+
+    private static function ensureSchedulerPluginEnabled(): void
+    {
+        $db = \Joomla\CMS\Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__extensions'))
+            ->set($db->quoteName('enabled') . ' = 1')
+            ->where($db->quoteName('type') . ' = ' . $db->quote('plugin'))
+            ->where($db->quoteName('folder') . ' = ' . $db->quote('task'))
+            ->where($db->quoteName('element') . ' = ' . $db->quote('splaskscoreanalytics'));
+        $db->setQuery($query)->execute();
+    }
+
+    private static function updateModuleAutomationMetadata(int $moduleId, string $status, string $lastSuccess): void
+    {
+        $params = self::getModuleParams($moduleId);
+        if (!$params) {
+            return;
+        }
+
+        $params['analytics_scheduler_status'] = $status;
+        $params['analytics_last_successful_collection'] = $lastSuccess;
+        $db = \Joomla\CMS\Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__modules'))
+            ->set($db->quoteName('params') . ' = ' . $db->quote(json_encode($params)))
+            ->where($db->quoteName('id') . ' = ' . (int) $moduleId)
+            ->where($db->quoteName('module') . ' = ' . $db->quote('mod_splaskscore'));
+        $db->setQuery($query)->execute();
+    }
+
+    private static function getModuleLastSuccessfulCollection(int $moduleId): string
+    {
+        self::ensureHealthTable();
+        $db = \Joomla\CMS\Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('recorded_at'))
+            ->from($db->quoteName(self::getHealthTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
+            ->where($db->quoteName('status') . ' = ' . $db->quote('success'))
+            ->order($db->quoteName('recorded_at') . ' DESC');
+        $db->setQuery($query, 0, 1);
+
+        return (string) $db->loadResult();
+    }
+
+    private static function fetchScoreFromApiWithRetry(string $token, int $moduleId, string $source): array
+    {
+        $lastException = null;
+        for ($attempt = 1; $attempt <= self::API_RETRY_ATTEMPTS; $attempt++) {
+            try {
+                return self::fetchScoreFromApi($token);
+            } catch (\Throwable $exception) {
+                $lastException = $exception;
+                self::logAnalyticsEvent('warning', 'SPLaSK API fetch attempt failed.', ['module_id' => $moduleId, 'source' => $source, 'attempt' => $attempt, 'error' => $exception->getMessage()]);
+                if ($attempt < self::API_RETRY_ATTEMPTS) {
+                    usleep((int) (200000 * $attempt));
+                }
+            }
+        }
+
+        throw $lastException ?: new \RuntimeException('SPLaSK API request failed.');
+    }
+
+    private static function allowManualRefresh(int $moduleId, int $userId): bool
+    {
+        $session = \Joomla\CMS\Factory::getSession();
+        $key = 'mod_splaskscore.refresh.' . $moduleId . '.' . $userId;
+        $now = time();
+        $last = (int) $session->get($key, 0);
+        if ($last > 0 && ($now - $last) < self::MANUAL_REFRESH_COOLDOWN_SECONDS) {
+            return false;
+        }
+
+        $session->set($key, $now);
+
+        return true;
+    }
+
+    private static function getTableColumns(string $table): array
+    {
+        try {
+            return \Joomla\CMS\Factory::getDbo()->getTableColumns($table) ?: [];
+        } catch (\Throwable $exception) {
+            return [];
+        }
+    }
+
+    private static function logAnalyticsEvent(string $level, string $message, array $context = []): void
+    {
+        if (!class_exists('\\Joomla\\CMS\\Log\\Log')) {
+            return;
+        }
+
+        $priority = \Joomla\CMS\Log\Log::INFO;
+        if ($level === 'error') {
+            $priority = \Joomla\CMS\Log\Log::ERROR;
+        } elseif ($level === 'warning') {
+            $priority = \Joomla\CMS\Log\Log::WARNING;
+        }
+
+        \Joomla\CMS\Log\Log::add($message . ' ' . json_encode($context), $priority, 'mod_splaskscore.analytics');
     }
 
     /**
@@ -910,10 +1241,19 @@ final class ModSplaskscoreHelper
             $missingToday = $recorded < $today;
         }
 
+        $fallbackSuccess = $latest ? (string) ($latest->recorded_at ?? $latest->created_at) : '';
+        $effectiveSuccess = $lastSuccess ?: $fallbackSuccess;
+        $status = 'UNKNOWN';
+        if ($lastFailed !== null && ($effectiveSuccess === '' || $lastFailed > $effectiveSuccess)) {
+            $status = 'FAILED';
+        } elseif ($effectiveSuccess !== '') {
+            $status = 'SUCCESS';
+        }
+
         return [
-            'last_success' => $lastSuccess ?: ($latest ? (string) ($latest->recorded_at ?? $latest->created_at) : ''),
+            'last_success' => $effectiveSuccess,
             'last_failed' => $lastFailed ?: '',
-            'status' => $lastSuccess || $latest ? 'SUCCESS' : 'UNKNOWN',
+            'status' => $status,
             'missing_today' => $missingToday,
             'source' => $latest ? (string) ($latest->source ?? 'dashboard') : '',
         ];

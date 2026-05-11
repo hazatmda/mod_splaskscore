@@ -9,5 +9,6 @@
     <files folder="packages">
         <file type="module" client="administrator" id="mod_splaskscore">mod_splaskscore.zip</file>
         <file type="plugin" group="task" id="splaskscoreanalytics">plg_task_splaskscoreanalytics.zip</file>
+        <file type="plugin" group="system" id="splaskscoreautomation">plg_system_splaskscoreautomation.zip</file>
     </files>
 </extension>

@@ -16,6 +16,7 @@ UPDATE_MANIFEST = Path("updates.xml")
 LEGACY_UPDATE_MANIFEST = Path("mod_splaskscore_update.xml")
 PACKAGE_MANIFEST = Path("pkg_splaskscore.xml")
 PLUGIN_MANIFEST = Path("plugins/task/splaskscoreanalytics/splaskscoreanalytics.xml")
+SYSTEM_PLUGIN_MANIFEST = Path("plugins/system/splaskscoreautomation/splaskscoreautomation.xml")
 HELPER_FILE = Path("helper.php")
 DESCRIPTION_VERSION_PATTERN = re.compile(r"versi\s+(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)", re.IGNORECASE)
 BRACKET_VERSION_PATTERN = re.compile(r"\[v(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)\]", re.IGNORECASE)
@@ -120,6 +121,7 @@ def validate(
     legacy_update_manifest: Path,
     package_manifest: Path,
     plugin_manifest: Path,
+    system_plugin_manifest: Path,
     helper_file: Path,
     version: str | None,
 ) -> None:
@@ -208,6 +210,7 @@ def validate(
     validate_legacy_update_manifest(legacy_update_manifest, module_version)
     validate_manifest_version(package_manifest, module_version, "package")
     validate_manifest_version(plugin_manifest, module_version, "plugin")
+    validate_manifest_version(system_plugin_manifest, module_version, "plugin")
     validate_helper_engine_version(helper_file, module_version)
 
 
@@ -219,6 +222,7 @@ def main() -> int:
     parser.add_argument("--legacy-update-manifest", type=Path, default=LEGACY_UPDATE_MANIFEST)
     parser.add_argument("--package-manifest", type=Path, default=PACKAGE_MANIFEST)
     parser.add_argument("--plugin-manifest", type=Path, default=PLUGIN_MANIFEST)
+    parser.add_argument("--system-plugin-manifest", type=Path, default=SYSTEM_PLUGIN_MANIFEST)
     parser.add_argument("--helper-file", type=Path, default=HELPER_FILE)
     args = parser.parse_args()
 
@@ -229,6 +233,7 @@ def main() -> int:
             args.legacy_update_manifest,
             args.package_manifest,
             args.plugin_manifest,
+            args.system_plugin_manifest,
             args.helper_file,
             args.version,
         )

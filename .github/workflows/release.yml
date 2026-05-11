@@ -104,6 +104,12 @@ jobs:
             echo "- Validated release ZIP URL: ${expected_zip_url}"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Run mandatory pre-PR/release simulation
+        run: |
+          set -euo pipefail
+
+          python3 scripts/pre_pr_validation.py --release-tag "$release_tag"
+
       - name: Build clean Joomla installation ZIP
         run: |
           set -euo pipefail

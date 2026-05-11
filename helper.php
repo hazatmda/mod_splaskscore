@@ -14,6 +14,23 @@ defined('_JEXEC') or die;
  */
 final class ModSplaskscoreHelper
 {
+    private const MALAY_WEEKDAYS = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
+
+    private const MALAY_MONTHS = [
+        1 => 'Januari',
+        2 => 'Februari',
+        3 => 'Mac',
+        4 => 'April',
+        5 => 'Mei',
+        6 => 'Jun',
+        7 => 'Julai',
+        8 => 'Ogos',
+        9 => 'September',
+        10 => 'Oktober',
+        11 => 'November',
+        12 => 'Disember',
+    ];
+
     /**
      * Return the layout names currently supported by the module.
      *
@@ -363,12 +380,12 @@ final class ModSplaskscoreHelper
             <div class="splask-history-summary" aria-label="Ringkasan sejarah SPLaSK">
                 <div>
                     <span>Rekod Terkini</span>
-                    <strong><?php echo $latest ? htmlspecialchars(number_format((float) $latest->score, 0) . '%', ENT_QUOTES, 'UTF-8') : '--'; ?></strong>
+                    <strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : '--'; ?></strong>
                 </div>
                 <div>
                     <span>Trend</span>
                     <strong class="<?php echo $trend >= 0 ? 'splask-history-positive' : 'splask-history-negative'; ?>">
-                        <?php echo $previous ? htmlspecialchars(($trend >= 0 ? '+' : '') . number_format($trend, 0) . '%', ENT_QUOTES, 'UTF-8') : '--'; ?>
+                        <?php echo $previous ? htmlspecialchars(self::formatSignedScoreDelta($trend), ENT_QUOTES, 'UTF-8') : '--'; ?>
                     </strong>
                 </div>
                 <div>
@@ -398,7 +415,7 @@ final class ModSplaskscoreHelper
                         <?php foreach ($records as $record) : ?>
                             <tr data-splask-history-grade="<?php echo htmlspecialchars((string) $record->grade_key, ENT_QUOTES, 'UTF-8'); ?>">
                                 <td><?php echo htmlspecialchars(self::formatHistoryDate((string) ($record->source_checked_at ?: $record->created_at)), ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><strong><?php echo htmlspecialchars(number_format((float) $record->score, 0) . '%', ENT_QUOTES, 'UTF-8'); ?></strong></td>
+                                <td><strong><?php echo htmlspecialchars(self::formatScorePercent((float) $record->score), ENT_QUOTES, 'UTF-8'); ?></strong></td>
                                 <td><span class="splask-history-grade"><?php echo htmlspecialchars((string) $record->grade_label, ENT_QUOTES, 'UTF-8'); ?></span></td>
                                 <td><?php echo htmlspecialchars((string) $record->status_label, ENT_QUOTES, 'UTF-8'); ?></td>
                             </tr>
@@ -578,22 +595,55 @@ final class ModSplaskscoreHelper
             return null;
         }
 
-        $formats = ['d/m/Y H:i:s', 'd/m/Y H:i', 'Y-m-d H:i:s', DATE_ATOM];
+        $timezone = new \DateTimeZone('UTC');
+        $formats = ['!d/m/Y H:i:s', '!d/m/Y H:i', '!Y-m-d H:i:s', DATE_ATOM];
 
         foreach ($formats as $format) {
-            $date = \DateTime::createFromFormat($format, $value);
-            if ($date instanceof \DateTime) {
-                return $date->format('Y-m-d H:i:s');
+            $date = \DateTimeImmutable::createFromFormat($format, $value, $timezone);
+            $errors = \DateTimeImmutable::getLastErrors();
+            if ($date instanceof \DateTimeImmutable && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))) {
+                return $date->setTimezone($timezone)->format('Y-m-d H:i:s');
             }
         }
 
-        $timestamp = strtotime($value);
+        try {
+            $date = new \DateTimeImmutable($value, $timezone);
+        } catch (\Exception $exception) {
+            return null;
+        }
 
-        return $timestamp ? gmdate('Y-m-d H:i:s', $timestamp) : null;
+        return $date->setTimezone($timezone)->format('Y-m-d H:i:s');
     }
 
     /**
-     * Format a SQL datetime for display.
+     * Format a score percentage without rounding away API decimal precision.
+     *
+     * @param   float  $score  Score value.
+     *
+     * @return  string
+     */
+    private static function formatScorePercent(float $score): string
+    {
+        $formatted = number_format($score, 2, '.', '');
+        $formatted = rtrim(rtrim($formatted, '0'), '.');
+
+        return ($formatted === '' ? '0' : $formatted) . '%';
+    }
+
+    /**
+     * Format a signed score movement with the same precision as score displays.
+     *
+     * @param   float  $delta  Score movement.
+     *
+     * @return  string
+     */
+    private static function formatSignedScoreDelta(float $delta): string
+    {
+        return ($delta >= 0 ? '+' : '') . self::formatScorePercent($delta);
+    }
+
+    /**
+     * Format a SQL datetime for display using Malay weekday and month names.
      *
      * @param   string  $value  SQL datetime.
      *
@@ -605,9 +655,17 @@ final class ModSplaskscoreHelper
             return '--';
         }
 
-        $timestamp = strtotime($value);
+        try {
+            $date = new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
+        } catch (\Exception $exception) {
+            return $value;
+        }
 
-        return $timestamp ? date('d/m/Y h:i A', $timestamp) : $value;
+        $date = $date->setTimezone(new \DateTimeZone('UTC'));
+        $weekday = self::MALAY_WEEKDAYS[(int) $date->format('w')];
+        $month = self::MALAY_MONTHS[(int) $date->format('n')];
+
+        return $weekday . ' • ' . $date->format('j') . ' ' . $month . ' ' . $date->format('Y') . ' • ' . $date->format('g:i A');
     }
 
     /**

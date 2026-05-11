@@ -9,6 +9,10 @@
         <filename>helper.php</filename>
         <folder>tmpl</folder>
     </files>
+    <media folder="media" destination="mod_splaskscore">
+        <folder>css</folder>
+        <folder>js</folder>
+    </media>
     <config>
         <fields name="params">
             <fieldset name="basic">
@@ -26,7 +30,13 @@
                     description="Pilih reka bentuk paparan markah SPLaSK."
                     default="modern_circle"
                 >
+                    <option value="default">Default Card</option>
                     <option value="modern_circle">Modern Circle</option>
+                    <option value="glass_card">Glass Card</option>
+                    <option value="minimal_clean">Minimal Clean</option>
+                    <option value="gradient_ring">Gradient Ring</option>
+                    <option value="compact_badge">Compact Badge</option>
+                    <option value="dashboard_tile">Dashboard Tile</option>
                 </field>
             </fieldset>
         </fields>

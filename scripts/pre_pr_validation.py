@@ -15,8 +15,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 EXTENSION_NAME = "mod_splaskscore"
+PLUGIN_NAME = "plg_task_splaskscoreanalytics"
+PACKAGE_NAME = "pkg_splaskscore"
 MODULE_MANIFEST = ROOT / "mod_splaskscore.xml"
 UPDATE_MANIFEST = ROOT / "updates.xml"
+PLUGIN_MANIFEST = ROOT / "plugins" / "task" / "splaskscoreanalytics" / "splaskscoreanalytics.xml"
+PACKAGE_MANIFEST = ROOT / "pkg_splaskscore.xml"
 BUILD_ROOT = ROOT / "build" / "pre-pr"
 DIST_ROOT = ROOT / "dist"
 EXCLUDED_DIRS = {".git", ".github", "build", "dist", "node_modules", "vendor"}
@@ -46,7 +50,7 @@ def release_version() -> str:
     return text_at(read_xml(MODULE_MANIFEST), "version", MODULE_MANIFEST)
 
 
-def build_package(version: str) -> Path:
+def build_package(version: str, plugin_zip: Path | None = None) -> Path:
     staging = BUILD_ROOT / EXTENSION_NAME
     zip_path = DIST_ROOT / f"{EXTENSION_NAME}_v{version}.zip"
 
@@ -56,10 +60,15 @@ def build_package(version: str) -> Path:
         zip_path.unlink()
     staging.mkdir(parents=True)
 
-    for name in ["mod_splaskscore.php", "helper.php", "mod_splaskscore.xml", "LICENSE", "LICENSE.txt"]:
+    for name in ["mod_splaskscore.php", "helper.php", "script.php", "mod_splaskscore.xml", "LICENSE", "LICENSE.txt"]:
         source = ROOT / name
         if source.exists():
             shutil.copy2(source, staging / name)
+
+    if plugin_zip is not None:
+        package_dir = staging / "packages"
+        package_dir.mkdir(exist_ok=True)
+        shutil.copy2(plugin_zip, package_dir / "plg_task_splaskscoreanalytics.zip")
 
     for name in ["tmpl", "media", "language", "sql"]:
         source = ROOT / name
@@ -81,6 +90,36 @@ def build_package(version: str) -> Path:
     return zip_path
 
 
+def build_scheduler_plugin(version: str) -> Path:
+    plugin_root = ROOT / "plugins" / "task" / "splaskscoreanalytics"
+    DIST_ROOT.mkdir(exist_ok=True)
+    zip_path = DIST_ROOT / f"{PLUGIN_NAME}_v{version}.zip"
+    if zip_path.exists():
+        zip_path.unlink()
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(plugin_root.rglob("*")):
+            if path.is_file():
+                archive.write(path, path.relative_to(plugin_root).as_posix())
+
+    print(f"Built scheduler plugin installer simulation: {rel(zip_path)}")
+    return zip_path
+
+
+def build_joomla_package(module_zip: Path, plugin_zip: Path, version: str) -> Path:
+    package_zip = DIST_ROOT / f"{PACKAGE_NAME}_v{version}.zip"
+    if package_zip.exists():
+        package_zip.unlink()
+
+    with zipfile.ZipFile(package_zip, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.write(PACKAGE_MANIFEST, PACKAGE_MANIFEST.name)
+        archive.write(module_zip, "packages/mod_splaskscore.zip")
+        archive.write(plugin_zip, "packages/plg_task_splaskscoreanalytics.zip")
+
+    print(f"Built Joomla package simulation: {rel(package_zip)}")
+    return package_zip
+
+
 def inspect_package(zip_path: Path, version: str) -> None:
     module_root = read_xml(MODULE_MANIFEST)
     with zipfile.ZipFile(zip_path) as archive:
@@ -89,7 +128,7 @@ def inspect_package(zip_path: Path, version: str) -> None:
         for name in sorted(names):
             print(f"- {name}")
 
-        required_files = {"mod_splaskscore.php", "helper.php", "mod_splaskscore.xml"}
+        required_files = {"mod_splaskscore.php", "helper.php", "script.php", "mod_splaskscore.xml", "packages/plg_task_splaskscoreanalytics.zip"}
         missing_files = sorted(required_files - names)
         if missing_files:
             raise AssertionError(f"ZIP is missing required files: {', '.join(missing_files)}")
@@ -102,6 +141,13 @@ def inspect_package(zip_path: Path, version: str) -> None:
         packaged_manifest = archive.read("mod_splaskscore.xml").decode("utf-8")
         if f"<version>{version}</version>" not in packaged_manifest:
             raise AssertionError("Packaged mod_splaskscore.xml version does not match release version")
+
+        if "<scriptfile>script.php</scriptfile>" not in packaged_manifest:
+            raise AssertionError("Module manifest must register installer script for plugin install/upgrade flow")
+        script_body = archive.read("script.php").decode("utf-8")
+        for token in ["Installer::getInstance()->install", "enableSchedulerPlugin", "splaskscoreanalytics"]:
+            if token not in script_body:
+                raise AssertionError(f"Install/upgrade flow validation missing token: {token}")
 
         declares_sql = module_root.find("files/folder[.='sql']") is not None
         if declares_sql and not any(name.startswith("sql/") for name in names):
@@ -118,6 +164,63 @@ def inspect_package(zip_path: Path, version: str) -> None:
         forbidden = [name for name in names if name.startswith((".git/", ".github/", "scripts/", "build/", "dist/"))]
         if forbidden:
             raise AssertionError(f"ZIP includes non-installable development paths: {', '.join(sorted(forbidden))}")
+
+
+def validate_scheduler_plugin_packaging(plugin_zip: Path, version: str) -> None:
+    plugin_root = read_xml(PLUGIN_MANIFEST)
+    if plugin_root.attrib.get("type") != "plugin" or plugin_root.attrib.get("group") != "task":
+        raise AssertionError("Scheduler plugin manifest must be a task plugin")
+    if text_at(plugin_root, "version", PLUGIN_MANIFEST) != version:
+        raise AssertionError("Scheduler plugin manifest version does not match release version")
+
+    with zipfile.ZipFile(plugin_zip) as archive:
+        names = set(archive.namelist())
+        required = {"splaskscoreanalytics.php", "splaskscoreanalytics.xml"}
+        missing = sorted(required - names)
+        if missing:
+            raise AssertionError(f"Scheduler plugin ZIP missing files: {', '.join(missing)}")
+        plugin_code = archive.read("splaskscoreanalytics.php").decode("utf-8")
+        for token in ["onTaskOptionsList", "onExecuteTask", "collectScheduledAnalytics", "6:00 AM"]:
+            if token not in plugin_code and token not in archive.read("splaskscoreanalytics.xml").decode("utf-8"):
+                raise AssertionError(f"Scheduler registration validation missing token: {token}")
+
+
+def validate_joomla_package(package_zip: Path, version: str) -> None:
+    package_root = read_xml(PACKAGE_MANIFEST)
+    if package_root.attrib.get("type") != "package":
+        raise AssertionError("Package manifest must use type='package'")
+    if text_at(package_root, "version", PACKAGE_MANIFEST) != version:
+        raise AssertionError("Package manifest version does not match release version")
+
+    with zipfile.ZipFile(package_zip) as archive:
+        names = set(archive.namelist())
+        required = {"pkg_splaskscore.xml", "packages/mod_splaskscore.zip", "packages/plg_task_splaskscoreanalytics.zip"}
+        missing = sorted(required - names)
+        if missing:
+            raise AssertionError(f"Joomla package ZIP missing files: {', '.join(missing)}")
+
+
+def validate_schema_and_workflows() -> None:
+    install_sql = (ROOT / "sql" / "install.mysql.utf8.sql").read_text()
+    helper = (ROOT / "helper.php").read_text()
+    script = (ROOT / "media" / "js" / "splaskscore.js").read_text()
+    template = (ROOT / "tmpl" / "_score_card.php").read_text()
+
+    schema_tokens = ["splaskscore_health", "source", "recorded_at", "engine_version", "signature", "triggered_by"]
+    missing_schema = [token for token in schema_tokens if token not in install_sql]
+    if missing_schema:
+        raise AssertionError("DB migration/schema validation missing: " + ", ".join(missing_schema))
+
+    helper_tokens = ["migrateHistoryTable", "isDuplicateHistoryRecord", "applyRetentionPolicy", "getAnalyticsHealth", "collectScheduledAnalytics", "refreshAnalyticsAjax"]
+    missing_helper = [token for token in helper_tokens if token not in helper]
+    if missing_helper:
+        raise AssertionError("Install/upgrade/manual/scheduler helper validation missing: " + ", ".join(missing_helper))
+
+    workflow_tokens = ["data-splask-refresh-trigger", "refreshAnalytics", "applyHealth", "data-splask-gap-warning"]
+    combined = script + template
+    missing_workflow = [token for token in workflow_tokens if token not in combined]
+    if missing_workflow:
+        raise AssertionError("Manual refresh/health UI validation missing: " + ", ".join(missing_workflow))
 
 
 def validate_release_metadata(version: str, release_tag: str | None) -> None:
@@ -215,8 +318,13 @@ def main() -> int:
         release_tag = args.release_tag or f"v{version}"
         print(f"Pre-PR validation for {EXTENSION_NAME} {release_tag}")
         validate_release_metadata(version, release_tag)
-        zip_path = build_package(version)
+        plugin_zip = build_scheduler_plugin(version)
+        zip_path = build_package(version, plugin_zip)
+        package_zip = build_joomla_package(zip_path, plugin_zip, version)
         inspect_package(zip_path, version)
+        validate_scheduler_plugin_packaging(plugin_zip, version)
+        validate_joomla_package(package_zip, version)
+        validate_schema_and_workflows()
         validate_php()
         validate_css()
         validate_js()

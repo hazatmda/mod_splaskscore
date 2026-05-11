@@ -109,6 +109,25 @@
     }
   }
 
+  function applyHealth(root, health) {
+    const data = health || {};
+    const lastSuccess = data.last_success || root.dataset.splaskLastSuccess || '';
+    const status = data.status || root.dataset.splaskHealthStatus || 'UNKNOWN';
+    const missingToday = String(data.missing_today !== undefined ? data.missing_today : root.dataset.splaskMissingToday) === 'true';
+    const warning = root.querySelector('[data-splask-gap-warning]');
+
+    setText(root, 'last-collection', lastSuccess ? formatMalayDate(lastSuccess) : '---');
+    setText(root, 'collection-status', status);
+
+    if (warning) {
+      warning.hidden = !missingToday;
+    }
+
+    root.dataset.splaskLastSuccess = lastSuccess;
+    root.dataset.splaskHealthStatus = status;
+    root.dataset.splaskMissingToday = missingToday ? 'true' : 'false';
+  }
+
   function applyGradeStyles(root, grade, score) {
     root.dataset.splaskGrade = grade.key;
     root.style.setProperty('--splask-grade-color', grade.color);
@@ -171,9 +190,16 @@
       status_label: grade.status,
       verification_url: data.verification_url || '',
       source_checked_at: data.last_check || ''
-    }).catch(() => {
-      root.dataset.splaskHistorySaved = 'false';
-    });
+    })
+      .then(unwrapAjaxResponse)
+      .then((response) => {
+        if (response && response.health) {
+          applyHealth(root, response.health);
+        }
+      })
+      .catch(() => {
+        root.dataset.splaskHistorySaved = 'false';
+      });
   }
 
   function setHistoryLoading(root, message) {
@@ -199,6 +225,7 @@
         if (data && data.success && data.html) {
           body.innerHTML = data.html;
           body.dataset.splaskLoaded = 'true';
+          applyHealth(root, data.health);
           return;
         }
 
@@ -209,9 +236,61 @@
       });
   }
 
+  function setRefreshState(root, loading, message) {
+    const trigger = root.querySelector('[data-splask-refresh-trigger]');
+    if (!trigger) {
+      return;
+    }
+
+    trigger.disabled = loading;
+    trigger.textContent = message || (loading ? 'Refreshing...' : 'Refresh Analytics');
+  }
+
+  function refreshAnalytics(root) {
+    if (!root.dataset.splaskAjaxUrl) {
+      return;
+    }
+
+    const body = root.querySelector('[data-splask-history-body]');
+    setRefreshState(root, true, 'Refreshing...');
+
+    postModuleAjax(root, 'refreshAnalytics', {
+      appearance: root.dataset.splaskAppearance || resolveAppearance(root)
+    })
+      .then(unwrapAjaxResponse)
+      .then((data) => {
+        if (data && data.health) {
+          applyHealth(root, data.health);
+        }
+
+        if (data && data.success && data.payload) {
+          const payload = data.payload;
+          updateSuccess(root, {
+            status: true,
+            final_score: payload.final_score,
+            verification_url: payload.verification_url,
+            last_check: payload.last_check
+          }, JSON.parse(root.dataset.splaskGradeRules || '[]'));
+        }
+
+        if (body && data && data.html) {
+          body.innerHTML = data.html;
+          body.dataset.splaskLoaded = 'true';
+        }
+
+        setRefreshState(root, false, (data && data.duplicate) ? 'Already Current' : 'Refresh Analytics');
+        window.setTimeout(() => setRefreshState(root, false), 1800);
+      })
+      .catch(() => {
+        setRefreshState(root, false, 'Refresh Failed');
+        window.setTimeout(() => setRefreshState(root, false), 1800);
+      });
+  }
+
   function bindHistoryModal(root) {
     const modal = root.querySelector('[data-splask-history-modal-shell]');
     const trigger = root.querySelector('[data-splask-history-trigger]');
+    const refreshTrigger = root.querySelector('[data-splask-refresh-trigger]');
 
     if (modal) {
       modal.addEventListener('show.bs.modal', () => loadHistory(root));
@@ -219,6 +298,10 @@
 
     if (trigger) {
       trigger.addEventListener('click', () => loadHistory(root));
+    }
+
+    if (refreshTrigger) {
+      refreshTrigger.addEventListener('click', () => refreshAnalytics(root));
     }
   }
 
@@ -259,6 +342,7 @@
 
     root.dataset.splaskInitialized = 'true';
     applyAppearance(root);
+    applyHealth(root);
     bindHistoryModal(root);
 
     let rules = [];

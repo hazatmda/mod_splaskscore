@@ -30,6 +30,12 @@ $document->addScript($assetBase . '/js/splaskscore.js', ['defer' => true]);
 $ajaxUrl = Uri::base(true) . '/index.php?option=com_ajax&module=splaskscore&format=json';
 $historyModalId = $rootId . '-history-modal';
 $csrfToken = Session::getFormToken();
+$initialHealth = $token !== '' ? ModSplaskscoreHelper::getAnalyticsHealth($moduleId, hash('sha256', (string) $token)) : [
+    'last_success' => '',
+    'last_failed' => '',
+    'status' => 'UNKNOWN',
+    'missing_today' => true,
+];
 ?>
 
 <div
@@ -45,6 +51,10 @@ $csrfToken = Session::getFormToken();
   data-splask-ajax-url="<?php echo htmlspecialchars($ajaxUrl, ENT_QUOTES, 'UTF-8'); ?>"
   data-splask-csrf-token="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>"
   data-splask-history-modal="<?php echo htmlspecialchars($historyModalId, ENT_QUOTES, 'UTF-8'); ?>"
+  data-splask-last-success="<?php echo htmlspecialchars((string) ($initialHealth['last_success'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+  data-splask-last-failed="<?php echo htmlspecialchars((string) ($initialHealth['last_failed'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+  data-splask-health-status="<?php echo htmlspecialchars((string) ($initialHealth['status'] ?? 'UNKNOWN'), ENT_QUOTES, 'UTF-8'); ?>"
+  data-splask-missing-today="<?php echo !empty($initialHealth['missing_today']) ? 'true' : 'false'; ?>"
 >
   <section class="splask-card" aria-labelledby="<?php echo htmlspecialchars($rootId, ENT_QUOTES, 'UTF-8'); ?>-title">
     <header class="splask-header">
@@ -84,12 +94,19 @@ $csrfToken = Session::getFormToken();
       <ul class="splask-meta" aria-label="Maklumat semakan SPLaSK">
         <li><span>Kemaskini Terakhir</span><strong data-splask-date>---</strong></li>
         <li><span>Semakan Seterusnya</span><strong data-splask-next>---</strong></li>
+        <li><span>Last Collection</span><strong data-splask-last-collection>---</strong></li>
+        <li><span>Status Analitik</span><strong data-splask-collection-status>UNKNOWN</strong></li>
       </ul>
+
+      <div class="splask-health-warning" data-splask-gap-warning hidden>Tiada rekod analitik untuk hari ini.</div>
 
       <div class="splask-actions">
         <a class="splask-link" href="#" target="_blank" rel="noopener noreferrer" data-splask-link aria-disabled="true">
           Lihat Pengesahan Penuh
         </a>
+        <button class="splask-link splask-refresh-button" type="button" data-splask-refresh-trigger>
+          Refresh Analytics
+        </button>
         <button class="splask-link splask-history-button" type="button" data-splask-history-trigger data-bs-toggle="modal" data-bs-target="#<?php echo htmlspecialchars($historyModalId, ENT_QUOTES, 'UTF-8'); ?>">
           Sejarah & Analitik
         </button>

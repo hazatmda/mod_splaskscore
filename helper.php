@@ -31,6 +31,14 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
+    private const ENGINE_VERSION = '1.3.0';
+
+    private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
+
+    private const DEFAULT_RETENTION_DAYS = 365;
+
+    private const DEFAULT_MAX_HISTORY_ROWS = 500;
+
     /**
      * Return the layout names currently supported by the module.
      *
@@ -239,10 +247,9 @@ final class ModSplaskscoreHelper
     public static function saveHistoryRecord(array $payload): array
     {
         $app = \Joomla\CMS\Factory::getApplication();
-        $db = \Joomla\CMS\Factory::getDbo();
         $input = $app->input;
 
-        if (!\Joomla\CMS\Session\Session::checkToken('request')) {
+        if (empty($payload['skip_token_check']) && !\Joomla\CMS\Session\Session::checkToken('request')) {
             return [
                 'success' => false,
                 'message' => 'Token keselamatan tidak sah.',
@@ -250,16 +257,22 @@ final class ModSplaskscoreHelper
         }
 
         $moduleId = max(0, (int) ($payload['module_id'] ?? $input->getInt('module_id', 0)));
-        $tokenHash = hash('sha256', (string) ($payload['token'] ?? ''));
+        $plainToken = (string) ($payload['token'] ?? '');
+        $tokenHash = hash('sha256', $plainToken);
         $score = max(0, min(100, (float) ($payload['score'] ?? 0)));
         $gradeKey = self::cleanHistoryText((string) ($payload['grade_key'] ?? ''), 32);
         $gradeLabel = self::cleanHistoryText((string) ($payload['grade_label'] ?? ''), 64);
         $statusLabel = self::cleanHistoryText((string) ($payload['status_label'] ?? ''), 64);
         $verificationUrl = filter_var((string) ($payload['verification_url'] ?? ''), FILTER_VALIDATE_URL) ? (string) $payload['verification_url'] : '';
         $sourceCheckedAt = self::normaliseHistoryDate((string) ($payload['source_checked_at'] ?? ''));
-        $createdAt = \Joomla\CMS\Factory::getDate()->toSql();
+        $recordedAt = self::normaliseHistoryDate((string) ($payload['recorded_at'] ?? '')) ?: \Joomla\CMS\Factory::getDate()->toSql();
+        $source = self::cleanHistoryText((string) ($payload['source'] ?? 'dashboard'), 32) ?: 'dashboard';
+        $triggeredBy = self::cleanHistoryText((string) ($payload['triggered_by'] ?? ''), 128);
+        $engineVersion = self::cleanHistoryText((string) ($payload['engine_version'] ?? self::ENGINE_VERSION), 32);
+        $signature = (string) ($payload['signature'] ?? self::buildHistorySignature($score, $gradeKey, $statusLabel, $verificationUrl, $sourceCheckedAt));
+        $cooldownMinutes = self::getDuplicateCooldownMinutes($moduleId, (int) ($payload['duplicate_cooldown_minutes'] ?? 0));
 
-        if (!$moduleId || !$gradeKey || !$gradeLabel || !$statusLabel || empty($payload['token'])) {
+        if (!$moduleId || !$gradeKey || !$gradeLabel || !$statusLabel || $plainToken === '') {
             return [
                 'success' => false,
                 'message' => 'Data sejarah tidak lengkap.',
@@ -270,14 +283,19 @@ final class ModSplaskscoreHelper
 
         $latest = self::getLatestHistoryRecord($moduleId, $tokenHash);
 
-        if ($latest && self::isDuplicateHistoryRecord($latest, $score, $gradeKey, $statusLabel, $sourceCheckedAt)) {
+        if ($latest && self::isDuplicateHistoryRecord($latest, $signature, $recordedAt, $cooldownMinutes)) {
+            self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', 'Rekod pendua diabaikan.', $recordedAt);
+
             return [
                 'success' => true,
                 'saved' => false,
-                'message' => 'Rekod sejarah terkini sudah wujud.',
+                'duplicate' => true,
+                'message' => 'Rekod sejarah terkini sudah wujud dalam tempoh perlindungan pendua.',
+                'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
             ];
         }
 
+        $db = \Joomla\CMS\Factory::getDbo();
         $record = (object) [
             'module_id' => $moduleId,
             'token_hash' => $tokenHash,
@@ -287,15 +305,24 @@ final class ModSplaskscoreHelper
             'status_label' => $statusLabel,
             'verification_url' => $verificationUrl,
             'source_checked_at' => $sourceCheckedAt,
-            'created_at' => $createdAt,
+            'source' => $source,
+            'recorded_at' => $recordedAt,
+            'engine_version' => $engineVersion,
+            'signature' => $signature,
+            'triggered_by' => $triggeredBy,
+            'created_at' => $recordedAt,
         ];
 
         $db->insertObject(self::getHistoryTableName(), $record);
+        self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', '', $recordedAt);
+        self::applyRetentionPolicy($moduleId, $tokenHash);
 
         return [
             'success' => true,
             'saved' => true,
+            'duplicate' => false,
             'message' => 'Rekod sejarah disimpan.',
+            'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
         ];
     }
 
@@ -317,6 +344,42 @@ final class ModSplaskscoreHelper
             'status_label' => $input->getString('status_label', ''),
             'verification_url' => $input->getString('verification_url', ''),
             'source_checked_at' => $input->getString('source_checked_at', ''),
+            'source' => 'dashboard',
+            'triggered_by' => 'dashboard',
+        ]);
+    }
+
+    /**
+     * AJAX endpoint used by com_ajax to force an immediate server-side analytics refresh.
+     *
+     * @return  array<string, mixed>
+     */
+    public static function refreshAnalyticsAjax(): array
+    {
+        $app = \Joomla\CMS\Factory::getApplication();
+        $input = $app->input;
+
+        if (!\Joomla\CMS\Session\Session::checkToken('request')) {
+            return [
+                'success' => false,
+                'message' => 'Token keselamatan tidak sah.',
+            ];
+        }
+
+        $moduleId = $input->getInt('module_id', 0);
+        $token = $input->getString('token', '');
+        $appearance = $input->getCmd('appearance', 'light');
+        $user = \Joomla\CMS\Factory::getUser();
+        $triggeredBy = $user && !$user->guest ? ('user:' . (int) $user->id) : 'manual';
+
+        $result = self::collectSingleModuleAnalytics($moduleId, $token, 'manual', $triggeredBy);
+        $tokenHash = hash('sha256', $token);
+        $records = self::getHistoryRecords($moduleId, $tokenHash);
+
+        return array_merge($result, [
+            'html' => self::renderHistoryModal($records, $appearance, self::getAnalyticsHealth($moduleId, $tokenHash)),
+            'chart' => self::buildTrendSeries($records),
+            'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
         ]);
     }
 
@@ -352,10 +415,13 @@ final class ModSplaskscoreHelper
 
         $records = self::getHistoryRecords($moduleId, hash('sha256', $token));
 
+        $health = self::getAnalyticsHealth($moduleId, hash('sha256', $token));
+
         return [
             'success' => true,
-            'html' => self::renderHistoryModal($records, $appearance),
+            'html' => self::renderHistoryModal($records, $appearance, $health),
             'chart' => self::buildTrendSeries($records),
+            'health' => $health,
         ];
     }
 
@@ -367,12 +433,13 @@ final class ModSplaskscoreHelper
      *
      * @return  string
      */
-    public static function renderHistoryModal(array $records, string $appearance = 'light'): string
+    public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null): string
     {
         $appearance = in_array($appearance, self::getAllowedAppearanceModes(), true) ? $appearance : 'light';
         $latest = $records[0] ?? null;
         $previous = $records[1] ?? null;
         $trend = ($latest && $previous) ? ((float) $latest->score - (float) $previous->score) : 0;
+        $health = $health ?? self::buildHealthFromRecords($records);
 
         ob_start();
         ?>
@@ -394,6 +461,8 @@ final class ModSplaskscoreHelper
                 </div>
             </div>
 
+            <?php echo self::renderHealthPanel($health); ?>
+
             <div class="splask-history-chart" data-splask-history-chart aria-label="Carta trend markah SPLaSK" role="img">
                 <?php echo self::renderTrendChart($records); ?>
             </div>
@@ -406,11 +475,12 @@ final class ModSplaskscoreHelper
                             <th scope="col">Markah</th>
                             <th scope="col">Gred</th>
                             <th scope="col">Status</th>
+                            <th scope="col">Sumber</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (!$records) : ?>
-                            <tr><td colspan="4" class="text-center py-4">Belum ada rekod sejarah. Rekod akan disimpan selepas markah berjaya dimuatkan.</td></tr>
+                            <tr><td colspan="5" class="text-center py-4">Belum ada rekod sejarah. Rekod akan disimpan selepas markah berjaya dimuatkan.</td></tr>
                         <?php endif; ?>
                         <?php foreach ($records as $record) : ?>
                             <tr data-splask-history-grade="<?php echo htmlspecialchars((string) $record->grade_key, ENT_QUOTES, 'UTF-8'); ?>">
@@ -418,6 +488,7 @@ final class ModSplaskscoreHelper
                                 <td><strong><?php echo htmlspecialchars(self::formatScorePercent((float) $record->score), ENT_QUOTES, 'UTF-8'); ?></strong></td>
                                 <td><span class="splask-history-grade"><?php echo htmlspecialchars((string) $record->grade_label, ENT_QUOTES, 'UTF-8'); ?></span></td>
                                 <td><?php echo htmlspecialchars((string) $record->status_label, ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo htmlspecialchars((string) ($record->source ?? 'dashboard'), ENT_QUOTES, 'UTF-8'); ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -444,6 +515,8 @@ final class ModSplaskscoreHelper
         }
 
         if ($columns) {
+            self::migrateHistoryTable($columns);
+            self::ensureHealthTable();
             return;
         }
 
@@ -455,6 +528,8 @@ final class ModSplaskscoreHelper
                 $db->setQuery($query)->execute();
             }
         }
+
+        self::ensureHealthTable();
     }
 
     /**
@@ -507,21 +582,371 @@ final class ModSplaskscoreHelper
      *
      * @return  bool
      */
-    private static function isDuplicateHistoryRecord(object $latest, float $score, string $gradeKey, string $statusLabel, ?string $sourceCheckedAt): bool
+    private static function isDuplicateHistoryRecord(object $latest, string $signature, string $recordedAt, int $cooldownMinutes): bool
     {
-        $sameCore = abs((float) $latest->score - $score) < 0.01
-            && (string) $latest->grade_key === $gradeKey
-            && (string) $latest->status_label === $statusLabel;
-
-        if (!$sameCore) {
+        if ((string) ($latest->signature ?? '') !== $signature) {
             return false;
         }
 
-        if ($sourceCheckedAt && (string) $latest->source_checked_at === $sourceCheckedAt) {
+        if ($cooldownMinutes <= 0) {
             return true;
         }
 
-        return !$sourceCheckedAt;
+        try {
+            $latestDate = new \DateTimeImmutable((string) ($latest->recorded_at ?? $latest->created_at), new \DateTimeZone('UTC'));
+            $newDate = new \DateTimeImmutable($recordedAt, new \DateTimeZone('UTC'));
+        } catch (\Exception $exception) {
+            return true;
+        }
+
+        return abs($newDate->getTimestamp() - $latestDate->getTimestamp()) <= ($cooldownMinutes * 60);
+    }
+
+    /**
+     * Collect analytics for one module/token pair using the server-side API workflow.
+     *
+     * @param   int     $moduleId     Module id.
+     * @param   string  $token        SPLaSK token.
+     * @param   string  $source       Collection source.
+     * @param   string  $triggeredBy  Actor metadata.
+     *
+     * @return  array<string, mixed>
+     */
+    public static function collectSingleModuleAnalytics(int $moduleId, string $token, string $source = 'scheduler', string $triggeredBy = 'scheduler'): array
+    {
+        if ($moduleId <= 0 || $token === '') {
+            return [
+                'success' => false,
+                'message' => 'Konfigurasi analitik tidak lengkap.',
+            ];
+        }
+
+        self::ensureHistoryTable();
+        $tokenHash = hash('sha256', $token);
+
+        try {
+            $apiData = self::fetchScoreFromApi($token);
+            if (empty($apiData['status'])) {
+                throw new \RuntimeException('Markah tidak dijumpai daripada API SPLaSK.');
+            }
+
+            $score = max(0, min(100, (float) ($apiData['final_score'] ?? 0)));
+            $grade = self::getGradeStyle($score);
+            $save = self::saveHistoryRecord([
+                'skip_token_check' => true,
+                'module_id' => $moduleId,
+                'token' => $token,
+                'score' => $score,
+                'grade_key' => (string) $grade['key'],
+                'grade_label' => (string) $grade['label'],
+                'status_label' => (string) $grade['status'],
+                'verification_url' => (string) ($apiData['verification_url'] ?? ''),
+                'source_checked_at' => (string) ($apiData['last_check'] ?? ''),
+                'source' => $source,
+                'triggered_by' => $triggeredBy,
+                'engine_version' => self::ENGINE_VERSION,
+            ]);
+
+            return array_merge($save, [
+                'payload' => [
+                    'final_score' => $score,
+                    'grade_key' => (string) $grade['key'],
+                    'grade_label' => (string) $grade['label'],
+                    'grade_short' => (string) $grade['shortLabel'],
+                    'status_label' => (string) $grade['status'],
+                    'verification_url' => (string) ($apiData['verification_url'] ?? ''),
+                    'last_check' => (string) ($apiData['last_check'] ?? ''),
+                ],
+            ]);
+        } catch (\Throwable $exception) {
+            self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'failed', $exception->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Analitik gagal dikemaskini: ' . $exception->getMessage(),
+                'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
+            ];
+        }
+    }
+
+    /**
+     * Collect analytics for all published administrator module instances.
+     *
+     * @return  array<string, mixed>
+     */
+    public static function collectScheduledAnalytics(): array
+    {
+        $modules = self::getPublishedModuleConfigs();
+        $results = [];
+
+        foreach ($modules as $module) {
+            $results[] = self::collectSingleModuleAnalytics((int) $module->id, (string) $module->token, 'scheduler', 'joomla-scheduler');
+        }
+
+        return [
+            'success' => !array_filter($results, static fn ($result) => empty($result['success'])),
+            'count' => count($results),
+            'results' => $results,
+        ];
+    }
+
+    /**
+     * Fetch the current SPLaSK score through Joomla HTTP or a cURL fallback.
+     *
+     * @param   string  $token  SPLaSK token.
+     *
+     * @return  array<string, mixed>
+     */
+    private static function fetchScoreFromApi(string $token): array
+    {
+        $url = 'https://splask-api.jdn.gov.my/api/get_my_score';
+        $body = json_encode(['_token' => $token]);
+
+        if (class_exists('\\Joomla\\CMS\\Http\\HttpFactory')) {
+            $http = \Joomla\CMS\Http\HttpFactory::getHttp();
+            $response = $http->post($url, $body, ['Content-Type' => 'application/json']);
+            $content = (string) ($response->body ?? '');
+        } elseif (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+                CURLOPT_POSTFIELDS => $body,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 30,
+            ]);
+            $content = (string) curl_exec($ch);
+            $error = curl_error($ch);
+            curl_close($ch);
+            if ($error !== '') {
+                throw new \RuntimeException($error);
+            }
+        } else {
+            throw new \RuntimeException('Joomla HTTP client atau cURL tidak tersedia.');
+        }
+
+        $data = json_decode($content, true);
+        if (!is_array($data)) {
+            throw new \RuntimeException('Respons API SPLaSK tidak sah.');
+        }
+
+        return $data;
+    }
+
+    /**
+     * Return published module ids and tokens for scheduler collection.
+     *
+     * @return  array<int, object>
+     */
+    private static function getPublishedModuleConfigs(): array
+    {
+        $db = \Joomla\CMS\Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select([$db->quoteName('id'), $db->quoteName('params')])
+            ->from($db->quoteName('#__modules'))
+            ->where($db->quoteName('module') . ' = ' . $db->quote('mod_splaskscore'))
+            ->where($db->quoteName('client_id') . ' = 1')
+            ->where($db->quoteName('published') . ' = 1');
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $modules = [];
+
+        foreach ($rows as $row) {
+            $params = json_decode((string) $row->params, true) ?: [];
+            $token = trim((string) ($params['splask_token'] ?? ''));
+            if ($token !== '') {
+                $modules[] = (object) ['id' => (int) $row->id, 'token' => $token];
+            }
+        }
+
+        return $modules;
+    }
+
+    /**
+     * Build a stable content signature for duplicate protection.
+     */
+    private static function buildHistorySignature(float $score, string $gradeKey, string $statusLabel, string $verificationUrl, ?string $sourceCheckedAt): string
+    {
+        return hash('sha256', implode('|', [number_format($score, 2, '.', ''), $gradeKey, $statusLabel, $verificationUrl, (string) $sourceCheckedAt]));
+    }
+
+    private static function getDuplicateCooldownMinutes(int $moduleId, int $override = 0): int
+    {
+        if ($override > 0) {
+            return $override;
+        }
+
+        $params = self::getModuleParams($moduleId);
+        return max(1, (int) ($params['analytics_duplicate_cooldown'] ?? self::DEFAULT_DUPLICATE_COOLDOWN_MINUTES));
+    }
+
+    private static function getModuleParams(int $moduleId): array
+    {
+        if ($moduleId <= 0) {
+            return [];
+        }
+
+        $db = \Joomla\CMS\Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('params'))
+            ->from($db->quoteName('#__modules'))
+            ->where($db->quoteName('id') . ' = ' . (int) $moduleId)
+            ->where($db->quoteName('module') . ' = ' . $db->quote('mod_splaskscore'));
+        $db->setQuery($query, 0, 1);
+        $params = json_decode((string) $db->loadResult(), true);
+
+        return is_array($params) ? $params : [];
+    }
+
+    private static function applyRetentionPolicy(int $moduleId, string $tokenHash): void
+    {
+        $params = self::getModuleParams($moduleId);
+        $retentionDays = max(1, (int) ($params['analytics_retention_days'] ?? self::DEFAULT_RETENTION_DAYS));
+        $maxRows = max(1, (int) ($params['analytics_max_rows'] ?? self::DEFAULT_MAX_HISTORY_ROWS));
+        $db = \Joomla\CMS\Factory::getDbo();
+        $cutoff = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->modify('-' . $retentionDays . ' days')->format('Y-m-d H:i:s');
+
+        $query = $db->getQuery(true)
+            ->delete($db->quoteName(self::getHistoryTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
+            ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
+            ->where($db->quoteName('recorded_at') . ' < ' . $db->quote($cutoff));
+        $db->setQuery($query)->execute();
+
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('id'))
+            ->from($db->quoteName(self::getHistoryTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
+            ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
+            ->order($db->quoteName('recorded_at') . ' DESC');
+        $db->setQuery($query, $maxRows, 100000);
+        $ids = array_map('intval', $db->loadColumn() ?: []);
+        if ($ids) {
+            $query = $db->getQuery(true)
+                ->delete($db->quoteName(self::getHistoryTableName()))
+                ->where($db->quoteName('id') . ' IN (' . implode(',', $ids) . ')');
+            $db->setQuery($query)->execute();
+        }
+    }
+
+    private static function migrateHistoryTable(array $columns): void
+    {
+        $db = \Joomla\CMS\Factory::getDbo();
+        $definitions = [
+            'source' => "ALTER TABLE `#__splaskscore_history` ADD `source` varchar(32) NOT NULL DEFAULT 'dashboard' AFTER `source_checked_at`",
+            'recorded_at' => 'ALTER TABLE `#__splaskscore_history` ADD `recorded_at` datetime NULL DEFAULT NULL AFTER `source`',
+            'engine_version' => "ALTER TABLE `#__splaskscore_history` ADD `engine_version` varchar(32) NOT NULL DEFAULT '' AFTER `recorded_at`",
+            'signature' => "ALTER TABLE `#__splaskscore_history` ADD `signature` char(64) NOT NULL DEFAULT '' AFTER `engine_version`",
+            'triggered_by' => "ALTER TABLE `#__splaskscore_history` ADD `triggered_by` varchar(128) NOT NULL DEFAULT '' AFTER `signature`",
+        ];
+
+        foreach ($definitions as $column => $sql) {
+            if (!isset($columns[$column])) {
+                $db->setQuery($sql)->execute();
+            }
+        }
+
+        $db->setQuery("UPDATE `#__splaskscore_history` SET `recorded_at` = `created_at` WHERE `recorded_at` IS NULL")->execute();
+        $db->setQuery("UPDATE `#__splaskscore_history` SET `signature` = SHA2(CONCAT(FORMAT(`score`, 2), '|', `grade_key`, '|', `status_label`, '|', `verification_url`, '|', COALESCE(`source_checked_at`, '')), 256) WHERE `signature` = ''")->execute();
+    }
+
+    private static function getHealthTableName(): string
+    {
+        return '#__splaskscore_health';
+    }
+
+    private static function ensureHealthTable(): void
+    {
+        $db = \Joomla\CMS\Factory::getDbo();
+        $db->setQuery("CREATE TABLE IF NOT EXISTS `#__splaskscore_health` (\n  `id` int unsigned NOT NULL AUTO_INCREMENT,\n  `module_id` int unsigned NOT NULL DEFAULT 0,\n  `token_hash` char(64) NOT NULL,\n  `source` varchar(32) NOT NULL DEFAULT 'scheduler',\n  `status` varchar(16) NOT NULL DEFAULT 'success',\n  `message` varchar(255) NOT NULL DEFAULT '',\n  `recorded_at` datetime NOT NULL,\n  PRIMARY KEY (`id`),\n  KEY `idx_splaskscore_health_lookup` (`module_id`, `token_hash`, `recorded_at`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci")->execute();
+    }
+
+    private static function recordAnalyticsHealth(int $moduleId, string $tokenHash, string $source, string $status, string $message = '', ?string $recordedAt = null): void
+    {
+        self::ensureHealthTable();
+        $db = \Joomla\CMS\Factory::getDbo();
+        $db->insertObject(self::getHealthTableName(), (object) [
+            'module_id' => $moduleId,
+            'token_hash' => $tokenHash,
+            'source' => self::cleanHistoryText($source, 32),
+            'status' => self::cleanHistoryText($status, 16),
+            'message' => self::cleanHistoryText($message, 255),
+            'recorded_at' => $recordedAt ?: \Joomla\CMS\Factory::getDate()->toSql(),
+        ]);
+    }
+
+    public static function getAnalyticsHealth(int $moduleId, string $tokenHash): array
+    {
+        self::ensureHistoryTable();
+        self::ensureHealthTable();
+        $records = self::getHistoryRecords($moduleId, $tokenHash, 1);
+        $latest = $records[0] ?? null;
+        $today = (new \DateTimeImmutable('today', new \DateTimeZone('UTC')))->format('Y-m-d 00:00:00');
+        $db = \Joomla\CMS\Factory::getDbo();
+
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName(self::getHealthTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
+            ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
+            ->order($db->quoteName('recorded_at') . ' DESC');
+        $db->setQuery($query, 0, 10);
+        $healthRows = $db->loadObjectList() ?: [];
+
+        $lastSuccess = null;
+        $lastFailed = null;
+        foreach ($healthRows as $row) {
+            if ($lastSuccess === null && (string) $row->status === 'success') {
+                $lastSuccess = (string) $row->recorded_at;
+            }
+            if ($lastFailed === null && (string) $row->status === 'failed') {
+                $lastFailed = (string) $row->recorded_at;
+            }
+        }
+
+        $missingToday = true;
+        if ($latest) {
+            $recorded = (string) ($latest->recorded_at ?? $latest->created_at);
+            $missingToday = $recorded < $today;
+        }
+
+        return [
+            'last_success' => $lastSuccess ?: ($latest ? (string) ($latest->recorded_at ?? $latest->created_at) : ''),
+            'last_failed' => $lastFailed ?: '',
+            'status' => $lastSuccess || $latest ? 'SUCCESS' : 'UNKNOWN',
+            'missing_today' => $missingToday,
+            'source' => $latest ? (string) ($latest->source ?? 'dashboard') : '',
+        ];
+    }
+
+    private static function buildHealthFromRecords(array $records): array
+    {
+        $latest = $records[0] ?? null;
+        $today = (new \DateTimeImmutable('today', new \DateTimeZone('UTC')))->format('Y-m-d 00:00:00');
+        $recorded = $latest ? (string) ($latest->recorded_at ?? $latest->created_at) : '';
+
+        return [
+            'last_success' => $recorded,
+            'last_failed' => '',
+            'status' => $latest ? 'SUCCESS' : 'UNKNOWN',
+            'missing_today' => $recorded === '' || $recorded < $today,
+            'source' => $latest ? (string) ($latest->source ?? 'dashboard') : '',
+        ];
+    }
+
+    private static function renderHealthPanel(array $health): string
+    {
+        $lastSuccess = $health['last_success'] ? self::formatHistoryDate((string) $health['last_success']) : '--';
+        $lastFailed = $health['last_failed'] ? self::formatHistoryDate((string) $health['last_failed']) : '--';
+        $status = (string) ($health['status'] ?? 'UNKNOWN');
+        $warning = !empty($health['missing_today']) ? '<div class="splask-history-gap">Amaran: tiada rekod analitik untuk hari ini.</div>' : '';
+
+        return '<div class="splask-history-health" data-splask-health-panel>'
+            . '<div><span>Last Collection</span><strong>' . htmlspecialchars($lastSuccess, ENT_QUOTES, 'UTF-8') . '</strong></div>'
+            . '<div><span>Last Failed</span><strong>' . htmlspecialchars($lastFailed, ENT_QUOTES, 'UTF-8') . '</strong></div>'
+            . '<div><span>Status</span><strong>' . htmlspecialchars($status, ENT_QUOTES, 'UTF-8') . '</strong></div>'
+            . $warning
+            . '</div>';
     }
 
     /**

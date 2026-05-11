@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="package" method="upgrade">
+    <name>pkg_splaskscore</name>
+    <packagename>splaskscore</packagename>
+    <author>Muhammad Azizan Hazim</author>
+    <creationDate>2026-05-11</creationDate>
+    <version>1.3.0</version>
+    <description>SPLaSK Score package with administrator dashboard module and Joomla Scheduler analytics task.</description>
+    <files folder="packages">
+        <file type="module" client="administrator" id="mod_splaskscore">mod_splaskscore.zip</file>
+        <file type="plugin" group="task" id="splaskscoreanalytics">plg_task_splaskscoreanalytics.zip</file>
+    </files>
+</extension>

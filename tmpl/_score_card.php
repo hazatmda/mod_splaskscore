@@ -10,6 +10,7 @@
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 
 $preset = $splaskPreset ?? 'modern_circle';
@@ -20,8 +21,15 @@ $assetBase = Uri::root(true) . '/media/mod_splaskscore';
 $appearanceMode = ModSplaskscoreHelper::getAppearanceMode($params);
 
 $document = Factory::getApplication()->getDocument();
+$wa = method_exists($document, 'getWebAssetManager') ? $document->getWebAssetManager() : null;
+if ($wa && method_exists($wa, 'useScript')) {
+    $wa->useScript('bootstrap.modal');
+}
 $document->addStyleSheet($assetBase . '/css/splaskscore.css');
 $document->addScript($assetBase . '/js/splaskscore.js', ['defer' => true]);
+$ajaxUrl = Uri::base(true) . '/index.php?option=com_ajax&module=splaskscore&format=json';
+$historyModalId = $rootId . '-history-modal';
+$csrfToken = Session::getFormToken();
 ?>
 
 <div
@@ -33,6 +41,10 @@ $document->addScript($assetBase . '/js/splaskscore.js', ['defer' => true]);
   data-splask-grade-rules="<?php echo ModSplaskscoreHelper::getGradeRulesJson(); ?>"
   data-splask-appearance-mode="<?php echo htmlspecialchars($appearanceMode, ENT_QUOTES, 'UTF-8'); ?>"
   data-splask-appearance="<?php echo $appearanceMode === 'auto' ? 'auto' : htmlspecialchars($appearanceMode, ENT_QUOTES, 'UTF-8'); ?>"
+  data-splask-module-id="<?php echo (int) $moduleId; ?>"
+  data-splask-ajax-url="<?php echo htmlspecialchars($ajaxUrl, ENT_QUOTES, 'UTF-8'); ?>"
+  data-splask-csrf-token="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>"
+  data-splask-history-modal="<?php echo htmlspecialchars($historyModalId, ENT_QUOTES, 'UTF-8'); ?>"
 >
   <section class="splask-card" aria-labelledby="<?php echo htmlspecialchars($rootId, ENT_QUOTES, 'UTF-8'); ?>-title">
     <header class="splask-header">
@@ -74,9 +86,34 @@ $document->addScript($assetBase . '/js/splaskscore.js', ['defer' => true]);
         <li><span>Semakan Seterusnya</span><strong data-splask-next>---</strong></li>
       </ul>
 
-      <a class="splask-link" href="#" target="_blank" rel="noopener noreferrer" data-splask-link aria-disabled="true">
-        Lihat Pengesahan Penuh
-      </a>
+      <div class="splask-actions">
+        <a class="splask-link" href="#" target="_blank" rel="noopener noreferrer" data-splask-link aria-disabled="true">
+          Lihat Pengesahan Penuh
+        </a>
+        <button class="splask-link splask-history-button" type="button" data-splask-history-trigger data-bs-toggle="modal" data-bs-target="#<?php echo htmlspecialchars($historyModalId, ENT_QUOTES, 'UTF-8'); ?>">
+          Sejarah & Analitik
+        </button>
+      </div>
     </div>
   </section>
+
+  <div class="modal fade splask-history-modal" id="<?php echo htmlspecialchars($historyModalId, ENT_QUOTES, 'UTF-8'); ?>" tabindex="-1" aria-labelledby="<?php echo htmlspecialchars($historyModalId, ENT_QUOTES, 'UTF-8'); ?>-title" aria-hidden="true" data-splask-history-modal-shell>
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-sm-down">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h4 class="modal-title" id="<?php echo htmlspecialchars($historyModalId, ENT_QUOTES, 'UTF-8'); ?>-title">Sejarah & Analitik SPLaSK</h4>
+            <p class="splask-history-subtitle">Rekod markah terkini dan trend prestasi.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+        </div>
+        <div class="modal-body" data-splask-history-body>
+          <div class="splask-history-loading">Memuatkan sejarah...</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>

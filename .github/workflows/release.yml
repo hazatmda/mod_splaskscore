@@ -124,7 +124,7 @@ jobs:
             fi
           done
 
-          for optional_dir in tmpl media language; do
+          for optional_dir in tmpl media language sql; do
             if [ -d "$optional_dir" ]; then
               mkdir -p "$STAGING_DIR/$optional_dir"
               cp -R "$optional_dir/." "$STAGING_DIR/$optional_dir/"
@@ -149,11 +149,27 @@ jobs:
           set -euo pipefail
 
           test -f "$zip_path"
-          unzip -l "$zip_path"
-          unzip -p "$zip_path" mod_splaskscore.xml | grep -Eq "<version>${release_version}</version>"
-          unzip -l "$zip_path" | grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+mod_splaskscore\.xml$'
-          ! unzip -l "$zip_path" | grep -Eq '(^|/)(\.git|\.github|tests?)(/|$)'
-          ! unzip -l "$zip_path" | grep -Eq '(^|/)(AUDIT_AND_REFACTOR_PLAN\.md|README\.md|updates\.xml|mod_splaskscore_update\.xml|scripts)(/|$)'
+          unzip -l "$zip_path" | tee package-contents.txt
+          unzip -p "$zip_path" mod_splaskscore.xml > packaged-manifest.xml
+          grep -Eq "<version>${release_version}</version>" packaged-manifest.xml
+          grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+mod_splaskscore\.xml$' package-contents.txt
+
+          if grep -Eq '<folder>sql</folder>' packaged-manifest.xml; then
+            grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+sql/$' package-contents.txt
+          fi
+
+          if grep -Eq '<install>[[:space:]]*<sql>|sql/install\.mysql\.utf8\.sql' packaged-manifest.xml; then
+            grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+sql/install\.mysql\.utf8\.sql$' package-contents.txt
+            unzip -p "$zip_path" sql/install.mysql.utf8.sql >/dev/null
+          fi
+
+          if grep -Eq '<uninstall>[[:space:]]*<sql>|sql/uninstall\.mysql\.utf8\.sql' packaged-manifest.xml; then
+            grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+sql/uninstall\.mysql\.utf8\.sql$' package-contents.txt
+            unzip -p "$zip_path" sql/uninstall.mysql.utf8.sql >/dev/null
+          fi
+
+          ! grep -Eq '(^|/)(\.git|\.github|tests?)(/|$)' package-contents.txt
+          ! grep -Eq '(^|/)(AUDIT_AND_REFACTOR_PLAN\.md|README\.md|updates\.xml|mod_splaskscore_update\.xml|scripts)(/|$)' package-contents.txt
 
       - name: Persist release metadata to default branch
         run: |

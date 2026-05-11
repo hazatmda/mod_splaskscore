@@ -807,7 +807,10 @@ final class ModSplaskscoreHelper
     }
 
     /**
-     * Synchronize scheduler settings for the first published SPLaSK module during install/upgrade.
+     * Bootstrap the shared scheduler task from the first/latest SPLaSK module during install/upgrade.
+     * Runtime collection still processes every published enabled module instance; this bootstrap
+     * only chooses one source of schedule settings so multiple modules do not fight over one
+     * Joomla Scheduled Task before an administrator intentionally saves the preferred instance.
      *
      * @return  array<int, array<string, mixed>>
      */
@@ -882,7 +885,7 @@ final class ModSplaskscoreHelper
                 'execution_rules' => json_encode($rules['execution_rules']),
                 'cron_rules' => json_encode($rules['cron_rules']),
                 'params' => $taskParams,
-                'note' => 'Managed automatically from the SPLaSK Score module settings. Manual scheduler edits are preserved only until the module is saved again.',
+                'note' => 'Managed automatically from the SPLaSK Score module settings. Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. Manual scheduler edits are preserved only until the module is saved again.',
                 'priority' => 5,
                 'cli_exclusive' => 0,
             ];

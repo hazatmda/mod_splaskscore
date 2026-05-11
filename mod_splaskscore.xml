@@ -49,19 +49,21 @@
                     <option value="dark">Dark</option>
                     <option value="auto">Auto</option>
                 </field>
-                <field name="analytics_auto_enabled" type="radio" label="Enable Automatic Analytics Collection" description="Automatically keep the Joomla Scheduled Task synchronized from this module's settings." default="1" layout="joomla.form.field.radio.switcher">
+                <field name="analytics_scheduler_note" type="note" label="Automation Operational Note" description="Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. The module manages the task configuration, but the hosting cron/Scheduled Tasks runner must execute Joomla Scheduled Tasks for guaranteed automated collection." />
+                <field name="analytics_multi_module_note" type="note" label="Multi-Module Scheduler Note" description="SPLaSK Score uses one shared Joomla Scheduled Task. Runtime collection processes every published enabled module instance, while install/upgrade bootstrap synchronizes the first/latest published instance and later module saves let the last-saved instance control the shared schedule." />
+                <field name="analytics_auto_enabled" type="radio" label="Enable Automatic Analytics Collection" description="Automatically keep the Joomla Scheduled Task synchronized from this module's settings. The Joomla Scheduled Tasks runner must be operational in the hosting environment for guaranteed automated collection." default="1" layout="joomla.form.field.radio.switcher">
                     <option value="0">JDISABLED</option>
                     <option value="1">JENABLED</option>
                 </field>
-                <field name="analytics_frequency" type="list" label="Collection Frequency" description="How often the managed scheduler task should collect analytics." default="daily">
+                <field name="analytics_frequency" type="list" label="Collection Frequency" description="How often the managed scheduler task should collect analytics when Joomla Scheduled Tasks are running." default="daily">
                     <option value="daily">Daily</option>
                     <option value="hourly">Hourly</option>
                 </field>
-                <field name="analytics_collection_time" type="time" label="Collection Time" description="Daily collection time used by the managed scheduler task." default="06:00" showon="analytics_frequency:daily" />
+                <field name="analytics_collection_time" type="time" label="Collection Time" description="Daily collection time used by the managed scheduler task when Joomla Scheduled Tasks are running." default="06:00" showon="analytics_frequency:daily" />
                 <field name="analytics_duplicate_cooldown" type="number" label="Duplicate Cooldown (minutes)" description="Minimum interval before identical analytics snapshots can be stored again." default="10" min="1" max="1440" />
                 <field name="analytics_retention_days" type="number" label="Analytics Retention (days)" description="Automatically prune analytics records older than this number of days." default="365" min="1" />
                 <field name="analytics_max_rows" type="number" label="Maximum History Rows" description="Maximum analytics records retained per module/token pair after pruning." default="500" min="1" />
-                <field name="analytics_scheduler_status" type="text" label="Scheduler Status" description="Read-only status of the SPLaSK managed Joomla Scheduled Task after the last module save." readonly="true" default="Pending save" />
+                <field name="analytics_scheduler_status" type="text" label="Scheduler Status" description="Read-only status of the SPLaSK managed Joomla Scheduled Task after the last module save. This does not replace the hosting requirement for an active Joomla Scheduled Tasks runner." readonly="true" default="Pending save" />
                 <field name="analytics_last_successful_collection" type="text" label="Last Successful Collection" description="Read-only timestamp from the latest analytics health record known to this module." readonly="true" default="" />
             </fieldset>
         </fields>

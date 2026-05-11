@@ -15,6 +15,19 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 
+
+## Automasi Analitik & Joomla Scheduled Tasks
+
+Tetapan modul ialah panel kawalan utama untuk automasi analitik. Selepas pemasangan atau simpanan modul, SPLaSK Score akan cuba memasang/mengaktifkan plugin Scheduler, mencipta tugas Joomla Scheduled Tasks yang diperlukan, dan menyelaraskan status aktif, frekuensi, masa kutipan, duplicate cooldown, retention days, serta had rekod sejarah daripada parameter modul.
+
+**Nota operasi penting:** Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. Pastikan infrastruktur Joomla Scheduled Tasks/cron di hosting anda berjalan untuk jaminan kutipan automatik; tanpa runner Scheduled Tasks yang aktif, tugas boleh wujud dan aktif tetapi tidak akan dilaksanakan sehingga scheduler Joomla diproses.
+
+### Tingkah Laku Multi-Modul
+
+SPLaSK Score menggunakan satu tugas Joomla Scheduled Tasks yang dikongsi untuk rutin `splaskscore.analytics.collect`. Semasa tugas dijalankan, collector memproses semua instance modul administrator yang published, mempunyai token, dan mengaktifkan **Enable Automatic Analytics Collection**.
+
+Untuk mengelakkan beberapa module instance saling menulis jadual scheduler yang sama semasa install/upgrade, bootstrap installer hanya menyelaraskan instance modul published pertama/terkini yang ditemui. Selepas itu, apabila mana-mana instance modul disimpan, instance terakhir yang disimpan akan menjadi sumber tetapan jadual bagi tugas scheduler yang dikongsi. Jika anda memasang beberapa instance modul, gunakan satu instance utama sebagai sumber tetapan automation bagi masa/frekuensi scheduler, sementara semua instance published yang enabled masih akan dikutip ketika scheduler berjalan.
+
 ## Kemaskini Automatik
 
 Modul ini menyokong Joomla Update Server.
@@ -48,6 +61,7 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 ## Changelog
 
 **v1.2.5 (11 Mei 2026)**
+- Menambah nota operasi bahawa kutipan analitik automatik memerlukan infrastruktur Joomla Scheduled Tasks/cron hosting aktif, serta mendokumentasikan tingkah laku scheduler multi-modul yang menggunakan satu tugas scheduler dikongsi.
 - Workflow release disegerakkan untuk versi manifest/update server, URL muat turun, tag `v1.2.5`, dan pakej `mod_splaskscore_v1.2.5.zip`.
 - Validasi ZIP kini mengesan kandungan direktori melalui prefix fail, bukan entri folder eksplisit.
 - Format markah membuang sifar perpuluhan yang tidak perlu dan tarikh PHP/JS menggunakan pemprosesan UTC deterministik.

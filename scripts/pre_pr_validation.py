@@ -244,6 +244,8 @@ def validate_joomla_package(package_zip: Path, version: str) -> None:
 def validate_schema_and_workflows() -> None:
     install_sql = (ROOT / "sql" / "install.mysql.utf8.sql").read_text()
     helper = (ROOT / "helper.php").read_text()
+    module_manifest = MODULE_MANIFEST.read_text()
+    readme = (ROOT / "README.md").read_text()
     script = (ROOT / "media" / "js" / "splaskscore.js").read_text()
     template = (ROOT / "tmpl" / "_score_card.php").read_text()
 
@@ -256,6 +258,18 @@ def validate_schema_and_workflows() -> None:
     missing_helper = [token for token in helper_tokens if token not in helper]
     if missing_helper:
         raise AssertionError("Install/upgrade/manual/scheduler helper validation missing: " + ", ".join(missing_helper))
+
+    scheduler_guidance_tokens = [
+        "Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment",
+        "analytics_scheduler_note",
+        "analytics_multi_module_note",
+        "Runtime collection still processes every published enabled module instance",
+        "first/latest published instance",
+    ]
+    guidance_sources = readme + module_manifest + helper
+    missing_guidance = [token for token in scheduler_guidance_tokens if token not in guidance_sources]
+    if missing_guidance:
+        raise AssertionError("Scheduler operational guidance validation missing: " + ", ".join(missing_guidance))
 
     workflow_tokens = ["data-splask-refresh-trigger", "refreshAnalytics", "applyHealth", "data-splask-gap-warning"]
     combined = script + template

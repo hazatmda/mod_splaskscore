@@ -5,7 +5,7 @@
     <author>Muhammad Azizan Hazim</author>
     <creationDate>2026-05-11</creationDate>
     <version>1.2.5</version>
-    <description>SPLaSK Score package with administrator dashboard module and Joomla Scheduler analytics task.</description>
+    <description>SPLaSK Score package with administrator dashboard module and Joomla Scheduler analytics task managed from module settings; automated collection still depends on active Joomla Scheduled Tasks infrastructure.</description>
     <files folder="packages">
         <file type="module" client="administrator" id="mod_splaskscore">mod_splaskscore.zip</file>
         <file type="plugin" group="task" id="splaskscoreanalytics">plg_task_splaskscoreanalytics.zip</file>

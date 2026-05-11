@@ -4,9 +4,19 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to package, for example v1.2.3'
+        required: true
+        type: string
 
 permissions:
   contents: write
+
+env:
+  EXTENSION_NAME: mod_splaskscore
+  RELEASE_REPOSITORY: hazatmda/mod_splaskscore
 
 jobs:
   release:
@@ -16,6 +26,42 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
+
+      - name: Resolve release version
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_NAME="${{ inputs.release_tag }}"
+          else
+            TAG_NAME="${GITHUB_REF_NAME}"
+          fi
+
+          if ! printf '%s' "$TAG_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'; then
+            echo "::error title=Invalid release tag::Release tags must look like v1.2.3; got '${TAG_NAME}'."
+            exit 1
+          fi
+
+          VERSION="${TAG_NAME#v}"
+          ZIP_NAME="${EXTENSION_NAME}_v${VERSION}.zip"
+          ZIP_URL="https://github.com/${RELEASE_REPOSITORY}/releases/download/${TAG_NAME}/${ZIP_NAME}"
+
+          {
+            echo "release_tag=${TAG_NAME}"
+            echo "release_version=${VERSION}"
+            echo "zip_name=${ZIP_NAME}"
+            echo "expected_zip_url=${ZIP_URL}"
+          } >> "$GITHUB_ENV"
+
+          {
+            echo "## Release inputs"
+            echo "- Tag: ${TAG_NAME}"
+            echo "- Version: ${VERSION}"
+            echo "- ZIP: ${ZIP_NAME}"
+            echo "- Expected download URL: ${ZIP_URL}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Validate PHP syntax
         run: |
@@ -29,26 +75,40 @@ jobs:
             -path './tests' -prune -o \
             -type f -name '*.php' -print0)
 
+      - name: Synchronize release metadata from tag
+        run: |
+          set -euo pipefail
+
+          python3 scripts/sync_release_metadata.py --tag "$release_tag"
+
+          {
+            echo "## Synchronized metadata"
+            echo "- Manifest version patched to ${release_version}"
+            echo "- Update-server version patched to ${release_version}"
+            echo "- Update download URL patched to ${expected_zip_url}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Validate Joomla update metadata
         run: |
           set -euo pipefail
 
-          TAG_NAME="${GITHUB_REF_NAME}"
-          VERSION="${TAG_NAME#v}"
-          ZIP_NAME="mod_splaskscore_v${VERSION}.zip"
-          EXPECTED_ZIP_URL="https://github.com/hazatmda/mod_splaskscore/releases/download/${TAG_NAME}/${ZIP_NAME}"
+          if ! python3 scripts/validate_release_metadata.py --version "$release_version"; then
+            echo "::error title=Release metadata validation failed::Expected manifest version, update version, and download URL to match ${release_tag} (${expected_zip_url}). Review the synchronization output above."
+            exit 1
+          fi
 
-          python3 scripts/validate_release_metadata.py --version "$VERSION"
-          echo "Validated release ZIP URL: ${EXPECTED_ZIP_URL}"
+          {
+            echo "## Metadata validation"
+            echo "- Validation passed for ${release_version}"
+            echo "- Validated release ZIP URL: ${expected_zip_url}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build clean Joomla installation ZIP
         run: |
           set -euo pipefail
 
-          TAG_NAME="${GITHUB_REF_NAME}"
-          VERSION="${TAG_NAME#v}"
-          ZIP_NAME="mod_splaskscore_v${VERSION}.zip"
-          STAGING_DIR="build/mod_splaskscore"
+          STAGING_DIR="build/${EXTENSION_NAME}"
+          ZIP_PATH="dist/${zip_name}"
 
           rm -rf build dist
           mkdir -p "$STAGING_DIR" dist
@@ -72,11 +132,16 @@ jobs:
 
           (
             cd "$STAGING_DIR"
-            zip -r "../../dist/$ZIP_NAME" .
+            zip -r "../../$ZIP_PATH" .
           )
 
-          echo "zip_name=$ZIP_NAME" >> "$GITHUB_ENV"
-          echo "zip_path=dist/$ZIP_NAME" >> "$GITHUB_ENV"
+          echo "zip_path=$ZIP_PATH" >> "$GITHUB_ENV"
+
+          {
+            echo "## Package"
+            echo "- Built: ${ZIP_PATH}"
+            echo "- Release asset name: ${zip_name}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Validate Joomla package contents
         run: |
@@ -84,6 +149,7 @@ jobs:
 
           test -f "$zip_path"
           unzip -l "$zip_path"
+          unzip -p "$zip_path" mod_splaskscore.xml | grep -Eq "<version>${release_version}</version>"
           unzip -l "$zip_path" | grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+mod_splaskscore\.xml$'
           ! unzip -l "$zip_path" | grep -Eq '(^|/)(\.git|\.github|tests?)(/|$)'
           ! unzip -l "$zip_path" | grep -Eq '(^|/)(AUDIT_AND_REFACTOR_PLAN\.md|README\.md|updates\.xml|mod_splaskscore_update\.xml|scripts)(/|$)'
@@ -98,5 +164,6 @@ jobs:
       - name: Attach ZIP to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.release_tag }}
           files: ${{ env.zip_path }}
           fail_on_unmatched_files: true

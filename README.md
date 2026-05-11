@@ -11,7 +11,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.1.6.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.2.4.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 
@@ -47,6 +47,11 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 
 ## Changelog
 
+**v1.2.4 (11 Mei 2026)**
+- Workflow release disegerakkan untuk versi manifest/update server, URL muat turun, tag `v1.2.4`, dan pakej `mod_splaskscore_v1.2.4.zip`.
+- Validasi ZIP kini mengesan kandungan direktori melalui prefix fail, bukan entri folder eksplisit.
+- Format markah membuang sifar perpuluhan yang tidak perlu dan tarikh PHP/JS menggunakan pemprosesan UTC deterministik.
+
 **v1.1.6 (22 Julai 2025)**
 - Logik penggredan baharu:
   - Gred A (100 sahaja), B (95-99), C (91-94), D (86-90), GAGAL (85 ke bawah)
@@ -63,8 +68,8 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 ## Maklumat Tambahan
 
 - Dibangunkan oleh: **Muhammad Azizan Hazim**
-- Versi: **1.1.6**
-- Tarikh: **22 Julai 2025**
+- Versi: **1.2.4**
+- Tarikh: **11 Mei 2026**
 
 ## Lesen
 

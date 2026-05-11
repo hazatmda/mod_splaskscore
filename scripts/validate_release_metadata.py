@@ -13,7 +13,9 @@ REPOSITORY = "hazatmda/mod_splaskscore"
 EXTENSION_ELEMENT = "mod_splaskscore"
 MODULE_MANIFEST = Path("mod_splaskscore.xml")
 UPDATE_MANIFEST = Path("updates.xml")
+LEGACY_UPDATE_MANIFEST = Path("mod_splaskscore_update.xml")
 DESCRIPTION_VERSION_PATTERN = re.compile(r"versi\s+(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)", re.IGNORECASE)
+BRACKET_VERSION_PATTERN = re.compile(r"\[v(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)\]", re.IGNORECASE)
 
 
 def text_at(parent: ET.Element, path: str, source: Path) -> str:
@@ -42,7 +44,44 @@ def validate_version(version: str) -> None:
         raise ValueError(f"Release version must not include the leading 'v' and must look like SemVer: {version}")
 
 
-def validate(module_manifest: Path, update_manifest: Path, version: str | None) -> None:
+def validate_legacy_update_manifest(legacy_manifest: Path, version: str) -> None:
+    if not legacy_manifest.exists():
+        return
+
+    legacy_root = parse_xml(legacy_manifest)
+    if legacy_root.tag != "updates":
+        raise ValueError(f"{legacy_manifest}: root element must be <updates>")
+
+    updates = legacy_root.findall("update")
+    if len(updates) != 1:
+        raise ValueError(f"{legacy_manifest}: expected exactly one <update>, found {len(updates)}")
+    update = updates[0]
+
+    update_element = text_at(update, "element", legacy_manifest)
+    update_type = text_at(update, "type", legacy_manifest)
+    update_version = text_at(update, "version", legacy_manifest)
+    download_url = text_at(update, "downloads/downloadurl", legacy_manifest)
+    description = text_at(update, "description", legacy_manifest)
+
+    if update_element != EXTENSION_ELEMENT:
+        raise ValueError(f"{legacy_manifest}: <element> must be {EXTENSION_ELEMENT}")
+    if update_type != "module":
+        raise ValueError(f"{legacy_manifest}: <type> must be module")
+    if update_version != version:
+        raise ValueError(f"{legacy_manifest}: <version> {update_version} does not match release version {version}")
+
+    expected_url = expected_download_url(version)
+    if download_url != expected_url:
+        raise ValueError(f"{legacy_manifest}: download URL must be {expected_url}, got {download_url}")
+
+    for description_version in BRACKET_VERSION_PATTERN.findall(description):
+        if description_version != version:
+            raise ValueError(
+                f"{legacy_manifest}: description version {description_version} does not match release version {version}"
+            )
+
+
+def validate(module_manifest: Path, update_manifest: Path, legacy_update_manifest: Path, version: str | None) -> None:
     module_root = parse_xml(module_manifest)
     update_root = parse_xml(update_manifest)
 
@@ -125,16 +164,19 @@ def validate(module_manifest: Path, update_manifest: Path, version: str | None) 
     if download_url != expected_url:
         raise ValueError(f"Download URL must be {expected_url}, got {download_url}")
 
+    validate_legacy_update_manifest(legacy_update_manifest, module_version)
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", help="Release version from the tag, without the leading 'v'.")
     parser.add_argument("--module-manifest", type=Path, default=MODULE_MANIFEST)
     parser.add_argument("--update-manifest", type=Path, default=UPDATE_MANIFEST)
+    parser.add_argument("--legacy-update-manifest", type=Path, default=LEGACY_UPDATE_MANIFEST)
     args = parser.parse_args()
 
     try:
-        validate(args.module_manifest, args.update_manifest, args.version)
+        validate(args.module_manifest, args.update_manifest, args.legacy_update_manifest, args.version)
     except ValueError as exc:
         print(f"release metadata validation failed: {exc}", file=sys.stderr)
         return 1

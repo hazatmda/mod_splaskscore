@@ -595,18 +595,24 @@ final class ModSplaskscoreHelper
             return null;
         }
 
-        $formats = ['d/m/Y H:i:s', 'd/m/Y H:i', 'Y-m-d H:i:s', DATE_ATOM];
+        $timezone = new \DateTimeZone('UTC');
+        $formats = ['!d/m/Y H:i:s', '!d/m/Y H:i', '!Y-m-d H:i:s', DATE_ATOM];
 
         foreach ($formats as $format) {
-            $date = \DateTime::createFromFormat($format, $value);
-            if ($date instanceof \DateTime) {
-                return $date->format('Y-m-d H:i:s');
+            $date = \DateTimeImmutable::createFromFormat($format, $value, $timezone);
+            $errors = \DateTimeImmutable::getLastErrors();
+            if ($date instanceof \DateTimeImmutable && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))) {
+                return $date->setTimezone($timezone)->format('Y-m-d H:i:s');
             }
         }
 
-        $timestamp = strtotime($value);
+        try {
+            $date = new \DateTimeImmutable($value, $timezone);
+        } catch (\Exception $exception) {
+            return null;
+        }
 
-        return $timestamp ? gmdate('Y-m-d H:i:s', $timestamp) : null;
+        return $date->setTimezone($timezone)->format('Y-m-d H:i:s');
     }
 
     /**
@@ -618,7 +624,10 @@ final class ModSplaskscoreHelper
      */
     private static function formatScorePercent(float $score): string
     {
-        return number_format($score, 2, '.', '') . '%';
+        $formatted = number_format($score, 2, '.', '');
+        $formatted = rtrim(rtrim($formatted, '0'), '.');
+
+        return ($formatted === '' ? '0' : $formatted) . '%';
     }
 
     /**
@@ -646,16 +655,17 @@ final class ModSplaskscoreHelper
             return '--';
         }
 
-        $timestamp = strtotime($value);
-
-        if (!$timestamp) {
+        try {
+            $date = new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
+        } catch (\Exception $exception) {
             return $value;
         }
 
-        $weekday = self::MALAY_WEEKDAYS[(int) date('w', $timestamp)];
-        $month = self::MALAY_MONTHS[(int) date('n', $timestamp)];
+        $date = $date->setTimezone(new \DateTimeZone('UTC'));
+        $weekday = self::MALAY_WEEKDAYS[(int) $date->format('w')];
+        $month = self::MALAY_MONTHS[(int) $date->format('n')];
 
-        return $weekday . ' • ' . date('j', $timestamp) . ' ' . $month . ' ' . date('Y', $timestamp) . ' • ' . date('g:i A', $timestamp);
+        return $weekday . ' • ' . $date->format('j') . ' ' . $month . ' ' . $date->format('Y') . ' • ' . $date->format('g:i A');
     }
 
     /**

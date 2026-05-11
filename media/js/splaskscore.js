@@ -54,7 +54,11 @@
 
   function formatScore(score) {
     const numericScore = Number(score);
-    return `${Number.isFinite(numericScore) ? numericScore.toFixed(2) : '0.00'}%`;
+    if (!Number.isFinite(numericScore)) {
+      return '0%';
+    }
+
+    return `${numericScore.toFixed(2).replace(/\.?0+$/, '')}%`;
   }
 
   function parseSplaskDate(dateStr) {
@@ -62,15 +66,22 @@
       return null;
     }
 
-    if (dateStr.includes('/')) {
-      const [day, month, rest] = dateStr.split('/');
-      const [year, time = '00:00:00'] = (rest || '').split(' ');
-      const [hour = '0', minute = '0', second = '0'] = time.split(':');
-      const parsed = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+    const value = String(dateStr).trim();
+    const slashMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (slashMatch) {
+      const [, day, month, year, hour = '0', minute = '0', second = '0'] = slashMatch;
+      const parsed = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)));
       return Number.isNaN(parsed.getTime()) ? null : parsed;
     }
 
-    const parsed = new Date(dateStr);
+    const sqlMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (sqlMatch) {
+      const [, year, month, day, hour, minute, second = '0'] = sqlMatch;
+      const parsed = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)));
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
@@ -81,14 +92,14 @@
       return dateStr || '---';
     }
 
-    const weekday = MALAY_WEEKDAYS[parsed.getDay()];
-    const month = MALAY_MONTHS[parsed.getMonth()];
-    const hour = parsed.getHours();
+    const weekday = MALAY_WEEKDAYS[parsed.getUTCDay()];
+    const month = MALAY_MONTHS[parsed.getUTCMonth()];
+    const hour = parsed.getUTCHours();
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-    const minute = String(parsed.getMinutes()).padStart(2, '0');
+    const minute = String(parsed.getUTCMinutes()).padStart(2, '0');
 
-    return `${weekday} • ${parsed.getDate()} ${month} ${parsed.getFullYear()} • ${hour12}:${minute} ${ampm}`;
+    return `${weekday} • ${parsed.getUTCDate()} ${month} ${parsed.getUTCFullYear()} • ${hour12}:${minute} ${ampm}`;
   }
 
   function setText(root, name, value) {

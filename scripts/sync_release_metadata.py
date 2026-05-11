@@ -19,8 +19,10 @@ REPOSITORY = "hazatmda/mod_splaskscore"
 EXTENSION_ELEMENT = "mod_splaskscore"
 MODULE_MANIFEST = Path("mod_splaskscore.xml")
 UPDATE_MANIFEST = Path("updates.xml")
+LEGACY_UPDATE_MANIFEST = Path("mod_splaskscore_update.xml")
 VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?")
 DESCRIPTION_VERSION_PATTERN = re.compile(r"(versi\s+)\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", re.IGNORECASE)
+BRACKET_VERSION_PATTERN = re.compile(r"(\[v)\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?(\])", re.IGNORECASE)
 
 
 class MetadataSyncError(ValueError):
@@ -96,7 +98,50 @@ def write_xml(tree: ET.ElementTree, path: Path) -> None:
     tree.write(path, encoding="utf-8", xml_declaration=True, short_empty_elements=True)
 
 
-def sync_metadata(module_manifest: Path, update_manifest: Path, version: str) -> list[str]:
+def sync_legacy_update_manifest(legacy_manifest: Path, version: str) -> list[str]:
+    if not legacy_manifest.exists():
+        return []
+
+    legacy_tree = parse_xml(legacy_manifest)
+    legacy_root = legacy_tree.getroot()
+    if legacy_root.tag != "updates":
+        raise MetadataSyncError(f"{legacy_manifest}: root element must be <updates>")
+
+    updates = legacy_root.findall("update")
+    if len(updates) != 1:
+        raise MetadataSyncError(f"{legacy_manifest}: expected exactly one <update>, found {len(updates)}")
+    update = updates[0]
+
+    update_element = (required_child(update, "element", legacy_manifest).text or "").strip()
+    if update_element != EXTENSION_ELEMENT:
+        raise MetadataSyncError(f"{legacy_manifest}: <element> must be {EXTENSION_ELEMENT}")
+
+    changes: list[str] = []
+    old, new = set_required_text(update, "version", legacy_manifest, version)
+    changes.append(f"{legacy_manifest}: <version> {old} -> {new}")
+
+    description = required_child(update, "description", legacy_manifest)
+    old_description = (description.text or "").strip()
+    if not old_description:
+        raise MetadataSyncError(f"{legacy_manifest}: empty <description>")
+    new_description, replacements = BRACKET_VERSION_PATTERN.subn(rf"\g<1>{version}\g<2>", old_description)
+    if replacements:
+        description.text = new_description
+        changes.append(f"{legacy_manifest}: <description> {old_description} -> {new_description}")
+
+    download = required_child(update, "downloads/downloadurl", legacy_manifest)
+    old_url = (download.text or "").strip()
+    if not old_url:
+        raise MetadataSyncError(f"{legacy_manifest}: empty <downloads><downloadurl>")
+    new_url = expected_download_url(version)
+    download.text = new_url
+    changes.append(f"{legacy_manifest}: <downloadurl> {old_url} -> {new_url}")
+
+    write_xml(legacy_tree, legacy_manifest)
+    return changes
+
+
+def sync_metadata(module_manifest: Path, update_manifest: Path, legacy_update_manifest: Path, version: str) -> list[str]:
     module_tree = parse_xml(module_manifest)
     update_tree = parse_xml(update_manifest)
     module_root = module_tree.getroot()
@@ -141,6 +186,7 @@ def sync_metadata(module_manifest: Path, update_manifest: Path, version: str) ->
 
     write_xml(module_tree, module_manifest)
     write_xml(update_tree, update_manifest)
+    changes.extend(sync_legacy_update_manifest(legacy_update_manifest, version))
     return changes
 
 
@@ -150,6 +196,7 @@ def main() -> int:
     parser.add_argument("--version", help="Release version without the leading v. Used if --tag is not provided.")
     parser.add_argument("--module-manifest", type=Path, default=MODULE_MANIFEST)
     parser.add_argument("--update-manifest", type=Path, default=UPDATE_MANIFEST)
+    parser.add_argument("--legacy-update-manifest", type=Path, default=LEGACY_UPDATE_MANIFEST)
     args = parser.parse_args()
 
     source = args.tag or args.version
@@ -159,7 +206,7 @@ def main() -> int:
 
     try:
         version = normalize_version(source)
-        changes = sync_metadata(args.module_manifest, args.update_manifest, version)
+        changes = sync_metadata(args.module_manifest, args.update_manifest, args.legacy_update_manifest, version)
     except MetadataSyncError as exc:
         print(f"release metadata synchronization failed: {exc}", file=sys.stderr)
         return 1

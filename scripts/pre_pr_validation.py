@@ -89,18 +89,23 @@ def inspect_package(zip_path: Path, version: str) -> None:
         for name in sorted(names):
             print(f"- {name}")
 
-        required = {"mod_splaskscore.php", "helper.php", "mod_splaskscore.xml", "tmpl/", "media/"}
-        missing = sorted(required - names)
-        if missing:
-            raise AssertionError(f"ZIP is missing required entries: {', '.join(missing)}")
+        required_files = {"mod_splaskscore.php", "helper.php", "mod_splaskscore.xml"}
+        missing_files = sorted(required_files - names)
+        if missing_files:
+            raise AssertionError(f"ZIP is missing required files: {', '.join(missing_files)}")
+
+        required_prefixes = {"tmpl/", "media/"}
+        missing_prefixes = sorted(prefix for prefix in required_prefixes if not any(name.startswith(prefix) for name in names))
+        if missing_prefixes:
+            raise AssertionError(f"ZIP is missing required file trees: {', '.join(missing_prefixes)}")
 
         packaged_manifest = archive.read("mod_splaskscore.xml").decode("utf-8")
         if f"<version>{version}</version>" not in packaged_manifest:
             raise AssertionError("Packaged mod_splaskscore.xml version does not match release version")
 
         declares_sql = module_root.find("files/folder[.='sql']") is not None
-        if declares_sql and "sql/" not in names:
-            raise AssertionError("Manifest declares sql folder, but sql/ is missing from ZIP")
+        if declares_sql and not any(name.startswith("sql/") for name in names):
+            raise AssertionError("Manifest declares sql folder, but sql files are missing from ZIP")
 
         install_sql = text_at(module_root, "install/sql/file", MODULE_MANIFEST)
         uninstall_sql = text_at(module_root, "uninstall/sql/file", MODULE_MANIFEST)

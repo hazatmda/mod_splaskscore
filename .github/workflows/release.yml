@@ -64,18 +64,6 @@ jobs:
             echo "- Expected download URL: ${ZIP_URL}"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Validate PHP syntax
-        run: |
-          set -euo pipefail
-
-          while IFS= read -r -d '' file; do
-            php -l "$file"
-          done < <(find . \
-            -path './.git' -prune -o \
-            -path './.github' -prune -o \
-            -path './tests' -prune -o \
-            -type f -name '*.php' -print0)
-
       - name: Synchronize release metadata from tag
         run: |
           set -euo pipefail
@@ -103,6 +91,18 @@ jobs:
             echo "- Validation passed for ${release_version}"
             echo "- Validated release ZIP URL: ${expected_zip_url}"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate PHP syntax
+        run: |
+          set -euo pipefail
+
+          while IFS= read -r -d '' file; do
+            php -l "$file"
+          done < <(find . \
+            -path './.git' -prune -o \
+            -path './.github' -prune -o \
+            -path './tests' -prune -o \
+            -type f -name '*.php' -print0)
 
       - name: Run mandatory pre-PR/release simulation
         run: |

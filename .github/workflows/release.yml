@@ -28,6 +28,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
+          fetch-depth: 0
 
       - name: Resolve release version
         run: |
@@ -153,6 +154,52 @@ jobs:
           unzip -l "$zip_path" | grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+mod_splaskscore\.xml$'
           ! unzip -l "$zip_path" | grep -Eq '(^|/)(\.git|\.github|tests?)(/|$)'
           ! unzip -l "$zip_path" | grep -Eq '(^|/)(AUDIT_AND_REFACTOR_PLAN\.md|README\.md|updates\.xml|mod_splaskscore_update\.xml|scripts)(/|$)'
+
+      - name: Persist release metadata to default branch
+        run: |
+          set -euo pipefail
+
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch || 'main' }}"
+          METADATA_WORKTREE="../${EXTENSION_NAME}-release-metadata"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin "+refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
+          git worktree remove --force "${METADATA_WORKTREE}" 2>/dev/null || rm -rf "${METADATA_WORKTREE}"
+          git worktree add "${METADATA_WORKTREE}" "origin/${DEFAULT_BRANCH}"
+          trap 'git worktree remove --force "${METADATA_WORKTREE}" 2>/dev/null || true' EXIT
+
+          python3 scripts/sync_release_metadata.py \
+            --tag "${release_tag}" \
+            --module-manifest "${METADATA_WORKTREE}/mod_splaskscore.xml" \
+            --update-manifest "${METADATA_WORKTREE}/updates.xml"
+
+          python3 scripts/validate_release_metadata.py \
+            --version "${release_version}" \
+            --module-manifest "${METADATA_WORKTREE}/mod_splaskscore.xml" \
+            --update-manifest "${METADATA_WORKTREE}/updates.xml"
+
+          if git -C "${METADATA_WORKTREE}" diff --quiet -- mod_splaskscore.xml updates.xml; then
+            echo "Release metadata on ${DEFAULT_BRANCH} already matches ${release_tag}."
+            {
+              echo "## Persisted update metadata"
+              echo "- ${DEFAULT_BRANCH} already advertises ${release_version}"
+              echo "- No commit was required"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          git -C "${METADATA_WORKTREE}" status --short -- mod_splaskscore.xml updates.xml
+          git -C "${METADATA_WORKTREE}" add mod_splaskscore.xml updates.xml
+          git -C "${METADATA_WORKTREE}" commit -m "Sync release metadata for ${release_tag}"
+          git -C "${METADATA_WORKTREE}" push origin "HEAD:${DEFAULT_BRANCH}"
+
+          {
+            echo "## Persisted update metadata"
+            echo "- Committed manifest and update-server metadata to ${DEFAULT_BRANCH}"
+            echo "- Joomla update XML now advertises ${release_version}"
+            echo "- Download URL persisted as ${expected_zip_url}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4

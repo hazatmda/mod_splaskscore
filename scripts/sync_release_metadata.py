@@ -2,9 +2,9 @@
 """Synchronize Joomla release metadata from a Git tag/version.
 
 This script intentionally patches only the version-dependent XML values used by
-GitHub Releases and the Joomla update server. It is safe to run in a temporary
-workflow workspace before packaging, without committing generated metadata back
-to the repository.
+GitHub Releases and the Joomla update server. The release workflow uses it both
+for the temporary packaging workspace and for the default-branch metadata
+commit-back step so both paths share one source of release truth.
 """
 
 from __future__ import annotations

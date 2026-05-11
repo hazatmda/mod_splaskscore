@@ -11,6 +11,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Installer\Installer;
+use Joomla\CMS\Installer\InstallerHelper;
 
 /**
  * Installer script for module upgrades that need the scheduler plugin.
@@ -27,14 +28,11 @@ final class mod_splaskscoreInstallerScript
      */
     public function postflight(string $type, $parent): bool
     {
-        $source = method_exists($parent, 'getParent') ? (string) $parent->getParent()->getPath('source') : '';
-        $taskPluginZip = $source . '/packages/plg_task_splaskscoreanalytics.zip';
-        $systemPluginZip = $source . '/packages/plg_system_splaskscoreautomation.zip';
+        $packagesPath = $this->resolvePackagesPath($parent);
 
-        foreach ([$taskPluginZip, $systemPluginZip] as $pluginZip) {
-            if (is_file($pluginZip)) {
-                Installer::getInstance()->install($pluginZip);
-            }
+        if ($packagesPath !== '') {
+            $this->installBundledPlugin($packagesPath . '/plg_task_splaskscoreanalytics.zip');
+            $this->installBundledPlugin($packagesPath . '/plg_system_splaskscoreautomation.zip');
         }
 
         $this->enablePlugin('task', 'splaskscoreanalytics');
@@ -42,6 +40,68 @@ final class mod_splaskscoreInstallerScript
         $this->syncExistingModuleScheduler();
 
         return true;
+    }
+
+    /**
+     * Resolve the extracted module packages directory before accessing plugin ZIPs.
+     *
+     * Joomla installer postflight runs while the uploaded package is still in the
+     * temporary extraction tree, so bundled plugin ZIPs must be resolved from an
+     * existing source path and unpacked before they are passed back to Installer.
+     *
+     * @param   object  $parent  Installer adapter.
+     *
+     * @return  string
+     */
+    private function resolvePackagesPath($parent): string
+    {
+        if (!method_exists($parent, 'getParent')) {
+            return '';
+        }
+
+        $installer = $parent->getParent();
+        if (!is_object($installer) || !method_exists($installer, 'getPath')) {
+            return '';
+        }
+
+        $source = (string) $installer->getPath('source');
+        if ($source === '') {
+            return '';
+        }
+
+        $packagesPath = $source . '/packages';
+
+        return is_dir($packagesPath) ? $packagesPath : '';
+    }
+
+    /**
+     * Install a bundled plugin ZIP after unpacking it to a real installer path.
+     *
+     * @param   string  $pluginZip  Absolute path to the bundled plugin ZIP.
+     *
+     * @return  void
+     */
+    private function installBundledPlugin(string $pluginZip): void
+    {
+        if (!is_file($pluginZip)) {
+            return;
+        }
+
+        $package = InstallerHelper::unpack($pluginZip);
+        if (!is_array($package)) {
+            return;
+        }
+
+        $installPath = isset($package['dir']) ? (string) $package['dir'] : '';
+        if ($installPath !== '' && is_dir($installPath)) {
+            Installer::getInstance()->install($installPath);
+        }
+
+        $packageFile = isset($package['packagefile']) ? (string) $package['packagefile'] : '';
+        $extractDir = isset($package['extractdir']) ? (string) $package['extractdir'] : '';
+        if (($packageFile !== '' && is_file($packageFile)) || ($extractDir !== '' && is_dir($extractDir))) {
+            InstallerHelper::cleanupInstall($packageFile, $extractDir);
+        }
     }
 
     /**

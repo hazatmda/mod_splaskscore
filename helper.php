@@ -31,7 +31,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.3.0';
+    private const ENGINE_VERSION = '1.3.1';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -491,8 +491,12 @@ final class ModSplaskscoreHelper
         $appearance = in_array($appearance, self::getAllowedAppearanceModes(), true) ? $appearance : 'light';
         $meaningfulRecords = self::getDistinctMeaningfulHistoryRecords($records);
         $latest = $meaningfulRecords[0] ?? null;
-        $previous = $meaningfulRecords[1] ?? null;
-        $trend = ($latest && $previous) ? ((float) $latest->score - (float) $previous->score) : 0;
+        $lowest = null;
+        foreach ($meaningfulRecords as $record) {
+            if ($lowest === null || (float) $record->score < (float) $lowest->score) {
+                $lowest = $record;
+            }
+        }
         $health = $health ?? self::buildHealthFromRecords($records);
 
         ob_start();
@@ -502,12 +506,16 @@ final class ModSplaskscoreHelper
                 <div>
                     <span>Rekod Terkini</span>
                     <strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></strong>
+                    <?php if ($latest) : ?>
+                        <small><?php echo htmlspecialchars(self::formatHistoryDateOnly((string) ($latest->source_checked_at ?: $latest->created_at)), ENT_QUOTES, 'UTF-8'); ?></small>
+                    <?php endif; ?>
                 </div>
                 <div>
-                    <span>Trend</span>
-                    <strong class="<?php echo $trend >= 0 ? 'splask-history-positive' : 'splask-history-negative'; ?>">
-                        <?php echo $previous ? htmlspecialchars(self::formatSignedScoreDelta($trend), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?>
-                    </strong>
+                    <span>Gred Terendah</span>
+                    <strong><?php echo $lowest ? htmlspecialchars(self::formatScorePercent((float) $lowest->score), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></strong>
+                    <?php if ($lowest) : ?>
+                        <small><?php echo htmlspecialchars(self::formatHistoryDateOnly((string) ($lowest->source_checked_at ?: $lowest->created_at)), ENT_QUOTES, 'UTF-8'); ?></small>
+                    <?php endif; ?>
                 </div>
                 <div>
                     <span>Jumlah Rekod</span>
@@ -515,7 +523,7 @@ final class ModSplaskscoreHelper
                 </div>
             </div>
 
-            <div class="splask-history-chart" data-splask-history-chart aria-label="Carta trend markah SPLaSK" role="img">
+            <div class="splask-history-chart" data-splask-history-chart aria-label="Carta trend peratus SPLaSK">
                 <?php echo self::renderTrendChart($meaningfulRecords); ?>
             </div>
 
@@ -535,7 +543,7 @@ final class ModSplaskscoreHelper
                         <?php endif; ?>
                         <?php foreach ($meaningfulRecords as $record) : ?>
                             <tr data-splask-history-grade="<?php echo htmlspecialchars((string) $record->grade_key, ENT_QUOTES, 'UTF-8'); ?>">
-                                <td><?php echo htmlspecialchars(self::formatHistoryDate((string) ($record->source_checked_at ?: $record->created_at)), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo htmlspecialchars(self::formatHistoryDateOnly((string) ($record->source_checked_at ?: $record->created_at)), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><strong><?php echo htmlspecialchars(self::formatScorePercent((float) $record->score), ENT_QUOTES, 'UTF-8'); ?></strong></td>
                                 <td><span class="splask-history-grade"><?php echo htmlspecialchars((string) $record->grade_label, ENT_QUOTES, 'UTF-8'); ?></span></td>
                                 <td><?php echo htmlspecialchars((string) $record->status_label, ENT_QUOTES, 'UTF-8'); ?></td>
@@ -1363,9 +1371,8 @@ final class ModSplaskscoreHelper
 
         foreach (array_reverse(self::getDistinctMeaningfulHistoryRecords($records)) as $record) {
             $series[] = [
-                'label' => self::formatHistoryDate((string) ($record->source_checked_at ?: $record->created_at)),
+                'label' => self::formatHistoryDateOnly((string) ($record->source_checked_at ?: $record->created_at)),
                 'score' => (float) $record->score,
-                'grade' => (string) $record->grade_label,
             ];
         }
 
@@ -1373,7 +1380,7 @@ final class ModSplaskscoreHelper
     }
 
     /**
-     * Render a lightweight inline SVG trend chart without external dependencies.
+     * Render a responsive canvas line chart shell hydrated by splaskscore.js.
      *
      * @param   array<int, object>  $records  History rows newest first.
      *
@@ -1387,25 +1394,12 @@ final class ModSplaskscoreHelper
             return '<div class="splask-history-empty-chart">Trend akan dipaparkan selepas dua rekod berjaya disimpan.</div>';
         }
 
-        $width = 640;
-        $height = 180;
-        $padding = 24;
-        $usableWidth = $width - ($padding * 2);
-        $usableHeight = $height - ($padding * 2);
-        $points = [];
-        $count = count($series);
+        $encodedSeries = htmlspecialchars(json_encode($series, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_QUOTES, 'UTF-8');
 
-        foreach ($series as $index => $point) {
-            $x = $padding + (($count === 1 ? 0 : $index / ($count - 1)) * $usableWidth);
-            $y = $padding + ((100 - (float) $point['score']) / 100 * $usableHeight);
-            $points[] = number_format($x, 2, '.', '') . ',' . number_format($y, 2, '.', '');
-        }
-
-        return '<svg class="splask-history-svg" viewBox="0 0 ' . $width . ' ' . $height . '" preserveAspectRatio="none" aria-hidden="true" focusable="false">'
-            . '<line x1="24" y1="24" x2="24" y2="156" class="splask-history-axis" />'
-            . '<line x1="24" y1="156" x2="616" y2="156" class="splask-history-axis" />'
-            . '<polyline class="splask-history-line" points="' . htmlspecialchars(implode(' ', $points), ENT_QUOTES, 'UTF-8') . '" />'
-            . '</svg>';
+        return '<div class="splask-history-chart-canvas-wrap">'
+            . '<canvas class="splask-history-line-chart" data-splask-line-chart data-splask-chart-points="' . $encodedSeries . '" aria-label="Carta garis peratus sejarah SPLaSK" role="img"></canvas>'
+            . '<div class="splask-history-tooltip" data-splask-chart-tooltip hidden></div>'
+            . '</div>';
     }
 
     /**
@@ -1466,6 +1460,31 @@ final class ModSplaskscoreHelper
     private static function formatSignedScoreDelta(float $delta): string
     {
         return ($delta >= 0 ? '+' : '') . self::formatScorePercent($delta);
+    }
+
+    /**
+     * Format a SQL datetime as a Malay date without time.
+     *
+     * @param   string  $value  SQL datetime.
+     *
+     * @return  string
+     */
+    private static function formatHistoryDateOnly(string $value): string
+    {
+        if ($value === '') {
+            return 'Tiada';
+        }
+
+        try {
+            $date = new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
+        } catch (\Exception $exception) {
+            return $value;
+        }
+
+        $date = $date->setTimezone(new \DateTimeZone('UTC'));
+        $month = self::MALAY_MONTHS[(int) $date->format('n')];
+
+        return $date->format('j') . ' ' . $month . ' ' . $date->format('Y');
     }
 
     /**

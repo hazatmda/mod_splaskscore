@@ -192,6 +192,160 @@
       });
   }
 
+
+  function initHistoryCharts(scope) {
+    const container = scope || document;
+    container.querySelectorAll('[data-splask-line-chart]').forEach((canvas) => {
+      if (canvas.dataset.splaskChartInitialized === 'true') {
+        drawHistoryChart(canvas);
+        return;
+      }
+
+      canvas.dataset.splaskChartInitialized = 'true';
+      canvas.addEventListener('mousemove', (event) => showChartTooltip(canvas, event));
+      canvas.addEventListener('mouseleave', () => hideChartTooltip(canvas));
+      canvas.addEventListener('focus', () => drawHistoryChart(canvas));
+      canvas.addEventListener('blur', () => hideChartTooltip(canvas));
+
+      if (window.ResizeObserver) {
+        const observer = new ResizeObserver(() => drawHistoryChart(canvas));
+        observer.observe(canvas.parentElement || canvas);
+        canvas._splaskResizeObserver = observer;
+      } else {
+        window.addEventListener('resize', () => drawHistoryChart(canvas));
+      }
+
+      drawHistoryChart(canvas);
+    });
+  }
+
+  function chartPoints(canvas) {
+    try {
+      const points = JSON.parse(canvas.dataset.splaskChartPoints || '[]');
+      return Array.isArray(points) ? points.filter((point) => Number.isFinite(Number(point.score))) : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function drawHistoryChart(canvas) {
+    const points = chartPoints(canvas);
+    const context = canvas.getContext('2d');
+    const wrapper = canvas.parentElement;
+    const style = getComputedStyle(canvas);
+    const color = getComputedStyle(canvas.closest('[data-splask-widget]') || document.documentElement).getPropertyValue('--splask-grade-color').trim() || '#2563eb';
+    const muted = style.getPropertyValue('--splask-chart-muted').trim() || 'rgba(100, 116, 139, 0.72)';
+    const grid = style.getPropertyValue('--splask-chart-grid').trim() || 'rgba(148, 163, 184, 0.22)';
+    const width = Math.max(320, Math.floor((wrapper || canvas).clientWidth || canvas.clientWidth || 640));
+    const height = Math.max(220, Math.floor((wrapper || canvas).clientHeight || canvas.clientHeight || 260));
+    const ratio = window.devicePixelRatio || 1;
+    const padding = { top: 22, right: 18, bottom: 48, left: 48 };
+
+    if (!context || points.length < 2) {
+      return;
+    }
+
+    canvas.width = Math.floor(width * ratio);
+    canvas.height = Math.floor(height * ratio);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.clearRect(0, 0, width, height);
+    context.font = '12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+
+    const plotWidth = width - padding.left - padding.right;
+    const plotHeight = height - padding.top - padding.bottom;
+    const toX = (index) => padding.left + (points.length === 1 ? 0 : (index / (points.length - 1)) * plotWidth);
+    const toY = (score) => padding.top + ((100 - Math.max(0, Math.min(100, Number(score)))) / 100) * plotHeight;
+
+    context.strokeStyle = grid;
+    context.fillStyle = muted;
+    context.lineWidth = 1;
+    [0, 25, 50, 75, 100].forEach((tick) => {
+      const y = toY(tick);
+      context.beginPath();
+      context.moveTo(padding.left, y);
+      context.lineTo(width - padding.right, y);
+      context.stroke();
+      context.fillText(`${tick}%`, 8, y + 4);
+    });
+
+    const maxLabels = width < 520 ? 3 : Math.min(points.length, 6);
+    const labelStep = Math.max(1, Math.ceil((points.length - 1) / Math.max(1, maxLabels - 1)));
+    points.forEach((point, index) => {
+      if (index !== 0 && index !== points.length - 1 && index % labelStep !== 0) {
+        return;
+      }
+
+      const x = toX(index);
+      const label = String(point.label || '');
+      context.save();
+      context.translate(x, height - 24);
+      context.rotate(width < 520 ? -Math.PI / 8 : 0);
+      context.textAlign = index === 0 ? 'left' : (index === points.length - 1 ? 'right' : 'center');
+      context.fillText(label, 0, 0);
+      context.restore();
+    });
+
+    const coordinates = points.map((point, index) => ({
+      x: toX(index),
+      y: toY(point.score),
+      label: String(point.label || ''),
+      score: Number(point.score)
+    }));
+
+    context.strokeStyle = color;
+    context.lineWidth = 3.5;
+    context.beginPath();
+    coordinates.forEach((point, index) => {
+      if (index === 0) {
+        context.moveTo(point.x, point.y);
+        return;
+      }
+
+      const previous = coordinates[index - 1];
+      const midX = (previous.x + point.x) / 2;
+      context.bezierCurveTo(midX, previous.y, midX, point.y, point.x, point.y);
+    });
+    context.stroke();
+
+    context.fillStyle = color;
+    coordinates.forEach((point) => {
+      context.beginPath();
+      context.arc(point.x, point.y, 4, 0, Math.PI * 2);
+      context.fill();
+    });
+
+    canvas._splaskChartCoordinates = coordinates;
+  }
+
+  function showChartTooltip(canvas, event) {
+    const coordinates = canvas._splaskChartCoordinates || [];
+    const tooltip = canvas.parentElement ? canvas.parentElement.querySelector('[data-splask-chart-tooltip]') : null;
+
+    if (!coordinates.length || !tooltip) {
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    const pointerX = event.clientX - rect.left;
+    const nearest = coordinates.reduce((best, point) => (Math.abs(point.x - pointerX) < Math.abs(best.x - pointerX) ? point : best), coordinates[0]);
+
+    tooltip.replaceChildren(document.createTextNode(nearest.label), document.createElement('br'), document.createTextNode(formatScore(nearest.score)));
+    tooltip.hidden = false;
+    tooltip.style.left = `${Math.min(Math.max(nearest.x, 44), rect.width - 44)}px`;
+    tooltip.style.top = `${Math.max(nearest.y - 14, 18)}px`;
+  }
+
+  function hideChartTooltip(canvas) {
+    const tooltip = canvas.parentElement ? canvas.parentElement.querySelector('[data-splask-chart-tooltip]') : null;
+    if (tooltip) {
+      tooltip.hidden = true;
+    }
+  }
+
   function setHistoryLoading(root, message) {
     const body = root.querySelector('[data-splask-history-body]');
     if (body) {
@@ -215,6 +369,7 @@
         if (data && data.success && data.html) {
           body.innerHTML = data.html;
           body.dataset.splaskLoaded = 'true';
+          initHistoryCharts(body);
           applyHealth(root, data.health);
           return;
         }
@@ -266,6 +421,7 @@
         if (body && data && data.html) {
           body.innerHTML = data.html;
           body.dataset.splaskLoaded = 'true';
+          initHistoryCharts(body);
         }
 
         setRefreshState(root, false, (data && data.duplicate) ? 'Already Current' : 'Refresh Analytics');
@@ -334,6 +490,7 @@
     applyAppearance(root);
     applyHealth(root);
     bindHistoryModal(root);
+    initHistoryCharts(root);
 
     let rules = [];
     try {

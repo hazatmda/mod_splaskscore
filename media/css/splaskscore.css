@@ -711,6 +711,7 @@
 
 .splask-history-modal .modal-header {
   align-items: flex-start;
+  gap: 0.85rem;
   border-bottom-color: var(--splask-subtle);
   background: var(--splask-modal-header);
 }
@@ -901,11 +902,6 @@
   box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.68), 0 0 2.8rem color-mix(in srgb, var(--splask-grade-color) 12%, transparent);
 }
 
-.splask-widget[data-splask-appearance="dark"] .splask-history-modal .btn-close {
-  filter: invert(1) grayscale(1) brightness(1.8);
-  opacity: 0.82;
-}
-
 .splask-widget[data-splask-appearance="dark"] .splask-history-modal .modal-footer .btn-secondary {
   border-color: rgba(148, 163, 184, 0.22);
   color: #e2e8f0;
@@ -935,6 +931,16 @@
   .splask-history-summary {
     grid-template-columns: 1fr;
   }
+
+  .splask-history-modal .modal-header {
+    flex-wrap: wrap;
+  }
+
+  .splask-history-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+  }
 }
 
 .splask-icon-button {
@@ -949,7 +955,8 @@
   color: var(--splask-grade-color);
   background: color-mix(in srgb, var(--splask-grade-surface) 70%, var(--splask-panel-bg));
   cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease, background-color 0.2s ease;
+  appearance: none;
+  transition: transform 0.2s ease, filter 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .splask-icon-button svg {
@@ -965,6 +972,11 @@
   background: var(--splask-grade-color);
   filter: brightness(0.96);
   transform: translateY(-1px);
+}
+
+.splask-icon-button:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--splask-grade-color) 26%, transparent);
 }
 
 .splask-refresh-button:disabled {
@@ -985,13 +997,37 @@
   margin-left: auto;
 }
 
+.splask-modal-action-button,
 .splask-history-header-actions .splask-icon-button {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.35rem;
+  height: 2.35rem;
+}
+
+.splask-history-header-actions .splask-modal-action-button {
+  color: var(--splask-grade-color);
+  background: color-mix(in srgb, var(--splask-modal-panel) 72%, var(--splask-grade-surface));
+}
+
+.splask-history-header-actions .splask-modal-action-button:hover,
+.splask-history-header-actions .splask-modal-action-button:focus {
+  color: #fff;
+  background: var(--splask-grade-color);
 }
 
 @keyframes splask-refresh-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 575.98px) {
+  .splask-history-modal .modal-header {
+    flex-wrap: wrap;
+  }
+
+  .splask-history-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
   }
 }

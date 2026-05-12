@@ -101,11 +101,6 @@ $initialHealth = $token !== '' ? ModSplaskscoreHelper::getAnalyticsHealth($modul
         <a class="splask-link" href="#" target="_blank" rel="noopener noreferrer" data-splask-link aria-disabled="true">
           Lihat Pengesahan Penuh
         </a>
-        <button class="splask-icon-button splask-refresh-button" type="button" data-splask-refresh-trigger title="Refresh Analytics" aria-label="Refresh Analytics">
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M17.7 6.3A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.45 10.93 1 1 0 0 0-1.86-.74A6 6 0 1 1 16.2 7.8L14 10h6V4l-2.3 2.3Z" />
-          </svg>
-        </button>
         <button class="splask-link splask-history-button" type="button" data-splask-history-trigger data-bs-toggle="modal" data-bs-target="#<?php echo htmlspecialchars($historyModalId, ENT_QUOTES, 'UTF-8'); ?>">
           Sejarah & Analitik
         </button>
@@ -122,12 +117,16 @@ $initialHealth = $token !== '' ? ModSplaskscoreHelper::getAnalyticsHealth($modul
             <p class="splask-history-subtitle">Rekod markah terkini dan trend prestasi.</p>
           </div>
           <div class="splask-history-header-actions">
-            <button class="splask-icon-button splask-refresh-button" type="button" data-splask-refresh-trigger title="Refresh Analytics" aria-label="Refresh Analytics">
+            <button class="splask-icon-button splask-modal-action-button splask-refresh-button" type="button" data-splask-refresh-trigger title="Refresh Analytics" aria-label="Refresh Analytics">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M17.7 6.3A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.45 10.93 1 1 0 0 0-1.86-.74A6 6 0 1 1 16.2 7.8L14 10h6V4l-2.3 2.3Z" />
               </svg>
             </button>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            <button type="button" class="splask-icon-button splask-modal-action-button splask-close-button" data-bs-dismiss="modal" title="Tutup" aria-label="Tutup">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4 17.6 5 12 10.6 6.4 5Z" />
+              </svg>
+            </button>
           </div>
         </div>
         <div class="modal-body" data-splask-history-body>

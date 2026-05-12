@@ -31,7 +31,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.2.9';
+    private const ENGINE_VERSION = '1.3.0';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -289,14 +289,14 @@ final class ModSplaskscoreHelper
 
         $latest = self::getLatestHistoryRecord($moduleId, $tokenHash);
 
-        if ($latest && self::isDuplicateHistoryRecord($latest, $signature, $recordedAt, $cooldownMinutes)) {
+        if ($latest && self::isDuplicateHistoryRecord($latest, $signature, $recordedAt, $cooldownMinutes, $source)) {
             self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', 'Rekod pendua diabaikan.', $recordedAt);
 
             return [
                 'success' => true,
                 'saved' => false,
                 'duplicate' => true,
-                'message' => 'Rekod sejarah terkini sudah wujud dalam tempoh perlindungan pendua.',
+                'message' => 'Rekod sejarah terkini sudah wujud dan tidak disimpan semula.',
                 'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
             ];
         }
@@ -321,6 +321,20 @@ final class ModSplaskscoreHelper
 
         try {
             $db->transactionStart();
+            $latest = self::getLatestHistoryRecord($moduleId, $tokenHash, true);
+            if ($latest && self::isDuplicateHistoryRecord($latest, $signature, $recordedAt, $cooldownMinutes, $source)) {
+                self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', 'Rekod pendua diabaikan.', $recordedAt);
+                $db->transactionCommit();
+
+                return [
+                    'success' => true,
+                    'saved' => false,
+                    'duplicate' => true,
+                    'message' => 'Rekod sejarah terkini sudah wujud dan tidak disimpan semula.',
+                    'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
+                ];
+            }
+
             $db->insertObject(self::getHistoryTableName(), $record);
             self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', '', $recordedAt);
             self::applyRetentionPolicy($moduleId, $tokenHash);
@@ -475,8 +489,9 @@ final class ModSplaskscoreHelper
     public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null): string
     {
         $appearance = in_array($appearance, self::getAllowedAppearanceModes(), true) ? $appearance : 'light';
-        $latest = $records[0] ?? null;
-        $previous = $records[1] ?? null;
+        $meaningfulRecords = self::getDistinctMeaningfulHistoryRecords($records);
+        $latest = $meaningfulRecords[0] ?? null;
+        $previous = $meaningfulRecords[1] ?? null;
         $trend = ($latest && $previous) ? ((float) $latest->score - (float) $previous->score) : 0;
         $health = $health ?? self::buildHealthFromRecords($records);
 
@@ -496,12 +511,12 @@ final class ModSplaskscoreHelper
                 </div>
                 <div>
                     <span>Jumlah Rekod</span>
-                    <strong><?php echo count($records); ?></strong>
+                    <strong><?php echo count($meaningfulRecords); ?></strong>
                 </div>
             </div>
 
             <div class="splask-history-chart" data-splask-history-chart aria-label="Carta trend markah SPLaSK" role="img">
-                <?php echo self::renderTrendChart($records); ?>
+                <?php echo self::renderTrendChart($meaningfulRecords); ?>
             </div>
 
             <div class="table-responsive splask-history-table-wrap">
@@ -584,7 +599,7 @@ final class ModSplaskscoreHelper
             ->from($db->quoteName(self::getHistoryTableName()))
             ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
             ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
-            ->order($db->quoteName('created_at') . ' DESC');
+            ->order($db->quoteName('created_at') . ' DESC, ' . $db->quoteName('id') . ' DESC');
 
         $db->setQuery($query, 0, $limit);
 
@@ -596,14 +611,30 @@ final class ModSplaskscoreHelper
      *
      * @param   int     $moduleId   Joomla module id.
      * @param   string  $tokenHash  SHA-256 token hash.
+     * @param   bool    $forUpdate  Lock the latest row during insert transactions.
      *
      * @return  object|null
      */
-    private static function getLatestHistoryRecord(int $moduleId, string $tokenHash): ?object
+    private static function getLatestHistoryRecord(int $moduleId, string $tokenHash, bool $forUpdate = false): ?object
     {
-        $records = self::getHistoryRecords($moduleId, $tokenHash, 1);
+        if (!$forUpdate) {
+            $records = self::getHistoryRecords($moduleId, $tokenHash, 1);
 
-        return $records[0] ?? null;
+            return $records[0] ?? null;
+        }
+
+        $db = \Joomla\CMS\Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName(self::getHistoryTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
+            ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
+            ->order($db->quoteName('created_at') . ' DESC, ' . $db->quoteName('id') . ' DESC');
+
+        $db->setQuery((string) $query . ' LIMIT 1 FOR UPDATE');
+        $record = $db->loadObject();
+
+        return $record ?: null;
     }
 
     /**
@@ -617,10 +648,28 @@ final class ModSplaskscoreHelper
      *
      * @return  bool
      */
-    private static function isDuplicateHistoryRecord(object $latest, string $signature, string $recordedAt, int $cooldownMinutes): bool
+    private static function isDuplicateHistoryRecord(object $latest, string $signature, string $recordedAt, int $cooldownMinutes, string $source = ''): bool
     {
         if ((string) ($latest->signature ?? '') !== $signature) {
             return false;
+        }
+
+        $latestRecordedAt = (string) ($latest->recorded_at ?? $latest->created_at ?? '');
+
+        // API snapshots are meaningful when the source payload changes. If the
+        // same score/grade/status/verification/checked-at signature is still the
+        // latest row, repeated dashboard loads, manual refreshes, and scheduler
+        // runs should update health only instead of inserting identical history.
+        if ((string) ($latest->source_checked_at ?? '') !== '') {
+            return true;
+        }
+
+        if ($latestRecordedAt !== '' && $latestRecordedAt === $recordedAt) {
+            return true;
+        }
+
+        if ($source !== '' && (string) ($latest->source ?? '') === $source) {
+            return true;
         }
 
         if ($cooldownMinutes <= 0) {
@@ -628,7 +677,7 @@ final class ModSplaskscoreHelper
         }
 
         try {
-            $latestDate = new \DateTimeImmutable((string) ($latest->recorded_at ?? $latest->created_at), new \DateTimeZone('UTC'));
+            $latestDate = new \DateTimeImmutable($latestRecordedAt, new \DateTimeZone('UTC'));
             $newDate = new \DateTimeImmutable($recordedAt, new \DateTimeZone('UTC'));
         } catch (\Exception $exception) {
             return true;
@@ -1287,11 +1336,45 @@ final class ModSplaskscoreHelper
      *
      * @return  array<int, array<string, mixed>>
      */
+    private static function getDistinctMeaningfulHistoryRecords(array $records): array
+    {
+        $distinct = [];
+        $seen = [];
+
+        foreach ($records as $record) {
+            $key = self::getHistoryMeaningfulKey($record);
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $distinct[] = $record;
+        }
+
+        return $distinct;
+    }
+
+    private static function getHistoryMeaningfulKey(object $record): string
+    {
+        $signature = (string) ($record->signature ?? '');
+        if ($signature !== '') {
+            return $signature;
+        }
+
+        return self::buildHistorySignature(
+            (float) ($record->score ?? 0),
+            (string) ($record->grade_key ?? ''),
+            (string) ($record->status_label ?? ''),
+            (string) ($record->verification_url ?? ''),
+            (string) ($record->source_checked_at ?? '')
+        );
+    }
+
     private static function buildTrendSeries(array $records): array
     {
         $series = [];
 
-        foreach (array_reverse($records) as $record) {
+        foreach (array_reverse(self::getDistinctMeaningfulHistoryRecords($records)) as $record) {
             $series[] = [
                 'label' => self::formatHistoryDate((string) ($record->source_checked_at ?: $record->created_at)),
                 'score' => (float) $record->score,

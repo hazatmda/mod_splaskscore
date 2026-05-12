@@ -289,7 +289,7 @@ final class ModSplaskscoreHelper
 
         $latest = self::getLatestHistoryRecord($moduleId, $tokenHash);
 
-        if ($latest && self::isDuplicateHistoryRecord($latest, $signature, $recordedAt, $cooldownMinutes, $source)) {
+        if ($latest && self::isDuplicateHistoryRecord($latest, $signature, $recordedAt, $cooldownMinutes)) {
             self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', 'Rekod pendua diabaikan.', $recordedAt);
 
             return [
@@ -322,7 +322,7 @@ final class ModSplaskscoreHelper
         try {
             $db->transactionStart();
             $latest = self::getLatestHistoryRecord($moduleId, $tokenHash, true);
-            if ($latest && self::isDuplicateHistoryRecord($latest, $signature, $recordedAt, $cooldownMinutes, $source)) {
+            if ($latest && self::isDuplicateHistoryRecord($latest, $signature, $recordedAt, $cooldownMinutes)) {
                 self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', 'Rekod pendua diabaikan.', $recordedAt);
                 $db->transactionCommit();
 
@@ -638,17 +638,16 @@ final class ModSplaskscoreHelper
     }
 
     /**
-     * Decide whether a new API result is already represented by the latest row.
+     * Decide whether an identical API result is still inside the duplicate cooldown.
      *
-     * @param   object       $latest           Latest row.
-     * @param   float        $score            New score.
-     * @param   string       $gradeKey         New grade key.
-     * @param   string       $statusLabel      New status label.
-     * @param   string|null  $sourceCheckedAt  Source timestamp.
+     * @param   object  $latest           Latest row.
+     * @param   string  $signature        New meaningful snapshot signature.
+     * @param   string  $recordedAt       New record timestamp.
+     * @param   int     $cooldownMinutes  Duplicate cooldown window in minutes.
      *
      * @return  bool
      */
-    private static function isDuplicateHistoryRecord(object $latest, string $signature, string $recordedAt, int $cooldownMinutes, string $source = ''): bool
+    private static function isDuplicateHistoryRecord(object $latest, string $signature, string $recordedAt, int $cooldownMinutes): bool
     {
         if ((string) ($latest->signature ?? '') !== $signature) {
             return false;
@@ -656,19 +655,7 @@ final class ModSplaskscoreHelper
 
         $latestRecordedAt = (string) ($latest->recorded_at ?? $latest->created_at ?? '');
 
-        // API snapshots are meaningful when the source payload changes. If the
-        // same score/grade/status/verification/checked-at signature is still the
-        // latest row, repeated dashboard loads, manual refreshes, and scheduler
-        // runs should update health only instead of inserting identical history.
-        if ((string) ($latest->source_checked_at ?? '') !== '') {
-            return true;
-        }
-
         if ($latestRecordedAt !== '' && $latestRecordedAt === $recordedAt) {
-            return true;
-        }
-
-        if ($source !== '' && (string) ($latest->source ?? '') === $source) {
             return true;
         }
 

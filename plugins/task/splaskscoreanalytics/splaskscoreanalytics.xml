@@ -3,7 +3,7 @@
     <name>plg_task_splaskscoreanalytics</name>
     <author>Muhammad Azizan Hazim</author>
     <creationDate>2026-05-11</creationDate>
-    <version>1.2.8</version>
+    <version>1.2.9</version>
     <description>Joomla Scheduler backend task managed by SPLaSK Score module automation settings. Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment.</description>
     <files>
         <filename plugin="splaskscoreanalytics">splaskscoreanalytics.php</filename>

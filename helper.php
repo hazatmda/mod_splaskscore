@@ -31,7 +31,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.2.8';
+    private const ENGINE_VERSION = '1.2.9';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -486,12 +486,12 @@ final class ModSplaskscoreHelper
             <div class="splask-history-summary" aria-label="Ringkasan sejarah SPLaSK">
                 <div>
                     <span>Rekod Terkini</span>
-                    <strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : '--'; ?></strong>
+                    <strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></strong>
                 </div>
                 <div>
                     <span>Trend</span>
                     <strong class="<?php echo $trend >= 0 ? 'splask-history-positive' : 'splask-history-negative'; ?>">
-                        <?php echo $previous ? htmlspecialchars(self::formatSignedScoreDelta($trend), ENT_QUOTES, 'UTF-8') : '--'; ?>
+                        <?php echo $previous ? htmlspecialchars(self::formatSignedScoreDelta($trend), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?>
                     </strong>
                 </div>
                 <div>
@@ -499,8 +499,6 @@ final class ModSplaskscoreHelper
                     <strong><?php echo count($records); ?></strong>
                 </div>
             </div>
-
-            <?php echo self::renderHealthPanel($health); ?>
 
             <div class="splask-history-chart" data-splask-history-chart aria-label="Carta trend markah SPLaSK" role="img">
                 <?php echo self::renderTrendChart($records); ?>
@@ -514,12 +512,11 @@ final class ModSplaskscoreHelper
                             <th scope="col">Markah</th>
                             <th scope="col">Gred</th>
                             <th scope="col">Status</th>
-                            <th scope="col">Sumber</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (!$records) : ?>
-                            <tr><td colspan="5" class="text-center py-4">Belum ada rekod sejarah. Rekod akan disimpan selepas markah berjaya dimuatkan.</td></tr>
+                            <tr><td colspan="4" class="text-center py-4">Belum ada rekod sejarah. Rekod akan disimpan selepas markah berjaya dimuatkan.</td></tr>
                         <?php endif; ?>
                         <?php foreach ($records as $record) : ?>
                             <tr data-splask-history-grade="<?php echo htmlspecialchars((string) $record->grade_key, ENT_QUOTES, 'UTF-8'); ?>">
@@ -527,7 +524,6 @@ final class ModSplaskscoreHelper
                                 <td><strong><?php echo htmlspecialchars(self::formatScorePercent((float) $record->score), ENT_QUOTES, 'UTF-8'); ?></strong></td>
                                 <td><span class="splask-history-grade"><?php echo htmlspecialchars((string) $record->grade_label, ENT_QUOTES, 'UTF-8'); ?></span></td>
                                 <td><?php echo htmlspecialchars((string) $record->status_label, ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><?php echo htmlspecialchars((string) ($record->source ?? 'dashboard'), ENT_QUOTES, 'UTF-8'); ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -1284,21 +1280,6 @@ final class ModSplaskscoreHelper
         ];
     }
 
-    private static function renderHealthPanel(array $health): string
-    {
-        $lastSuccess = $health['last_success'] ? self::formatHistoryDate((string) $health['last_success']) : '--';
-        $lastFailed = $health['last_failed'] ? self::formatHistoryDate((string) $health['last_failed']) : '--';
-        $status = (string) ($health['status'] ?? 'UNKNOWN');
-        $warning = !empty($health['missing_today']) ? '<div class="splask-history-gap">Amaran: tiada rekod analitik untuk hari ini.</div>' : '';
-
-        return '<div class="splask-history-health" data-splask-health-panel>'
-            . '<div><span>Last Collection</span><strong>' . htmlspecialchars($lastSuccess, ENT_QUOTES, 'UTF-8') . '</strong></div>'
-            . '<div><span>Last Failed</span><strong>' . htmlspecialchars($lastFailed, ENT_QUOTES, 'UTF-8') . '</strong></div>'
-            . '<div><span>Status</span><strong>' . htmlspecialchars($status, ENT_QUOTES, 'UTF-8') . '</strong></div>'
-            . $warning
-            . '</div>';
-    }
-
     /**
      * Return chart-ready records in chronological order.
      *
@@ -1427,7 +1408,7 @@ final class ModSplaskscoreHelper
     private static function formatHistoryDate(string $value): string
     {
         if ($value === '') {
-            return '--';
+            return 'Tiada';
         }
 
         try {

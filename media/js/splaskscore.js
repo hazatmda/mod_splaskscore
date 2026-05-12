@@ -89,7 +89,7 @@
     const parsed = parseSplaskDate(dateStr);
 
     if (!parsed) {
-      return dateStr || '---';
+      return dateStr || 'Tiada';
     }
 
     const weekday = MALAY_WEEKDAYS[parsed.getUTCDay()];
@@ -112,19 +112,9 @@
   function applyHealth(root, health) {
     const data = health || {};
     const lastSuccess = data.last_success || root.dataset.splaskLastSuccess || '';
-    const status = data.status || root.dataset.splaskHealthStatus || 'UNKNOWN';
     const missingToday = String(data.missing_today !== undefined ? data.missing_today : root.dataset.splaskMissingToday) === 'true';
-    const warning = root.querySelector('[data-splask-gap-warning]');
-
-    setText(root, 'last-collection', lastSuccess ? formatMalayDate(lastSuccess) : '---');
-    setText(root, 'collection-status', status);
-
-    if (warning) {
-      warning.hidden = !missingToday;
-    }
 
     root.dataset.splaskLastSuccess = lastSuccess;
-    root.dataset.splaskHealthStatus = status;
     root.dataset.splaskMissingToday = missingToday ? 'true' : 'false';
   }
 
@@ -237,13 +227,13 @@
   }
 
   function setRefreshState(root, loading, message) {
-    const trigger = root.querySelector('[data-splask-refresh-trigger]');
-    if (!trigger) {
-      return;
-    }
-
-    trigger.disabled = loading;
-    trigger.textContent = message || (loading ? 'Refreshing...' : 'Refresh Analytics');
+    const label = message || (loading ? 'Refreshing...' : 'Refresh Analytics');
+    root.querySelectorAll('[data-splask-refresh-trigger]').forEach((trigger) => {
+      trigger.disabled = loading;
+      trigger.classList.toggle('is-loading', loading);
+      trigger.setAttribute('aria-label', label);
+      trigger.setAttribute('title', label);
+    });
   }
 
   function refreshAnalytics(root) {

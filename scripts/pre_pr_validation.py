@@ -306,11 +306,16 @@ def validate_schema_and_workflows() -> None:
 
     validate_release_workflow_sequence(release_workflow)
 
-    workflow_tokens = ["data-splask-refresh-trigger", "refreshAnalytics", "applyHealth", "data-splask-gap-warning"]
+    workflow_tokens = ["data-splask-refresh-trigger", "refreshAnalytics", "applyHealth", "splask-icon-button", "splask-history-header-actions"]
     combined = script + template
     missing_workflow = [token for token in workflow_tokens if token not in combined]
     if missing_workflow:
-        raise AssertionError("Manual refresh/health UI validation missing: " + ", ".join(missing_workflow))
+        raise AssertionError("Manual refresh UI validation missing: " + ", ".join(missing_workflow))
+
+    visible_debug_tokens = ["Last Collection", "Status Analitik", "Last Failed", "data-splask-gap-warning"]
+    visible_debug = [token for token in visible_debug_tokens if token in template]
+    if visible_debug:
+        raise AssertionError("Visible operational telemetry still present: " + ", ".join(visible_debug))
 
 
 def synchronize_release_metadata(release_tag: str | None) -> None:

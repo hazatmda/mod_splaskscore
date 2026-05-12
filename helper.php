@@ -530,10 +530,10 @@ final class ModSplaskscoreHelper
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (!$records) : ?>
+                        <?php if (!$meaningfulRecords) : ?>
                             <tr><td colspan="4" class="text-center py-4">Belum ada rekod sejarah. Rekod akan disimpan selepas markah berjaya dimuatkan.</td></tr>
                         <?php endif; ?>
-                        <?php foreach ($records as $record) : ?>
+                        <?php foreach ($meaningfulRecords as $record) : ?>
                             <tr data-splask-history-grade="<?php echo htmlspecialchars((string) $record->grade_key, ENT_QUOTES, 'UTF-8'); ?>">
                                 <td><?php echo htmlspecialchars(self::formatHistoryDate((string) ($record->source_checked_at ?: $record->created_at)), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><strong><?php echo htmlspecialchars(self::formatScorePercent((float) $record->score), ENT_QUOTES, 'UTF-8'); ?></strong></td>

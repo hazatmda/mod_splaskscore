@@ -419,6 +419,71 @@ def validate_js() -> None:
         run(["node", "--check", rel(path)])
 
 
+def extract_function_body(source: str, function_name: str) -> str:
+    match = re.search(rf"function\s+{re.escape(function_name)}\s*\([^)]*\)\s*[:?\w\\| ]*\s*{{", source)
+    if not match:
+        raise AssertionError(f"Missing function: {function_name}")
+
+    depth = 1
+    index = match.end()
+    while index < len(source) and depth:
+        char = source[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+        index += 1
+
+    if depth != 0:
+        raise AssertionError(f"Could not parse function body: {function_name}")
+
+    return source[match.end():index - 1]
+
+
+def validate_analytics_refinement() -> None:
+    helper = (ROOT / "helper.php").read_text()
+    script = (ROOT / "media" / "js" / "splaskscore.js").read_text()
+
+    if re.search(r">\s*Trend\s*<", helper):
+        raise AssertionError("Analytics KPI regression: visible Trend KPI text must not appear")
+    if "Gred Terendah" not in helper:
+        raise AssertionError("Analytics KPI regression: Gred Terendah KPI is missing")
+
+    summary_start = helper.find('<div class="splask-history-summary"')
+    summary_end = helper.find('<div class="splask-history-chart"', summary_start)
+    if summary_start == -1 or summary_end == -1:
+        raise AssertionError("Analytics KPI regression: history summary block was not found")
+    summary = helper[summary_start:summary_end]
+    if summary.count("formatHistoryDateOnly") < 2 or "formatMalayDate" in summary:
+        raise AssertionError("Analytics KPI regression: KPI sublabels must use date-only formatting")
+
+    build_series = extract_function_body(helper, "buildTrendSeries")
+    if "formatHistoryDateOnly" not in build_series:
+        raise AssertionError("Chart payload regression: chart labels must use date-only formatting")
+    forbidden_payload_tokens = ["'grade'", '"grade"', "'grade_key'", '"grade_key"', "'status'", '"status"', "'status_label'", '"status_label"', "'time'", '"time"']
+    leaked_payload_tokens = [token for token in forbidden_payload_tokens if token in build_series]
+    if leaked_payload_tokens:
+        raise AssertionError("Chart payload regression: payload contains forbidden fields: " + ", ".join(leaked_payload_tokens))
+    if "'label'" not in build_series or "'score'" not in build_series:
+        raise AssertionError("Chart payload regression: payload must contain only date labels and scores")
+
+    tooltip = extract_function_body(script, "showChartTooltip")
+    if "nearest.label" not in tooltip or "formatScore(nearest.score)" not in tooltip:
+        raise AssertionError("Chart tooltip regression: tooltip must render date label and percentage only")
+    forbidden_tooltip_tokens = ["grade", "status", "time", "source_checked_at", "created_at"]
+    leaked_tooltip_tokens = [token for token in forbidden_tooltip_tokens if token in tooltip]
+    if leaked_tooltip_tokens:
+        raise AssertionError("Chart tooltip regression: tooltip contains forbidden data: " + ", ".join(leaked_tooltip_tokens))
+    if "offsetWidth" not in tooltip or "offsetHeight" not in tooltip:
+        raise AssertionError("Chart tooltip regression: tooltip bounds must use measured dimensions")
+
+    bind_modal = extract_function_body(script, "bindHistoryModal")
+    if "shown.bs.modal" not in bind_modal or "redrawHistoryCharts(modal)" not in bind_modal:
+        raise AssertionError("Chart redraw regression: modal shown event must redraw history charts")
+    if "focus" in script or "blur" in script:
+        raise AssertionError("Chart accessibility regression: non-keyboard canvas focus/blur handlers must not be registered")
+
+
 def validate_dashboard_consistency() -> None:
     helper = (ROOT / "helper.php").read_text()
     script = (ROOT / "media" / "js" / "splaskscore.js").read_text()
@@ -468,6 +533,7 @@ def main() -> int:
         validate_css()
         validate_js()
         validate_dashboard_consistency()
+        validate_analytics_refinement()
     except (AssertionError, subprocess.CalledProcessError, ET.ParseError, zipfile.BadZipFile) as exc:
         print(f"pre-PR validation failed: {exc}", file=sys.stderr)
         return 1

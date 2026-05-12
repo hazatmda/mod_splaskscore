@@ -204,8 +204,6 @@
       canvas.dataset.splaskChartInitialized = 'true';
       canvas.addEventListener('mousemove', (event) => showChartTooltip(canvas, event));
       canvas.addEventListener('mouseleave', () => hideChartTooltip(canvas));
-      canvas.addEventListener('focus', () => drawHistoryChart(canvas));
-      canvas.addEventListener('blur', () => hideChartTooltip(canvas));
 
       if (window.ResizeObserver) {
         const observer = new ResizeObserver(() => drawHistoryChart(canvas));
@@ -217,6 +215,10 @@
 
       drawHistoryChart(canvas);
     });
+  }
+
+  function redrawHistoryCharts(scope) {
+    initHistoryCharts(scope || document);
   }
 
   function chartPoints(canvas) {
@@ -335,8 +337,17 @@
 
     tooltip.replaceChildren(document.createTextNode(nearest.label), document.createElement('br'), document.createTextNode(formatScore(nearest.score)));
     tooltip.hidden = false;
-    tooltip.style.left = `${Math.min(Math.max(nearest.x, 44), rect.width - 44)}px`;
-    tooltip.style.top = `${Math.max(nearest.y - 14, 18)}px`;
+    tooltip.style.left = '0px';
+    tooltip.style.top = '0px';
+
+    const tooltipWidth = tooltip.offsetWidth || 0;
+    const tooltipHeight = tooltip.offsetHeight || 0;
+    const horizontalPadding = Math.ceil(tooltipWidth / 2) + 6;
+    const verticalPadding = tooltipHeight + 6;
+    const maxLeft = Math.max(horizontalPadding, rect.width - horizontalPadding);
+
+    tooltip.style.left = `${Math.min(Math.max(nearest.x, horizontalPadding), maxLeft)}px`;
+    tooltip.style.top = `${Math.max(nearest.y - 14, verticalPadding)}px`;
   }
 
   function hideChartTooltip(canvas) {
@@ -440,6 +451,7 @@
 
     if (modal) {
       modal.addEventListener('show.bs.modal', () => loadHistory(root));
+      modal.addEventListener('shown.bs.modal', () => redrawHistoryCharts(modal));
     }
 
     if (trigger) {

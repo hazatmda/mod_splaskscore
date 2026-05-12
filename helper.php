@@ -1391,7 +1391,7 @@ final class ModSplaskscoreHelper
         $series = self::buildTrendSeries($records);
 
         if (count($series) < 2) {
-            return '<div class="splask-history-empty-chart">Trend akan dipaparkan selepas dua rekod berjaya disimpan.</div>';
+            return '<div class="splask-history-empty-chart">Carta akan dipaparkan selepas dua rekod berjaya disimpan.</div>';
         }
 
         $encodedSeries = htmlspecialchars(json_encode($series, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_QUOTES, 'UTF-8');

@@ -31,7 +31,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.3.1';
+    private const ENGINE_VERSION = '1.3.2';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -291,6 +291,7 @@ final class ModSplaskscoreHelper
 
         if ($latest && self::isDuplicateHistoryRecord($latest, $signature, $recordedAt, $cooldownMinutes)) {
             self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', 'Rekod pendua diabaikan.', $recordedAt);
+            self::updateModuleLastSuccessfulCollection($moduleId, self::latestSuccessfulCollectionTimestamp($moduleId, $tokenHash));
 
             return [
                 'success' => true,
@@ -325,6 +326,7 @@ final class ModSplaskscoreHelper
             if ($latest && self::isDuplicateHistoryRecord($latest, $signature, $recordedAt, $cooldownMinutes)) {
                 self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', 'Rekod pendua diabaikan.', $recordedAt);
                 $db->transactionCommit();
+                self::updateModuleLastSuccessfulCollection($moduleId, self::latestSuccessfulCollectionTimestamp($moduleId, $tokenHash));
 
                 return [
                     'success' => true,
@@ -339,6 +341,7 @@ final class ModSplaskscoreHelper
             self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', '', $recordedAt);
             self::applyRetentionPolicy($moduleId, $tokenHash);
             $db->transactionCommit();
+            self::updateModuleLastSuccessfulCollection($moduleId, self::latestSuccessfulCollectionTimestamp($moduleId, $tokenHash));
         } catch (\Throwable $exception) {
             try {
                 $db->transactionRollback();
@@ -511,7 +514,7 @@ final class ModSplaskscoreHelper
                     <?php endif; ?>
                 </div>
                 <div>
-                    <span>Gred Terendah</span>
+                    <span>Markah Terendah</span>
                     <strong><?php echo $lowest ? htmlspecialchars(self::formatScorePercent((float) $lowest->score), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></strong>
                     <?php if ($lowest) : ?>
                         <small><?php echo htmlspecialchars(self::formatHistoryDateOnly((string) ($lowest->source_checked_at ?: $lowest->created_at)), ENT_QUOTES, 'UTF-8'); ?></small>
@@ -1054,6 +1057,30 @@ final class ModSplaskscoreHelper
 
         $params['analytics_scheduler_status'] = $status;
         $params['analytics_last_successful_collection'] = $lastSuccess;
+        self::writeModuleParams($moduleId, $params);
+    }
+
+    private static function updateModuleLastSuccessfulCollection(int $moduleId, string $lastSuccess): void
+    {
+        if ($lastSuccess === '') {
+            return;
+        }
+
+        $params = self::getModuleParams($moduleId);
+        if (!$params) {
+            return;
+        }
+
+        $params['analytics_last_successful_collection'] = $lastSuccess;
+        try {
+            self::writeModuleParams($moduleId, $params);
+        } catch (\Throwable $exception) {
+            self::logAnalyticsEvent('warning', 'Unable to update last successful analytics collection metadata.', ['module_id' => $moduleId, 'error' => $exception->getMessage()]);
+        }
+    }
+
+    private static function writeModuleParams(int $moduleId, array $params): void
+    {
         $db = \Joomla\CMS\Factory::getDbo();
         $query = $db->getQuery(true)
             ->update($db->quoteName('#__modules'))
@@ -1065,17 +1092,37 @@ final class ModSplaskscoreHelper
 
     private static function getModuleLastSuccessfulCollection(int $moduleId): string
     {
+        self::ensureHistoryTable();
         self::ensureHealthTable();
+
+        return self::latestSuccessfulCollectionTimestamp($moduleId);
+    }
+
+    private static function latestSuccessfulCollectionTimestamp(int $moduleId, string $tokenHash = ''): string
+    {
         $db = \Joomla\CMS\Factory::getDbo();
-        $query = $db->getQuery(true)
-            ->select($db->quoteName('recorded_at'))
+        $healthQuery = $db->getQuery(true)
+            ->select('MAX(' . $db->quoteName('recorded_at') . ')')
             ->from($db->quoteName(self::getHealthTableName()))
             ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
-            ->where($db->quoteName('status') . ' = ' . $db->quote('success'))
-            ->order($db->quoteName('recorded_at') . ' DESC');
-        $db->setQuery($query, 0, 1);
+            ->where($db->quoteName('status') . ' = ' . $db->quote('success'));
 
-        return (string) $db->loadResult();
+        $historyQuery = $db->getQuery(true)
+            ->select('MAX(COALESCE(' . $db->quoteName('recorded_at') . ', ' . $db->quoteName('created_at') . '))')
+            ->from($db->quoteName(self::getHistoryTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId);
+
+        if ($tokenHash !== '') {
+            $healthQuery->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash));
+            $historyQuery->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash));
+        }
+
+        $db->setQuery($healthQuery);
+        $healthSuccess = (string) $db->loadResult();
+        $db->setQuery($historyQuery);
+        $historySuccess = (string) $db->loadResult();
+
+        return strcmp($historySuccess, $healthSuccess) > 0 ? $historySuccess : $healthSuccess;
     }
 
     private static function fetchScoreFromApiWithRetry(string $token, int $moduleId, string $source): array
@@ -1258,25 +1305,23 @@ final class ModSplaskscoreHelper
         $today = (new \DateTimeImmutable('today', new \DateTimeZone('UTC')))->format('Y-m-d 00:00:00');
         $db = \Joomla\CMS\Factory::getDbo();
 
-        $query = $db->getQuery(true)
-            ->select('*')
+        $successQuery = $db->getQuery(true)
+            ->select('MAX(' . $db->quoteName('recorded_at') . ')')
             ->from($db->quoteName(self::getHealthTableName()))
             ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
             ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
-            ->order($db->quoteName('recorded_at') . ' DESC');
-        $db->setQuery($query, 0, 10);
-        $healthRows = $db->loadObjectList() ?: [];
+            ->where($db->quoteName('status') . ' = ' . $db->quote('success'));
+        $db->setQuery($successQuery);
+        $lastSuccess = (string) $db->loadResult();
 
-        $lastSuccess = null;
-        $lastFailed = null;
-        foreach ($healthRows as $row) {
-            if ($lastSuccess === null && (string) $row->status === 'success') {
-                $lastSuccess = (string) $row->recorded_at;
-            }
-            if ($lastFailed === null && (string) $row->status === 'failed') {
-                $lastFailed = (string) $row->recorded_at;
-            }
-        }
+        $failedQuery = $db->getQuery(true)
+            ->select('MAX(' . $db->quoteName('recorded_at') . ')')
+            ->from($db->quoteName(self::getHealthTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
+            ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
+            ->where($db->quoteName('status') . ' = ' . $db->quote('failed'));
+        $db->setQuery($failedQuery);
+        $lastFailed = (string) $db->loadResult();
 
         $missingToday = true;
         if ($latest) {
@@ -1285,7 +1330,7 @@ final class ModSplaskscoreHelper
         }
 
         $fallbackSuccess = $latest ? (string) ($latest->recorded_at ?? $latest->created_at) : '';
-        $effectiveSuccess = $lastSuccess ?: $fallbackSuccess;
+        $effectiveSuccess = $lastSuccess !== '' ? $lastSuccess : $fallbackSuccess;
         if ($fallbackSuccess !== '' && ($effectiveSuccess === '' || strcmp($fallbackSuccess, $effectiveSuccess) > 0)) {
             $effectiveSuccess = $fallbackSuccess;
         }
@@ -1294,7 +1339,7 @@ final class ModSplaskscoreHelper
         // after the latest success/history snapshot is release-blocking and
         // must not be masked by an older successful collection.
         $status = 'UNKNOWN';
-        if ($lastFailed !== null && ($effectiveSuccess === '' || strcmp($lastFailed, $effectiveSuccess) > 0)) {
+        if ($lastFailed !== '' && ($effectiveSuccess === '' || strcmp($lastFailed, $effectiveSuccess) > 0)) {
             $status = 'FAILED';
         } elseif ($effectiveSuccess !== '') {
             $status = 'SUCCESS';
@@ -1302,7 +1347,7 @@ final class ModSplaskscoreHelper
 
         return [
             'last_success' => $effectiveSuccess,
-            'last_failed' => $lastFailed ?: '',
+            'last_failed' => $lastFailed,
             'status' => $status,
             'missing_today' => $missingToday,
             'source' => $latest ? (string) ($latest->source ?? 'dashboard') : '',
@@ -1397,7 +1442,7 @@ final class ModSplaskscoreHelper
         $encodedSeries = htmlspecialchars(json_encode($series, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_QUOTES, 'UTF-8');
 
         return '<div class="splask-history-chart-canvas-wrap">'
-            . '<canvas class="splask-history-line-chart" data-splask-line-chart data-splask-chart-points="' . $encodedSeries . '" aria-label="Carta garis peratus sejarah SPLaSK" role="img"></canvas>'
+            . '<canvas class="splask-history-line-chart" data-splask-line-chart data-splask-chart-points="' . $encodedSeries . '" width="640" height="300" aria-label="Carta garis peratus sejarah SPLaSK" role="img"></canvas>'
             . '<div class="splask-history-tooltip" data-splask-chart-tooltip hidden></div>'
             . '</div>';
     }

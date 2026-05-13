@@ -226,9 +226,10 @@
 
     if (window.requestAnimationFrame) {
       window.requestAnimationFrame(() => redrawHistoryCharts(scope));
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => redrawHistoryCharts(scope)));
     }
 
-    window.setTimeout(() => redrawHistoryCharts(scope), 150);
+    [75, 150, 300, 600].forEach((delay) => window.setTimeout(() => redrawHistoryCharts(scope), delay));
   }
 
   function chartPoints(canvas) {
@@ -240,21 +241,66 @@
     }
   }
 
+  function resolveCanvasColor(value, fallback) {
+    const probe = document.createElement('canvas').getContext('2d');
+    if (!probe) {
+      return fallback;
+    }
+
+    probe.strokeStyle = fallback;
+    probe.strokeStyle = value || fallback;
+
+    return probe.strokeStyle || fallback;
+  }
+
+  function chartColor(canvas, propertyName, fallback) {
+    const root = canvas.closest('[data-splask-widget]') || document.documentElement;
+    const canvasStyle = getComputedStyle(canvas);
+    const rootStyle = getComputedStyle(root);
+    const value = (canvasStyle.getPropertyValue(propertyName) || rootStyle.getPropertyValue(propertyName) || '').trim();
+
+    return resolveCanvasColor(value, fallback);
+  }
+
+  function chartDimensions(canvas) {
+    const wrapper = canvas.parentElement;
+    const rect = wrapper ? wrapper.getBoundingClientRect() : canvas.getBoundingClientRect();
+    const cssWidth = wrapper ? wrapper.clientWidth : canvas.clientWidth;
+    const cssHeight = wrapper ? wrapper.clientHeight : canvas.clientHeight;
+    const width = Math.floor(rect.width || cssWidth || canvas.clientWidth || 0);
+    const height = Math.floor(rect.height || cssHeight || canvas.clientHeight || 0);
+
+    return {
+      width: Math.max(320, width || 640),
+      height: Math.max(220, height || 260),
+      visible: width > 0 && height > 0
+    };
+  }
+
   function drawHistoryChart(canvas) {
     const points = chartPoints(canvas);
     const context = canvas.getContext('2d');
-    const wrapper = canvas.parentElement;
-    const style = getComputedStyle(canvas);
-    const color = getComputedStyle(canvas.closest('[data-splask-widget]') || document.documentElement).getPropertyValue('--splask-grade-color').trim() || '#2563eb';
-    const muted = style.getPropertyValue('--splask-chart-muted').trim() || 'rgba(100, 116, 139, 0.72)';
-    const grid = style.getPropertyValue('--splask-chart-grid').trim() || 'rgba(148, 163, 184, 0.22)';
-    const width = Math.max(320, Math.floor((wrapper || canvas).clientWidth || canvas.clientWidth || 640));
-    const height = Math.max(220, Math.floor((wrapper || canvas).clientHeight || canvas.clientHeight || 260));
+    const dimensions = chartDimensions(canvas);
+    const color = chartColor(canvas, '--splask-grade-color', '#2563eb');
+    const accent = chartColor(canvas, '--splask-grade-accent', '#60a5fa');
+    const muted = chartColor(canvas, '--splask-chart-muted', 'rgba(100, 116, 139, 0.72)');
+    const grid = chartColor(canvas, '--splask-chart-grid', 'rgba(148, 163, 184, 0.22)');
+    const width = dimensions.width;
+    const height = dimensions.height;
     const ratio = window.devicePixelRatio || 1;
     const padding = { top: 22, right: 18, bottom: 48, left: 48 };
 
     if (!context || points.length < 2) {
+      canvas._splaskChartCoordinates = [];
       return;
+    }
+
+    if (!dimensions.visible && !canvas.dataset.splaskHiddenDrawQueued) {
+      canvas.dataset.splaskHiddenDrawQueued = 'true';
+      window.setTimeout(() => {
+        delete canvas.dataset.splaskHiddenDrawQueued;
+        drawHistoryChart(canvas);
+      }, 150);
     }
 
     canvas.width = Math.floor(width * ratio);
@@ -308,8 +354,11 @@
       score: Number(point.score)
     }));
 
+    context.save();
+    context.shadowColor = resolveCanvasColor(accent, color);
+    context.shadowBlur = 8;
     context.strokeStyle = color;
-    context.lineWidth = 3.5;
+    context.lineWidth = 4;
     context.beginPath();
     coordinates.forEach((point, index) => {
       if (index === 0) {
@@ -322,12 +371,16 @@
       context.bezierCurveTo(midX, previous.y, midX, point.y, point.x, point.y);
     });
     context.stroke();
+    context.restore();
 
     context.fillStyle = color;
+    context.strokeStyle = '#ffffff';
+    context.lineWidth = 2;
     coordinates.forEach((point) => {
       context.beginPath();
-      context.arc(point.x, point.y, 4, 0, Math.PI * 2);
+      context.arc(point.x, point.y, 5, 0, Math.PI * 2);
       context.fill();
+      context.stroke();
     });
 
     canvas._splaskChartCoordinates = coordinates;
@@ -466,6 +519,7 @@
     if (modal) {
       modal.addEventListener('show.bs.modal', () => loadHistory(root));
       modal.addEventListener('shown.bs.modal', () => scheduleHistoryChartRedraw(modal));
+      modal.addEventListener('transitionend', () => scheduleHistoryChartRedraw(modal));
     }
 
     if (trigger) {

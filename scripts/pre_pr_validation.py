@@ -447,8 +447,10 @@ def validate_analytics_refinement() -> None:
 
     if re.search(r">\s*Trend\s*<", helper):
         raise AssertionError("Analytics KPI regression: visible Trend KPI text must not appear")
-    if "Gred Terendah" not in helper:
-        raise AssertionError("Analytics KPI regression: Gred Terendah KPI is missing")
+    if "Gred Terendah" in helper:
+        raise AssertionError("Analytics KPI regression: obsolete Gred Terendah KPI label is still present")
+    if "Markah Terendah" not in helper:
+        raise AssertionError("Analytics KPI regression: Markah Terendah KPI is missing")
 
     summary_start = helper.find('<div class="splask-history-summary"')
     summary_end = helper.find('<div class="splask-history-chart"', summary_start)

@@ -790,44 +790,58 @@
   letter-spacing: -0.03em;
 }
 
-.splask-history-positive {
-  color: #22c55e !important;
-}
-
-.splask-history-negative {
-  color: #ef4444 !important;
+.splask-history-summary small {
+  display: block;
+  margin-top: 0.18rem;
+  color: var(--splask-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .splask-history-chart {
   overflow: hidden;
-  min-height: 7.75rem;
+  min-height: 16rem;
   margin-bottom: 0.85rem;
   border: 1px solid var(--splask-panel-border);
   border-radius: 0.95rem;
-  padding: 0.65rem;
+  padding: 0.75rem;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--splask-modal-panel-strong) 82%, transparent), var(--splask-modal-panel)),
-    repeating-linear-gradient(90deg, transparent 0 4.5rem, rgba(148, 163, 184, 0.06) 4.5rem 4.56rem);
+    linear-gradient(180deg, color-mix(in srgb, var(--splask-modal-panel-strong) 82%, transparent), var(--splask-modal-panel));
 }
 
-.splask-history-svg {
+.splask-history-chart-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: clamp(14rem, 42vw, 19rem);
+}
+
+.splask-history-line-chart {
+  --splask-chart-grid: color-mix(in srgb, var(--splask-muted) 22%, transparent);
+  --splask-chart-muted: color-mix(in srgb, var(--splask-muted) 82%, transparent);
   display: block;
   width: 100%;
-  height: 7.6rem;
+  height: 100%;
 }
 
-.splask-history-axis {
-  stroke: color-mix(in srgb, var(--splask-muted) 34%, transparent);
-  stroke-width: 1;
-}
-
-.splask-history-line {
-  fill: none;
-  stroke: var(--splask-grade-color);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 5;
-  filter: drop-shadow(0 0.28rem 0.45rem color-mix(in srgb, var(--splask-grade-color) 32%, transparent));
+.splask-history-tooltip {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  border: 1px solid color-mix(in srgb, var(--splask-grade-color) 35%, var(--splask-panel-border));
+  border-radius: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  color: var(--splask-text);
+  background: var(--splask-modal-panel-strong);
+  box-shadow: 0 0.75rem 1.6rem rgba(2, 6, 23, 0.18);
+  font-size: 0.82rem;
+  font-weight: 800;
+  max-width: calc(100% - 1rem);
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .splask-history-table-wrap {

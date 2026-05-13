@@ -443,6 +443,7 @@ def extract_function_body(source: str, function_name: str) -> str:
 def validate_analytics_refinement() -> None:
     helper = (ROOT / "helper.php").read_text()
     script = (ROOT / "media" / "js" / "splaskscore.js").read_text()
+    styles = (ROOT / "media" / "css" / "splaskscore.css").read_text()
 
     if re.search(r">\s*Trend\s*<", helper):
         raise AssertionError("Analytics KPI regression: visible Trend KPI text must not appear")
@@ -476,10 +477,24 @@ def validate_analytics_refinement() -> None:
         raise AssertionError("Chart tooltip regression: tooltip contains forbidden data: " + ", ".join(leaked_tooltip_tokens))
     if "offsetWidth" not in tooltip or "offsetHeight" not in tooltip:
         raise AssertionError("Chart tooltip regression: tooltip bounds must use measured dimensions")
+    required_tooltip_bounds = ["tooltip.style.maxWidth", "rect.width", "tooltipWidth", "tooltipHeight", "minLeft", "maxLeft", "minTop", "maxTop"]
+    missing_tooltip_bounds = [token for token in required_tooltip_bounds if token not in tooltip]
+    if missing_tooltip_bounds:
+        raise AssertionError("Chart tooltip regression: tooltip must constrain then clamp measured bounds: " + ", ".join(missing_tooltip_bounds))
+
+    required_tooltip_styles = ["max-width: calc(100% - 1rem)", "white-space: normal", "overflow-wrap: anywhere"]
+    missing_tooltip_styles = [token for token in required_tooltip_styles if token not in styles]
+    if missing_tooltip_styles:
+        raise AssertionError("Chart tooltip CSS regression: tooltip must wrap within the chart container: " + ", ".join(missing_tooltip_styles))
 
     bind_modal = extract_function_body(script, "bindHistoryModal")
-    if "shown.bs.modal" not in bind_modal or "redrawHistoryCharts(modal)" not in bind_modal:
-        raise AssertionError("Chart redraw regression: modal shown event must redraw history charts")
+    schedule_redraw = extract_function_body(script, "scheduleHistoryChartRedraw")
+    if "shown.bs.modal" not in bind_modal or "scheduleHistoryChartRedraw(modal)" not in bind_modal:
+        raise AssertionError("Chart redraw regression: modal shown event must schedule history chart redraws")
+    if "requestAnimationFrame" not in schedule_redraw or "setTimeout" not in schedule_redraw:
+        raise AssertionError("Chart redraw regression: modal redraw must retry after layout settles")
+    if "scheduleHistoryChartRedraw(body)" not in script:
+        raise AssertionError("Chart redraw regression: AJAX refresh must redraw replaced modal HTML")
     if "focus" in script or "blur" in script:
         raise AssertionError("Chart accessibility regression: non-keyboard canvas focus/blur handlers must not be registered")
 

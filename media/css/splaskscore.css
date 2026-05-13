@@ -836,9 +836,12 @@
   box-shadow: 0 0.75rem 1.6rem rgba(2, 6, 23, 0.18);
   font-size: 0.82rem;
   font-weight: 800;
+  max-width: calc(100% - 1rem);
   line-height: 1.35;
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .splask-history-table-wrap {

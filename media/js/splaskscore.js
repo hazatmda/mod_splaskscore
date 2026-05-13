@@ -221,6 +221,16 @@
     initHistoryCharts(scope || document);
   }
 
+  function scheduleHistoryChartRedraw(scope) {
+    redrawHistoryCharts(scope);
+
+    if (window.requestAnimationFrame) {
+      window.requestAnimationFrame(() => redrawHistoryCharts(scope));
+    }
+
+    window.setTimeout(() => redrawHistoryCharts(scope), 150);
+  }
+
   function chartPoints(canvas) {
     try {
       const points = JSON.parse(canvas.dataset.splaskChartPoints || '[]');
@@ -339,15 +349,19 @@
     tooltip.hidden = false;
     tooltip.style.left = '0px';
     tooltip.style.top = '0px';
+    tooltip.style.maxWidth = `${Math.max(0, Math.floor(rect.width - 12))}px`;
 
     const tooltipWidth = tooltip.offsetWidth || 0;
     const tooltipHeight = tooltip.offsetHeight || 0;
     const horizontalPadding = Math.ceil(tooltipWidth / 2) + 6;
     const verticalPadding = tooltipHeight + 6;
-    const maxLeft = Math.max(horizontalPadding, rect.width - horizontalPadding);
+    const minLeft = Math.min(horizontalPadding, rect.width / 2);
+    const maxLeft = Math.max(minLeft, rect.width - horizontalPadding);
+    const minTop = Math.min(verticalPadding, rect.height / 2);
+    const maxTop = Math.max(minTop, rect.height - 6);
 
-    tooltip.style.left = `${Math.min(Math.max(nearest.x, horizontalPadding), maxLeft)}px`;
-    tooltip.style.top = `${Math.max(nearest.y - 14, verticalPadding)}px`;
+    tooltip.style.left = `${Math.min(Math.max(nearest.x, minLeft), maxLeft)}px`;
+    tooltip.style.top = `${Math.min(Math.max(nearest.y - 14, minTop), maxTop)}px`;
   }
 
   function hideChartTooltip(canvas) {
@@ -380,7 +394,7 @@
         if (data && data.success && data.html) {
           body.innerHTML = data.html;
           body.dataset.splaskLoaded = 'true';
-          initHistoryCharts(body);
+          scheduleHistoryChartRedraw(body);
           applyHealth(root, data.health);
           return;
         }
@@ -432,7 +446,7 @@
         if (body && data && data.html) {
           body.innerHTML = data.html;
           body.dataset.splaskLoaded = 'true';
-          initHistoryCharts(body);
+          scheduleHistoryChartRedraw(body);
         }
 
         setRefreshState(root, false, (data && data.duplicate) ? 'Already Current' : 'Refresh Analytics');
@@ -451,7 +465,7 @@
 
     if (modal) {
       modal.addEventListener('show.bs.modal', () => loadHistory(root));
-      modal.addEventListener('shown.bs.modal', () => redrawHistoryCharts(modal));
+      modal.addEventListener('shown.bs.modal', () => scheduleHistoryChartRedraw(modal));
     }
 
     if (trigger) {

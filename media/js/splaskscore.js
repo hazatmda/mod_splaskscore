@@ -277,6 +277,58 @@
     };
   }
 
+  function clampScore(score) {
+    return Math.max(0, Math.min(100, Number(score)));
+  }
+
+  function chartScale(points) {
+    const scores = points.map((point) => clampScore(point.score)).filter(Number.isFinite);
+
+    if (!scores.length) {
+      return { min: 0, max: 100, ticks: [0, 25, 50, 75, 100] };
+    }
+
+    const lowest = Math.min(...scores);
+    const highest = Math.max(...scores);
+    const spread = highest - lowest;
+
+    if (spread >= 50) {
+      return { min: 0, max: 100, ticks: [0, 25, 50, 75, 100] };
+    }
+
+    const padding = Math.max(1, spread * 0.2);
+    let min = Math.floor(lowest - padding);
+    let max = Math.ceil(highest + padding);
+    const minimumRange = 4;
+
+    if (max - min < minimumRange) {
+      const midpoint = (lowest + highest) / 2;
+      min = Math.floor(midpoint - minimumRange / 2);
+      max = Math.ceil(midpoint + minimumRange / 2);
+    }
+
+    min = Math.max(0, min);
+    max = Math.min(101, max);
+
+    if (max - min < minimumRange) {
+      if (min === 0) {
+        max = Math.min(101, min + minimumRange);
+      } else {
+        min = Math.max(0, max - minimumRange);
+      }
+    }
+
+    const range = Math.max(1, max - min);
+    const ticks = Array.from({ length: 5 }, (_, index) => min + (range * index / 4));
+
+    return { min, max, ticks };
+  }
+
+  function formatChartTick(tick) {
+    const rounded = Math.round(tick * 10) / 10;
+    return `${rounded.toFixed(1).replace(/\.0$/, '')}%`;
+  }
+
   function drawHistoryChart(canvas) {
     const points = chartPoints(canvas);
     const context = canvas.getContext('2d');
@@ -315,19 +367,21 @@
 
     const plotWidth = width - padding.left - padding.right;
     const plotHeight = height - padding.top - padding.bottom;
+    const scale = chartScale(points);
+    const scaleRange = Math.max(1, scale.max - scale.min);
     const toX = (index) => padding.left + (points.length === 1 ? 0 : (index / (points.length - 1)) * plotWidth);
-    const toY = (score) => padding.top + ((100 - Math.max(0, Math.min(100, Number(score)))) / 100) * plotHeight;
+    const toY = (score) => padding.top + ((scale.max - clampScore(score)) / scaleRange) * plotHeight;
 
     context.strokeStyle = grid;
     context.fillStyle = muted;
     context.lineWidth = 1;
-    [0, 25, 50, 75, 100].forEach((tick) => {
-      const y = toY(tick);
+    scale.ticks.forEach((tick) => {
+      const y = padding.top + ((scale.max - tick) / scaleRange) * plotHeight;
       context.beginPath();
       context.moveTo(padding.left, y);
       context.lineTo(width - padding.right, y);
       context.stroke();
-      context.fillText(`${tick}%`, 8, y + 4);
+      context.fillText(formatChartTick(tick), 8, y + 4);
     });
 
     const maxLabels = width < 520 ? 3 : Math.min(points.length, 6);

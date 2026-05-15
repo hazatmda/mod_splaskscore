@@ -700,6 +700,7 @@
 
 .splask-history-modal .modal-content {
   overflow: hidden;
+  max-height: min(92vh, 56rem);
   border: 1px solid var(--splask-panel-border);
   border-radius: 1.1rem;
   color: var(--splask-text);
@@ -748,16 +749,16 @@
 .splask-history-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 0.85rem;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
 }
 
 .splask-history-summary > div {
   position: relative;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--splask-panel-border) 78%, var(--splask-grade-color));
-  border-radius: 0.85rem;
-  padding: 0.82rem 0.9rem;
+  border-radius: 0.7rem;
+  padding: 0.56rem 0.7rem 0.56rem 0.78rem;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--splask-grade-surface) 36%, transparent), transparent),
     var(--splask-modal-panel);
@@ -775,7 +776,7 @@
 .splask-history-summary span {
   display: block;
   color: var(--splask-muted);
-  font-size: 0.76rem;
+  font-size: 0.7rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -783,28 +784,28 @@
 
 .splask-history-summary strong {
   display: block;
-  margin-top: 0.28rem;
+  margin-top: 0.12rem;
   color: var(--splask-text);
-  font-size: clamp(1.15rem, 3vw, 1.55rem);
+  font-size: clamp(1rem, 2.4vw, 1.28rem);
   font-weight: 850;
   letter-spacing: -0.03em;
 }
 
 .splask-history-summary small {
   display: block;
-  margin-top: 0.18rem;
+  margin-top: 0.08rem;
   color: var(--splask-muted);
-  font-size: 0.82rem;
+  font-size: 0.74rem;
   font-weight: 700;
 }
 
 .splask-history-chart {
   overflow: hidden;
-  min-height: 16rem;
-  margin-bottom: 0.85rem;
+  min-height: 10.5rem;
+  margin-bottom: 0.6rem;
   border: 1px solid var(--splask-panel-border);
-  border-radius: 0.95rem;
-  padding: 0.75rem;
+  border-radius: 0.85rem;
+  padding: 0.45rem;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--splask-modal-panel-strong) 82%, transparent), var(--splask-modal-panel));
 }
@@ -814,7 +815,7 @@
   z-index: 1;
   width: 100%;
   min-width: 0;
-  height: clamp(14rem, 42vw, 19rem);
+  height: clamp(9.5rem, 28vw, 12.5rem);
 }
 
 .splask-history-line-chart {
@@ -823,7 +824,7 @@
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 14rem;
+  min-height: 9.5rem;
   opacity: 1;
   visibility: visible;
 }
@@ -849,8 +850,16 @@
   word-break: break-word;
 }
 
+.splask-history-table-shell {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .splask-history-table-wrap {
-  overflow: hidden;
+  overflow: auto;
+  max-height: 22rem;
   border: 1px solid var(--splask-panel-border);
   border-radius: 0.95rem;
   background: var(--splask-modal-panel);
@@ -867,6 +876,9 @@
 }
 
 .splask-history-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   border-bottom: 1px solid color-mix(in srgb, var(--splask-grade-color) 32%, var(--splask-panel-border));
   color: var(--splask-muted);
   background:
@@ -890,7 +902,45 @@
 
 .splask-history-table tbody td {
   border-top-color: var(--splask-subtle);
+  padding-top: 0.58rem;
+  padding-bottom: 0.58rem;
   color: var(--splask-text);
+}
+
+.splask-history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--splask-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.splask-history-pagination-actions {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.splask-history-page-button {
+  border: 1px solid color-mix(in srgb, var(--splask-grade-color) 28%, var(--splask-panel-border));
+  border-radius: 999px;
+  padding: 0.28rem 0.62rem;
+  color: var(--splask-grade-color);
+  background: color-mix(in srgb, var(--splask-modal-panel) 76%, var(--splask-grade-surface));
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.splask-history-page-button:hover,
+.splask-history-page-button:focus {
+  color: #fff;
+  background: var(--splask-grade-color);
+}
+
+.splask-history-page-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .splask-history-table tbody td:last-child {
@@ -938,6 +988,19 @@
 
   .splask-history-summary {
     grid-template-columns: 1fr;
+  }
+
+  .splask-history-chart-canvas-wrap {
+    height: 10rem;
+  }
+
+  .splask-history-table-wrap {
+    max-height: 21rem;
+  }
+
+  .splask-history-pagination {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

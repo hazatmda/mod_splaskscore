@@ -31,13 +31,17 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.3.3';
+    private const ENGINE_VERSION = '1.3.4';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
     private const DEFAULT_RETENTION_DAYS = 365;
 
     private const DEFAULT_MAX_HISTORY_ROWS = 500;
+
+    private const HISTORY_TABLE_PAGE_SIZE = 7;
+
+    private const HISTORY_CHART_RECORD_LIMIT = 7;
 
     private const SCHEDULER_TASK_TYPE = 'splaskscore.analytics.collect';
 
@@ -501,6 +505,9 @@ final class ModSplaskscoreHelper
             }
         }
         $health = $health ?? self::buildHealthFromRecords($records);
+        $historyCount = count($meaningfulRecords);
+        $pageSize = self::HISTORY_TABLE_PAGE_SIZE;
+        $pageCount = max(1, (int) ceil($historyCount / $pageSize));
 
         ob_start();
         ?>
@@ -530,8 +537,9 @@ final class ModSplaskscoreHelper
                 <?php echo self::renderTrendChart($meaningfulRecords); ?>
             </div>
 
-            <div class="table-responsive splask-history-table-wrap">
-                <table class="table table-sm align-middle splask-history-table">
+            <div class="splask-history-table-shell" data-splask-history-pagination data-splask-history-page-size="<?php echo $pageSize; ?>">
+                <div class="table-responsive splask-history-table-wrap" tabindex="0" aria-label="Senarai sejarah SPLaSK boleh ditatal">
+                    <table class="table table-sm align-middle splask-history-table">
                     <thead>
                         <tr>
                             <th scope="col">Tarikh</th>
@@ -553,7 +561,17 @@ final class ModSplaskscoreHelper
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
-                </table>
+                    </table>
+                </div>
+                <?php if ($historyCount > $pageSize) : ?>
+                    <div class="splask-history-pagination" aria-label="Navigasi halaman sejarah">
+                        <span data-splask-history-page-status>Halaman 1 daripada <?php echo $pageCount; ?></span>
+                        <div class="splask-history-pagination-actions">
+                            <button type="button" class="splask-history-page-button" data-splask-history-page-prev aria-label="Halaman sejarah sebelumnya">Sebelum</button>
+                            <button type="button" class="splask-history-page-button" data-splask-history-page-next aria-label="Halaman sejarah seterusnya">Seterusnya</button>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
         <?php
@@ -916,19 +934,20 @@ final class ModSplaskscoreHelper
                 'module_id' => $moduleId,
                 'frequency' => $frequency,
                 'collection_time' => $time,
+                'collection_timezone' => 'MYT / UTC+8',
                 'duplicate_cooldown_minutes' => self::getDuplicateCooldownMinutes($moduleId),
                 'retention_days' => max(1, (int) ($params['analytics_retention_days'] ?? self::DEFAULT_RETENTION_DAYS)),
                 'max_history_records' => max(1, (int) ($params['analytics_max_rows'] ?? self::DEFAULT_MAX_HISTORY_ROWS)),
             ]);
 
             $values = [
-                'title' => 'SPLaSK Score Analytics Collection',
+                'title' => 'SPLaSK Score Analytics Collection (MYT / UTC+8)',
                 'type' => self::SCHEDULER_TASK_TYPE,
                 'state' => $enabled ? 1 : 0,
                 'execution_rules' => json_encode($rules['execution_rules']),
                 'cron_rules' => json_encode($rules['cron_rules']),
                 'params' => $taskParams,
-                'note' => 'Managed automatically from the SPLaSK Score module settings. Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. Manual scheduler edits are preserved only until the module is saved again.',
+                'note' => 'Managed automatically from the SPLaSK Score module settings. Daily collection time is Malaysia Time (MYT / UTC+8). Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. Manual scheduler edits are preserved only until the module is saved again.',
                 'priority' => 5,
                 'cli_exclusive' => 0,
             ];
@@ -976,7 +995,7 @@ final class ModSplaskscoreHelper
             $db->transactionCommit();
 
             $lastSuccess = self::getModuleLastSuccessfulCollection($moduleId);
-            self::updateModuleAutomationMetadata($moduleId, ucfirst($status) . ' (' . $frequency . ($frequency === 'daily' ? ' at ' . $time : '') . ')', $lastSuccess);
+            self::updateModuleAutomationMetadata($moduleId, ucfirst($status) . ' (' . $frequency . ($frequency === 'daily' ? ' at ' . $time . ' MYT / UTC+8' : '') . ')', $lastSuccess);
             self::logAnalyticsEvent('info', 'Scheduler synchronized from module settings.', ['module_id' => $moduleId, 'status' => $status, 'frequency' => $frequency, 'time' => $time]);
 
             return ['success' => true, 'status' => $status, 'frequency' => $frequency, 'time' => $time, 'last_success' => $lastSuccess];
@@ -1414,7 +1433,9 @@ final class ModSplaskscoreHelper
     {
         $series = [];
 
-        foreach (array_reverse(self::getDistinctMeaningfulHistoryRecords($records)) as $record) {
+        $recentRecords = array_slice(self::getDistinctMeaningfulHistoryRecords($records), 0, self::HISTORY_CHART_RECORD_LIMIT);
+
+        foreach (array_reverse($recentRecords) as $record) {
             $series[] = [
                 'label' => self::formatHistoryDateOnly((string) ($record->source_checked_at ?: $record->created_at)),
                 'score' => (float) $record->score,
@@ -1442,7 +1463,7 @@ final class ModSplaskscoreHelper
         $encodedSeries = htmlspecialchars(json_encode($series, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_QUOTES, 'UTF-8');
 
         return '<div class="splask-history-chart-canvas-wrap">'
-            . '<canvas class="splask-history-line-chart" data-splask-line-chart data-splask-chart-points="' . $encodedSeries . '" width="640" height="300" aria-label="Carta garis peratus sejarah SPLaSK" role="img"></canvas>'
+            . '<canvas class="splask-history-line-chart" data-splask-line-chart data-splask-chart-points="' . $encodedSeries . '" width="640" height="220" aria-label="Carta garis peratus sejarah SPLaSK untuk 7 rekod terkini" role="img"></canvas>'
             . '<div class="splask-history-tooltip" data-splask-chart-tooltip hidden></div>'
             . '</div>';
     }

@@ -31,7 +31,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.3.4';
+    private const ENGINE_VERSION = '1.3.5';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -928,13 +928,17 @@ final class ModSplaskscoreHelper
 
             $task = self::getManagedSchedulerTask();
             $now = \Joomla\CMS\Factory::getDate()->toSql();
-            $rules = self::buildSchedulerRules($frequency, $time);
+            $schedulerTime = self::convertMytCollectionTimeToUtc($time);
+            $rules = self::buildSchedulerRules($frequency, $schedulerTime);
+            $nextExecution = self::calculateSchedulerNextExecution($rules);
             $taskParams = json_encode([
                 'managed_by' => 'mod_splaskscore',
                 'module_id' => $moduleId,
                 'frequency' => $frequency,
                 'collection_time' => $time,
                 'collection_timezone' => 'MYT / UTC+8',
+                'scheduler_time_utc' => $schedulerTime,
+                'scheduler_timezone' => 'UTC',
                 'duplicate_cooldown_minutes' => self::getDuplicateCooldownMinutes($moduleId),
                 'retention_days' => max(1, (int) ($params['analytics_retention_days'] ?? self::DEFAULT_RETENTION_DAYS)),
                 'max_history_records' => max(1, (int) ($params['analytics_max_rows'] ?? self::DEFAULT_MAX_HISTORY_ROWS)),
@@ -947,7 +951,8 @@ final class ModSplaskscoreHelper
                 'execution_rules' => json_encode($rules['execution_rules']),
                 'cron_rules' => json_encode($rules['cron_rules']),
                 'params' => $taskParams,
-                'note' => 'Managed automatically from the SPLaSK Score module settings. Daily collection time is Malaysia Time (MYT / UTC+8). Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. Manual scheduler edits are preserved only until the module is saved again.',
+                'next_execution' => $nextExecution,
+                'note' => 'Managed automatically from the SPLaSK Score module settings. Daily collection time is Malaysia Time (MYT / UTC+8) and is persisted to Joomla Scheduler in UTC. Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. Manual scheduler edits are preserved only until the module is saved again.',
                 'priority' => 5,
                 'cli_exclusive' => 0,
             ];
@@ -962,6 +967,9 @@ final class ModSplaskscoreHelper
                 }
                 if (isset($columns['state'])) {
                     $updates[] = $db->quoteName('state') . ' = ' . (int) ($enabled ? 1 : 0);
+                }
+                if (isset($columns['locked'])) {
+                    $updates[] = $db->quoteName('locked') . ' = NULL';
                 }
 
                 if ($updates) {
@@ -978,12 +986,12 @@ final class ModSplaskscoreHelper
                         $insert[$column] = $value;
                     }
                 }
-                foreach (['created' => $now, 'checked_out_time' => null, 'last_execution' => null, 'next_execution' => null] as $column => $value) {
+                foreach (['created' => $now, 'checked_out_time' => null, 'last_execution' => null, 'next_execution' => $nextExecution] as $column => $value) {
                     if (isset($columns[$column])) {
                         $insert[$column] = $value;
                     }
                 }
-                foreach (['created_by' => 0, 'ordering' => 0, 'times_executed' => 0, 'times_failed' => 0, 'locked' => 0] as $column => $value) {
+                foreach (['created_by' => 0, 'ordering' => 0, 'times_executed' => 0, 'times_failed' => 0, 'locked' => null] as $column => $value) {
                     if (isset($columns[$column])) {
                         $insert[$column] = $value;
                     }
@@ -993,12 +1001,13 @@ final class ModSplaskscoreHelper
                 $db->insertObject('#__scheduler_tasks', $object);
             }
             $db->transactionCommit();
+            self::clearSchedulerCache();
 
             $lastSuccess = self::getModuleLastSuccessfulCollection($moduleId);
             self::updateModuleAutomationMetadata($moduleId, ucfirst($status) . ' (' . $frequency . ($frequency === 'daily' ? ' at ' . $time . ' MYT / UTC+8' : '') . ')', $lastSuccess);
-            self::logAnalyticsEvent('info', 'Scheduler synchronized from module settings.', ['module_id' => $moduleId, 'status' => $status, 'frequency' => $frequency, 'time' => $time]);
+            self::logAnalyticsEvent('info', 'Scheduler synchronized from module settings.', ['module_id' => $moduleId, 'status' => $status, 'frequency' => $frequency, 'time' => $time, 'scheduler_time_utc' => $schedulerTime, 'next_execution' => $nextExecution]);
 
-            return ['success' => true, 'status' => $status, 'frequency' => $frequency, 'time' => $time, 'last_success' => $lastSuccess];
+            return ['success' => true, 'status' => $status, 'frequency' => $frequency, 'time' => $time, 'scheduler_time_utc' => $schedulerTime, 'next_execution' => $nextExecution, 'last_success' => $lastSuccess];
         } catch (\Throwable $exception) {
             try {
                 \Joomla\CMS\Factory::getDbo()->transactionRollback();
@@ -1043,6 +1052,59 @@ final class ModSplaskscoreHelper
         ];
     }
 
+    private static function convertMytCollectionTimeToUtc(string $time): string
+    {
+        [$hour, $minute] = array_map('intval', explode(':', self::normaliseCollectionTime($time)));
+        $collectionTime = new \DateTimeImmutable(
+            sprintf('2000-01-01 %02d:%02d:00', $hour, $minute),
+            new \DateTimeZone('Asia/Kuala_Lumpur')
+        );
+
+        return $collectionTime->setTimezone(new \DateTimeZone('UTC'))->format('H:i');
+    }
+
+    private static function calculateSchedulerNextExecution(array $rules): ?string
+    {
+        $task = [
+            'execution_rules' => $rules['execution_rules'],
+            'cron_rules' => $rules['cron_rules'],
+        ];
+
+        $helperFile = JPATH_ADMINISTRATOR . '/components/com_scheduler/src/Helper/ExecRuleHelper.php';
+        if (!class_exists('Joomla\Component\Scheduler\Administrator\Helper\ExecRuleHelper') && is_file($helperFile)) {
+            require_once $helperFile;
+        }
+
+        if (class_exists('Joomla\Component\Scheduler\Administrator\Helper\ExecRuleHelper')) {
+            $helper = new \Joomla\Component\Scheduler\Administrator\Helper\ExecRuleHelper($task);
+
+            return $helper->nextExec();
+        }
+
+        return self::calculateSchedulerNextExecutionFallback($rules);
+    }
+
+    private static function calculateSchedulerNextExecutionFallback(array $rules): ?string
+    {
+        $executionRules = $rules['execution_rules'];
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+
+        if (($executionRules['rule-type'] ?? '') === 'interval-hours') {
+            $hours = max(1, (int) ($executionRules['interval-hours'] ?? 1));
+
+            return $now->add(new \DateInterval('PT' . $hours . 'H'))->format('Y-m-d H:i:s');
+        }
+
+        if (($executionRules['rule-type'] ?? '') === 'interval-days') {
+            $days = max(1, (int) ($executionRules['interval-days'] ?? 1));
+            [$hour, $minute] = array_map('intval', explode(':', self::normaliseCollectionTime((string) ($executionRules['exec-time'] ?? '22:00'))));
+
+            return $now->add(new \DateInterval('P' . $days . 'D'))->setTime($hour, $minute)->format('Y-m-d H:i:s');
+        }
+
+        return null;
+    }
+
     private static function normaliseCollectionTime(string $time): string
     {
         if (!preg_match('/^(\\d{1,2}):(\\d{2})$/', $time, $matches)) {
@@ -1053,6 +1115,19 @@ final class ModSplaskscoreHelper
         $minute = max(0, min(59, (int) $matches[2]));
 
         return sprintf('%02d:%02d', $hour, $minute);
+    }
+
+    private static function clearSchedulerCache(): void
+    {
+        if (!class_exists('Joomla\CMS\Factory')) {
+            return;
+        }
+
+        try {
+            \Joomla\CMS\Factory::getCache('com_scheduler')->clean();
+        } catch (\Throwable $exception) {
+            // Cache cleanup is best-effort; the database row remains the source of truth.
+        }
     }
 
     private static function ensureSchedulerPluginEnabled(): void

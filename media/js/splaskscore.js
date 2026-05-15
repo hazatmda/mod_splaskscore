@@ -142,7 +142,6 @@
     const params = new URLSearchParams(values || {});
     params.set('method', task);
     params.set('module_id', root.dataset.splaskModuleId || '0');
-    params.set('token', root.dataset.splaskToken || '');
     params.set(root.dataset.splaskCsrfToken || '', '1');
 
     return params;
@@ -598,16 +597,20 @@
     });
   }
 
-  function refreshAnalytics(root) {
+  function refreshAnalytics(root, options = {}) {
     if (!root.dataset.splaskAjaxUrl) {
       return;
     }
 
     const body = root.querySelector('[data-splask-history-body]');
-    setRefreshState(root, true, 'Refreshing...');
+    const silent = Boolean(options.silent);
+    if (!silent) {
+      setRefreshState(root, true, 'Refreshing...');
+    }
 
     postModuleAjax(root, 'refreshAnalytics', {
-      appearance: root.dataset.splaskAppearance || resolveAppearance(root)
+      appearance: root.dataset.splaskAppearance || resolveAppearance(root),
+      initial: options.initial ? '1' : '0'
     })
       .then(unwrapAjaxResponse)
       .then((data) => {
@@ -622,7 +625,9 @@
             final_score: payload.final_score,
             verification_url: payload.verification_url,
             last_check: payload.last_check
-          }, JSON.parse(root.dataset.splaskGradeRules || '[]'));
+          }, JSON.parse(root.dataset.splaskGradeRules || '[]'), { skipHistorySave: true });
+        } else if (data && data.message) {
+          updateError(root, data.message);
         }
 
         if (body && data && data.html) {
@@ -632,10 +637,17 @@
           scheduleHistoryChartRedraw(body);
         }
 
-        setRefreshState(root, false, (data && data.duplicate) ? 'Already Current' : 'Refresh Analytics');
-        window.setTimeout(() => setRefreshState(root, false), 1800);
+        if (!silent) {
+          setRefreshState(root, false, (data && data.duplicate) ? 'Already Current' : 'Refresh Analytics');
+          window.setTimeout(() => setRefreshState(root, false), 1800);
+        }
       })
       .catch(() => {
+        if (silent) {
+          updateError(root, 'RALAT SAMBUNGAN API');
+          return;
+        }
+
         setRefreshState(root, false, 'Refresh Failed');
         window.setTimeout(() => setRefreshState(root, false), 1800);
       });
@@ -661,7 +673,7 @@
     }
   }
 
-  function updateSuccess(root, data, rules) {
+  function updateSuccess(root, data, rules, options = {}) {
     const score = Number(data.final_score) || 0;
     const grade = resolveGrade(score, rules);
     const nextCheck = new Date();
@@ -682,7 +694,9 @@
       link.removeAttribute('aria-disabled');
     }
 
-    saveHistory(root, data, grade, score);
+    if (!options.skipHistorySave) {
+      saveHistory(root, data, grade, score);
+    }
   }
 
   function updateError(root, message) {
@@ -715,25 +729,7 @@
       return;
     }
 
-    fetch('https://splask-api.jdn.gov.my/api/get_my_score', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ _token: root.dataset.splaskToken || '' })
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.status) {
-          updateSuccess(root, data, rules);
-          return;
-        }
-
-        updateError(root, 'MARKAH TIDAK DIJUMPAI');
-      })
-      .catch(() => {
-        updateError(root, 'RALAT SAMBUNGAN API');
-      });
+    refreshAnalytics(root, { silent: true, initial: true });
   }
 
   function initAll() {

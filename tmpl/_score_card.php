@@ -43,7 +43,6 @@ $initialHealth = $token !== '' ? ModSplaskscoreHelper::getAnalyticsHealth($modul
   class="splask-widget splask-preset-<?php echo htmlspecialchars($preset, ENT_QUOTES, 'UTF-8'); ?> splask-appearance-<?php echo htmlspecialchars($appearanceMode, ENT_QUOTES, 'UTF-8'); ?> mt-3"
   style="<?php echo ModSplaskscoreHelper::getGradeThemeStyle(); ?>"
   data-splask-widget
-  data-splask-token="<?php echo $token_escaped; ?>"
   data-splask-grade-rules="<?php echo ModSplaskscoreHelper::getGradeRulesJson(); ?>"
   data-splask-appearance-mode="<?php echo htmlspecialchars($appearanceMode, ENT_QUOTES, 'UTF-8'); ?>"
   data-splask-appearance="<?php echo $appearanceMode === 'auto' ? 'auto' : htmlspecialchars($appearanceMode, ENT_QUOTES, 'UTF-8'); ?>"

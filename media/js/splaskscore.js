@@ -340,7 +340,7 @@
     const width = dimensions.width;
     const height = dimensions.height;
     const ratio = window.devicePixelRatio || 1;
-    const padding = { top: 22, right: 18, bottom: 48, left: 48 };
+    const padding = { top: 16, right: 14, bottom: 38, left: 44 };
 
     if (!context || points.length < 2) {
       canvas._splaskChartCoordinates = [];
@@ -478,6 +478,80 @@
     }
   }
 
+
+  function initHistoryTables(scope) {
+    const container = scope || document;
+    container.querySelectorAll('[data-splask-history-pagination]').forEach((shell) => {
+      if (shell.dataset.splaskPaginationInitialized === 'true') {
+        updateHistoryPage(shell);
+        return;
+      }
+
+      shell.dataset.splaskPaginationInitialized = 'true';
+      shell.dataset.splaskHistoryPage = '1';
+
+      const previous = shell.querySelector('[data-splask-history-page-prev]');
+      const next = shell.querySelector('[data-splask-history-page-next]');
+
+      if (previous) {
+        previous.addEventListener('click', () => {
+          const current = Number(shell.dataset.splaskHistoryPage || '1');
+          shell.dataset.splaskHistoryPage = String(Math.max(1, current - 1));
+          updateHistoryPage(shell);
+        });
+      }
+
+      if (next) {
+        next.addEventListener('click', () => {
+          const pageSize = Number(shell.dataset.splaskHistoryPageSize || '7') || 7;
+          const rows = Array.from(shell.querySelectorAll('tbody tr[data-splask-history-grade]'));
+          const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+          const current = Number(shell.dataset.splaskHistoryPage || '1');
+          shell.dataset.splaskHistoryPage = String(Math.min(pageCount, current + 1));
+          updateHistoryPage(shell);
+        });
+      }
+
+      updateHistoryPage(shell);
+    });
+  }
+
+  function updateHistoryPage(shell) {
+    const pageSize = Number(shell.dataset.splaskHistoryPageSize || '7') || 7;
+    const rows = Array.from(shell.querySelectorAll('tbody tr[data-splask-history-grade]'));
+    const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+    const current = Math.min(pageCount, Math.max(1, Number(shell.dataset.splaskHistoryPage || '1') || 1));
+    const start = (current - 1) * pageSize;
+    const end = start + pageSize;
+    const status = shell.querySelector('[data-splask-history-page-status]');
+    const previous = shell.querySelector('[data-splask-history-page-prev]');
+    const next = shell.querySelector('[data-splask-history-page-next]');
+    const scrollWrap = shell.querySelector('.splask-history-table-wrap');
+
+    shell.dataset.splaskHistoryPage = String(current);
+    rows.forEach((row, index) => {
+      row.hidden = index < start || index >= end;
+    });
+
+    if (status) {
+      const visibleStart = rows.length ? start + 1 : 0;
+      const visibleEnd = Math.min(end, rows.length);
+      status.textContent = `Rekod ${visibleStart}-${visibleEnd} daripada ${rows.length} • Halaman ${current}/${pageCount}`;
+    }
+
+    if (previous) {
+      previous.disabled = current <= 1;
+    }
+
+    if (next) {
+      next.disabled = current >= pageCount;
+    }
+
+    if (scrollWrap) {
+      scrollWrap.scrollTop = 0;
+    }
+  }
+
   function setHistoryLoading(root, message) {
     const body = root.querySelector('[data-splask-history-body]');
     if (body) {
@@ -501,6 +575,7 @@
         if (data && data.success && data.html) {
           body.innerHTML = data.html;
           body.dataset.splaskLoaded = 'true';
+          initHistoryTables(body);
           scheduleHistoryChartRedraw(body);
           applyHealth(root, data.health);
           return;
@@ -553,6 +628,7 @@
         if (body && data && data.html) {
           body.innerHTML = data.html;
           body.dataset.splaskLoaded = 'true';
+          initHistoryTables(body);
           scheduleHistoryChartRedraw(body);
         }
 
@@ -625,6 +701,7 @@
     applyHealth(root);
     bindHistoryModal(root);
     initHistoryCharts(root);
+    initHistoryTables(root);
 
     let rules = [];
     try {

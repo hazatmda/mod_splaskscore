@@ -49,7 +49,9 @@ final class ModSplaskscoreHelper
 
     private const API_RETRY_ATTEMPTS = 3;
 
-    private const DEFAULT_API_BASE_URL = 'https://splask-api.jdn.gov.my/verify';
+    private const API_ENDPOINT = 'https://splask-api.jdn.gov.my/api/get_my_score';
+
+    private const DEFAULT_VERIFY_BASE_URL = 'https://splask-api.jdn.gov.my/verify';
 
     private const API_TIMEOUT_SECONDS = 30;
 
@@ -724,7 +726,7 @@ final class ModSplaskscoreHelper
         $token = self::resolveRuntimeToken($moduleId, $token, $params);
         $params['splask_token'] = $token;
 
-        if ($moduleId <= 0 || $token === '' || self::buildVerifyUrl($params) === '') {
+        if ($moduleId <= 0 || $token === '') {
             return [
                 'success' => false,
                 'message' => 'Konfigurasi analitik tidak lengkap.',
@@ -821,12 +823,12 @@ final class ModSplaskscoreHelper
         $statusCode = 0;
 
         if ($request['url'] === '') {
-            throw new \RuntimeException('Konfigurasi URL pengesahan SPLaSK tidak lengkap.');
+            throw new \RuntimeException('Konfigurasi token API SPLaSK tidak lengkap.');
         }
 
         if (class_exists('\\Joomla\\CMS\\Http\\HttpFactory')) {
             $http = \Joomla\CMS\Http\HttpFactory::getHttp();
-            $response = $http->get($request['url'], $request['headers'], self::API_TIMEOUT_SECONDS);
+            $response = $http->post($request['url'], $request['body'], $request['headers'], self::API_TIMEOUT_SECONDS);
             $content = (string) ($response->body ?? '');
             $statusCode = (int) ($response->code ?? 0);
         } else {
@@ -859,13 +861,18 @@ final class ModSplaskscoreHelper
      *
      * @param   array<string, mixed>  $params  Runtime module configuration.
      *
-     * @return  array{url: string, headers: array<string, string>}
+     * @return  array{url: string, method: string, body: string, headers: array<string, string>}
      */
     private static function buildSplaskScoreRequest(array $params): array
     {
+        $token = trim((string) ($params['splask_token'] ?? ''));
+
         return [
-            'url' => self::buildVerifyUrl($params),
+            'url' => $token === '' ? '' : self::API_ENDPOINT,
+            'method' => 'POST',
+            'body' => (string) json_encode(['_token' => $token]),
             'headers' => [
+                'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
                 'User-Agent' => 'mod_splaskscore/' . self::ENGINE_VERSION . ' Joomla',
             ],
@@ -881,7 +888,7 @@ final class ModSplaskscoreHelper
      */
     private static function buildVerifyUrl(array $params): string
     {
-        $baseUrl = trim((string) ($params['splask_api_base_url'] ?? self::DEFAULT_API_BASE_URL));
+        $baseUrl = trim((string) ($params['splask_api_base_url'] ?? self::DEFAULT_VERIFY_BASE_URL));
         $token = trim((string) ($params['splask_token'] ?? ''));
 
         if ($baseUrl === '' || $token === '') {
@@ -902,7 +909,7 @@ final class ModSplaskscoreHelper
     /**
      * Fetch the current score with PHP streams when Joomla HttpFactory is unavailable.
      *
-     * @param   array{url: string, headers: array<string, string>}  $request  Runtime request.
+     * @param   array{url: string, method: string, body: string, headers: array<string, string>}  $request  Runtime request.
      *
      * @return  array{content: string, status_code: int}
      */
@@ -915,8 +922,9 @@ final class ModSplaskscoreHelper
 
         $context = stream_context_create([
             'http' => [
-                'method' => 'GET',
+                'method' => $request['method'],
                 'header' => implode("\r\n", $headers),
+                'content' => $request['body'],
                 'timeout' => self::API_TIMEOUT_SECONDS,
                 'ignore_errors' => true,
             ],
@@ -990,7 +998,7 @@ final class ModSplaskscoreHelper
             $token = trim((string) ($params['splask_token'] ?? ''));
             $params['splask_token'] = $token;
             $enabled = (string) ($params['analytics_auto_enabled'] ?? '1') === '1';
-            if ($enabled && self::buildVerifyUrl($params) !== '') {
+            if ($enabled && $token !== '') {
                 $modules[] = (object) ['id' => (int) $row->id];
             }
         }

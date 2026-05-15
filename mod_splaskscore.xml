@@ -30,7 +30,7 @@
     <config>
         <fields name="params">
             <fieldset name="basic">
-                <field name="splask_api_base_url" type="url" label="SPLaSK API Base URL" description="Base verification endpoint used server-side. The runtime URL builder appends the stored token securely." default="https://splask-api.jdn.gov.my/verify" required="true" />
+                <field name="splask_api_base_url" type="url" label="SPLaSK Verification Base URL" description="Base verification endpoint used server-side for verification links. Analytics collection continues to use the JSON API endpoint." default="https://splask-api.jdn.gov.my/verify" required="true" />
                 <field name="splask_token" type="text" label="SPLaSK Token" description="Masukkan token SPLaSK anda untuk paparan markah." required="true" />
                 <field name="design_preset" type="list" label="Design Preset" description="Pilih reka bentuk paparan markah SPLaSK." default="modern_circle">
                     <option value="default">Default Card</option>

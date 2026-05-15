@@ -31,7 +31,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.3.6';
+    private const ENGINE_VERSION = '1.3.7';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -1489,14 +1489,15 @@ final class ModSplaskscoreHelper
     {
         self::ensureHealthTable();
         $db = \Joomla\CMS\Factory::getDbo();
-        $db->insertObject(self::getHealthTableName(), (object) [
+        $record = (object) [
             'module_id' => $moduleId,
             'token_hash' => $tokenHash,
             'source' => self::cleanHistoryText($source, 32),
             'status' => self::cleanHistoryText($status, 16),
             'message' => self::cleanHistoryText($message, 255),
             'recorded_at' => $recordedAt ?: \Joomla\CMS\Factory::getDate()->toSql(),
-        ]);
+        ];
+        $db->insertObject(self::getHealthTableName(), $record);
     }
 
     public static function getAnalyticsHealth(int $moduleId, string $tokenHash): array

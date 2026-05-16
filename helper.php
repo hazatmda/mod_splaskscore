@@ -31,7 +31,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.3.9';
+    private const ENGINE_VERSION = '1.4.0';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -928,86 +928,46 @@ final class ModSplaskscoreHelper
 
             $task = self::getManagedSchedulerTask();
             $now = \Joomla\CMS\Factory::getDate()->toSql();
-            $schedulerTime = self::convertMytCollectionTimeToUtc($time);
-            $rules = self::buildSchedulerRules($frequency, $schedulerTime);
-            $nextExecution = self::calculateSchedulerNextExecution($rules);
-            $taskParams = json_encode([
+            $rules = self::buildSchedulerRules($frequency, $time);
+            $taskParams = [
                 'managed_by' => 'mod_splaskscore',
                 'module_id' => $moduleId,
                 'frequency' => $frequency,
                 'collection_time' => $time,
-                'collection_timezone' => 'MYT / UTC+8',
-                'scheduler_time_utc' => $schedulerTime,
-                'scheduler_timezone' => 'UTC',
                 'duplicate_cooldown_minutes' => self::getDuplicateCooldownMinutes($moduleId),
                 'retention_days' => max(1, (int) ($params['analytics_retention_days'] ?? self::DEFAULT_RETENTION_DAYS)),
                 'max_history_records' => max(1, (int) ($params['analytics_max_rows'] ?? self::DEFAULT_MAX_HISTORY_ROWS)),
-            ]);
+            ];
 
             $values = [
-                'title' => 'SPLaSK Score Analytics Collection (MYT / UTC+8)',
+                'title' => 'SPLaSK Score Analytics Collection',
                 'type' => self::SCHEDULER_TASK_TYPE,
                 'state' => $enabled ? 1 : 0,
-                'execution_rules' => json_encode($rules['execution_rules']),
-                'cron_rules' => json_encode($rules['cron_rules']),
+                'execution_rules' => $rules['execution_rules'],
                 'params' => $taskParams,
-                'next_execution' => $nextExecution,
-                'note' => 'Managed automatically from the SPLaSK Score module settings. Daily collection time is Malaysia Time (MYT / UTC+8) and is persisted to Joomla Scheduler in UTC. Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. Manual scheduler edits are preserved only until the module is saved again.',
+                'note' => 'Managed automatically from the SPLaSK Score module settings. Daily collection time uses the Joomla configured timezone. Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. Manual scheduler edits are preserved only until the module is saved again.',
                 'priority' => 5,
                 'cli_exclusive' => 0,
             ];
 
-            $db->transactionStart();
-            if ($task && !empty($task->id)) {
-                $updates = [];
-                foreach ($values as $column => $value) {
-                    if ($column !== 'state' && isset($columns[$column])) {
-                        $updates[] = $db->quoteName($column) . ' = ' . $db->quote((string) $value);
-                    }
-                }
-                if (isset($columns['state'])) {
-                    $updates[] = $db->quoteName('state') . ' = ' . (int) ($enabled ? 1 : 0);
-                }
-                if (isset($columns['locked'])) {
-                    $updates[] = $db->quoteName('locked') . ' = NULL';
-                }
-
-                if ($updates) {
-                    $query = $db->getQuery(true)
-                        ->update($db->quoteName('#__scheduler_tasks'))
-                        ->set($updates)
-                        ->where($db->quoteName('id') . ' = ' . (int) $task->id);
-                    $db->setQuery($query)->execute();
-                }
-            } else {
-                $insert = [];
-                foreach ($values as $column => $value) {
-                    if (isset($columns[$column])) {
-                        $insert[$column] = $value;
-                    }
-                }
-                foreach (['created' => $now, 'checked_out_time' => null, 'last_execution' => null, 'next_execution' => $nextExecution] as $column => $value) {
-                    if (isset($columns[$column])) {
-                        $insert[$column] = $value;
-                    }
-                }
-                foreach (['created_by' => 0, 'ordering' => 0, 'times_executed' => 0, 'times_failed' => 0, 'locked' => null] as $column => $value) {
-                    if (isset($columns[$column])) {
-                        $insert[$column] = $value;
-                    }
-                }
-
-                $object = (object) $insert;
-                $db->insertObject('#__scheduler_tasks', $object);
+            if (!$task || empty($task->id)) {
+                $values['created'] = $now;
+                $values['created_by'] = 0;
+                $values['ordering'] = 0;
+                $values['times_executed'] = 0;
+                $values['times_failed'] = 0;
             }
-            $db->transactionCommit();
+
+            self::saveSchedulerTaskWithJoomlaModel($task, $values, $columns);
             self::clearSchedulerCache();
 
+            $savedTask = self::getManagedSchedulerTask();
+            $nextExecution = (string) ($savedTask->next_execution ?? '');
             $lastSuccess = self::getModuleLastSuccessfulCollection($moduleId);
-            self::updateModuleAutomationMetadata($moduleId, ucfirst($status) . ' (' . $frequency . ($frequency === 'daily' ? ' at ' . $time . ' MYT / UTC+8' : '') . ')', $lastSuccess);
-            self::logAnalyticsEvent('info', 'Scheduler synchronized from module settings.', ['module_id' => $moduleId, 'status' => $status, 'frequency' => $frequency, 'time' => $time, 'scheduler_time_utc' => $schedulerTime, 'next_execution' => $nextExecution]);
+            self::updateModuleAutomationMetadata($moduleId, ucfirst($status) . ' (' . $frequency . ($frequency === 'daily' ? ' at ' . $time : '') . ')', $lastSuccess);
+            self::logAnalyticsEvent('info', 'Scheduler synchronized from module settings.', ['module_id' => $moduleId, 'status' => $status, 'frequency' => $frequency, 'time' => $time, 'next_execution' => $nextExecution]);
 
-            return ['success' => true, 'status' => $status, 'frequency' => $frequency, 'time' => $time, 'scheduler_time_utc' => $schedulerTime, 'next_execution' => $nextExecution, 'last_success' => $lastSuccess];
+            return ['success' => true, 'status' => $status, 'frequency' => $frequency, 'time' => $time, 'next_execution' => $nextExecution, 'last_success' => $lastSuccess];
         } catch (\Throwable $exception) {
             try {
                 \Joomla\CMS\Factory::getDbo()->transactionRollback();
@@ -1035,74 +995,66 @@ final class ModSplaskscoreHelper
         return $task ?: null;
     }
 
+    private static function saveSchedulerTaskWithJoomlaModel(?object $task, array $values, array $columns): void
+    {
+        $model = self::createSchedulerTaskModel();
+        $data = [];
+
+        if ($task && !empty($task->id)) {
+            $data['id'] = (int) $task->id;
+        }
+
+        foreach ($values as $column => $value) {
+            if (isset($columns[$column]) || $column === 'id') {
+                $data[$column] = $value;
+            }
+        }
+
+        if (isset($columns['locked'])) {
+            $data['locked'] = null;
+        }
+
+        if (!$model->save($data)) {
+            $error = method_exists($model, 'getError') ? (string) $model->getError() : '';
+            throw new \RuntimeException($error !== '' ? $error : 'Joomla Scheduler task save failed.');
+        }
+    }
+
+    private static function createSchedulerTaskModel(): object
+    {
+        $app = \Joomla\CMS\Factory::getApplication();
+        $component = method_exists($app, 'bootComponent') ? $app->bootComponent('com_scheduler') : null;
+
+        if (!$component || !method_exists($component, 'getMVCFactory')) {
+            throw new \RuntimeException('Joomla Scheduler component is unavailable.');
+        }
+
+        $model = $component->getMVCFactory()->createModel('Task', 'Administrator', ['ignore_request' => true]);
+
+        if (!$model || !method_exists($model, 'save')) {
+            throw new \RuntimeException('Joomla Scheduler task model is unavailable.');
+        }
+
+        return $model;
+    }
+
     private static function buildSchedulerRules(string $frequency, string $time): array
     {
+        $basis = \Joomla\CMS\Factory::getDate();
+        $execDay = $basis->format('d', true);
+        $execTime = $basis->format('H:i', true);
+
         if ($frequency === 'hourly') {
             return [
-                'execution_rules' => ['rule-type' => 'interval-hours', 'interval-hours' => 1],
-                'cron_rules' => ['type' => 'interval', 'exp' => 'PT1H'],
+                'execution_rules' => ['rule-type' => 'interval-hours', 'interval-hours' => 1, 'exec-day' => $execDay, 'exec-time' => $execTime],
             ];
         }
 
         [$hour, $minute] = array_map('intval', explode(':', $time));
 
         return [
-            'execution_rules' => ['rule-type' => 'interval-days', 'interval-days' => 1, 'exec-time' => sprintf('%02d:%02d', $hour, $minute)],
-            'cron_rules' => ['type' => 'cron-expression', 'exp' => sprintf('%d %d * * *', $minute, $hour)],
+            'execution_rules' => ['rule-type' => 'interval-days', 'interval-days' => 1, 'exec-day' => $execDay, 'exec-time' => sprintf('%02d:%02d', $hour, $minute)],
         ];
-    }
-
-    private static function convertMytCollectionTimeToUtc(string $time): string
-    {
-        [$hour, $minute] = array_map('intval', explode(':', self::normaliseCollectionTime($time)));
-        $collectionTime = new \DateTimeImmutable(
-            sprintf('2000-01-01 %02d:%02d:00', $hour, $minute),
-            new \DateTimeZone('Asia/Kuala_Lumpur')
-        );
-
-        return $collectionTime->setTimezone(new \DateTimeZone('UTC'))->format('H:i');
-    }
-
-    private static function calculateSchedulerNextExecution(array $rules): ?string
-    {
-        $task = [
-            'execution_rules' => $rules['execution_rules'],
-            'cron_rules' => $rules['cron_rules'],
-        ];
-
-        $helperFile = JPATH_ADMINISTRATOR . '/components/com_scheduler/src/Helper/ExecRuleHelper.php';
-        if (!class_exists('Joomla\Component\Scheduler\Administrator\Helper\ExecRuleHelper') && is_file($helperFile)) {
-            require_once $helperFile;
-        }
-
-        if (class_exists('Joomla\Component\Scheduler\Administrator\Helper\ExecRuleHelper')) {
-            $helper = new \Joomla\Component\Scheduler\Administrator\Helper\ExecRuleHelper($task);
-
-            return $helper->nextExec();
-        }
-
-        return self::calculateSchedulerNextExecutionFallback($rules);
-    }
-
-    private static function calculateSchedulerNextExecutionFallback(array $rules): ?string
-    {
-        $executionRules = $rules['execution_rules'];
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
-
-        if (($executionRules['rule-type'] ?? '') === 'interval-hours') {
-            $hours = max(1, (int) ($executionRules['interval-hours'] ?? 1));
-
-            return $now->add(new \DateInterval('PT' . $hours . 'H'))->format('Y-m-d H:i:s');
-        }
-
-        if (($executionRules['rule-type'] ?? '') === 'interval-days') {
-            $days = max(1, (int) ($executionRules['interval-days'] ?? 1));
-            [$hour, $minute] = array_map('intval', explode(':', self::normaliseCollectionTime((string) ($executionRules['exec-time'] ?? '22:00'))));
-
-            return $now->add(new \DateInterval('P' . $days . 'D'))->setTime($hour, $minute)->format('Y-m-d H:i:s');
-        }
-
-        return null;
     }
 
     private static function normaliseCollectionTime(string $time): string

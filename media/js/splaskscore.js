@@ -701,7 +701,8 @@
     setHistoryLoading(root, 'Memuatkan sejarah...');
 
     postModuleAjax(root, 'history', {
-      appearance: root.dataset.splaskAppearance || resolveAppearance(root)
+      appearance: root.dataset.splaskAppearance || resolveAppearance(root),
+      preset: root.dataset.splaskPreset || 'enterprise_kpi'
     })
       .then(unwrapAjaxResponse)
       .then((data) => {
@@ -740,7 +741,8 @@
     setRefreshState(root, true, 'Refreshing...');
 
     postModuleAjax(root, 'refreshAnalytics', {
-      appearance: root.dataset.splaskAppearance || resolveAppearance(root)
+      appearance: root.dataset.splaskAppearance || resolveAppearance(root),
+      preset: root.dataset.splaskPreset || 'enterprise_kpi'
     })
       .then(unwrapAjaxResponse)
       .then((data) => {

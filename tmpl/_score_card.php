@@ -13,8 +13,8 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 
-$preset = $splaskPreset ?? 'modern_circle';
-$presetLabel = $splaskPresetLabel ?? 'Modern Circle';
+$preset = $splaskPreset ?? 'enterprise_kpi';
+$presetLabel = $splaskPresetLabel ?? 'Executive Analytics';
 $moduleId = isset($module) ? (int) $module->id : 0;
 $rootId = 'mod-splaskscore-' . $moduleId . '-' . preg_replace('/[^a-z0-9_-]/i', '-', $preset);
 $assetBase = Uri::root(true) . '/media/mod_splaskscore';
@@ -37,17 +37,14 @@ $initialHealth = $token !== '' ? ModSplaskscoreHelper::getAnalyticsHealth($modul
     'missing_today' => true,
 ];
 $analyticsModeLabels = [
-    'enterprise_kpi' => 'Executive KPI Board',
-    'neon_glass' => 'Neon Analytics',
+    'enterprise_kpi' => 'Executive Analytics',
     'dashboard_tile' => 'Operations Grid',
-    'gradient_ring' => 'Timeline Analytics',
-    'glass_card' => 'Glass Executive',
+    'neon_glass' => 'Neon Cyber',
 ];
 $analyticsModeLabel = $analyticsModeLabels[$preset] ?? $presetLabel;
 $isExecutiveKpiBoard = $preset === 'enterprise_kpi';
 $isOperationsGrid = $preset === 'dashboard_tile';
-$isTimelineAnalytics = $preset === 'gradient_ring';
-$isGlassExecutive = $preset === 'glass_card';
+$isNeonCyber = $preset === 'neon_glass';
 ?>
 
 <div
@@ -60,6 +57,7 @@ $isGlassExecutive = $preset === 'glass_card';
   data-splask-appearance-mode="<?php echo htmlspecialchars($appearanceMode, ENT_QUOTES, 'UTF-8'); ?>"
   data-splask-appearance="<?php echo $appearanceMode === 'auto' ? 'auto' : htmlspecialchars($appearanceMode, ENT_QUOTES, 'UTF-8'); ?>"
   data-splask-module-id="<?php echo (int) $moduleId; ?>"
+  data-splask-preset="<?php echo htmlspecialchars($preset, ENT_QUOTES, 'UTF-8'); ?>"
   data-splask-ajax-url="<?php echo htmlspecialchars($ajaxUrl, ENT_QUOTES, 'UTF-8'); ?>"
   data-splask-csrf-token="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>"
   data-splask-history-modal="<?php echo htmlspecialchars($historyModalId, ENT_QUOTES, 'UTF-8'); ?>"
@@ -78,7 +76,7 @@ $isGlassExecutive = $preset === 'glass_card';
 
     <div class="splask-body">
       <?php if ($isExecutiveKpiBoard) : ?>
-        <div class="splask-exec-board" aria-label="Executive KPI board">
+        <div class="splask-exec-board" aria-label="Executive analytics dashboard">
           <div class="splask-exec-primary-strip">
             <span class="splask-mode-label"><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></span>
             <strong data-splask-score>0%</strong>
@@ -86,24 +84,24 @@ $isGlassExecutive = $preset === 'glass_card';
           </div>
           <div class="splask-kpi-strips" aria-label="Ringkasan KPI eksekutif">
             <div class="splask-kpi-strip splask-kpi-strip-score">
-              <span>Health Score</span>
+              <span>Strategic Health</span>
               <strong data-splask-score>0%</strong>
-              <em class="splask-delta-indicator">↗ live</em>
+              <em class="splask-delta-indicator">7-day board</em>
             </div>
             <div class="splask-kpi-strip">
-              <span>Grade Signal</span>
+              <span>Governance Grade</span>
               <strong data-splask-grade>Memuat...</strong>
               <em data-splask-status><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></em>
             </div>
-            <div class="splask-kpi-strip">
-              <span>Kemaskini</span>
+            <div class="splask-kpi-strip splask-exec-spark-row">
+              <span>7-Day Signal</span>
               <strong data-splask-date>Memuat...</strong>
-              <em class="splask-sparkline" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></em>
+              <em class="splask-sparkline splask-sparkline-exec" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></em>
             </div>
             <div class="splask-kpi-strip">
-              <span>Semakan Seterusnya</span>
+              <span>Next Review</span>
               <strong data-splask-next>Memuat...</strong>
-              <em class="splask-delta-indicator">SLA 30d</em>
+              <em class="splask-delta-indicator">30d trend</em>
             </div>
           </div>
           <div class="splask-progress-track splask-exec-progress" aria-hidden="true">
@@ -111,78 +109,43 @@ $isGlassExecutive = $preset === 'glass_card';
           </div>
         </div>
       <?php elseif ($isOperationsGrid) : ?>
-        <div class="splask-ops-grid" aria-label="Operations monitoring grid">
-          <div class="splask-ops-cell splask-ops-score">
-            <span>Score</span>
+        <div class="splask-ops-console" aria-label="Operations monitoring dashboard">
+          <div class="splask-ops-score-stream">
+            <span>LIVE SCORE</span>
             <strong data-splask-score>0%</strong>
             <div class="splask-progress-track" aria-hidden="true"><div class="splask-progress-bar" data-splask-progress-bar></div></div>
           </div>
-          <div class="splask-ops-cell"><span>Grade</span><strong data-splask-grade>Memuat...</strong></div>
-          <div class="splask-ops-cell"><span>Status</span><strong data-splask-status><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></strong></div>
-          <div class="splask-ops-cell"><span>Last Check</span><strong data-splask-date>Memuat...</strong></div>
-          <div class="splask-ops-cell"><span>Next Run</span><strong data-splask-next>Memuat...</strong></div>
-          <div class="splask-ops-cell splask-ops-stack"><span>Operational View</span><strong>Compact</strong><em>Scheduler baseline preserved</em></div>
-        </div>
-      <?php elseif ($isTimelineAnalytics) : ?>
-        <div class="splask-timeline-board" aria-label="Timeline analytics progression">
-          <div class="splask-timeline-hero">
-            <span class="splask-mode-label"><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></span>
-            <strong data-splask-score>0%</strong>
-            <em data-splask-grade>Memuat...</em>
+          <div class="splask-ops-grid" aria-label="Operational KPI grid">
+            <div class="splask-ops-cell"><span>Grade</span><strong data-splask-grade>Memuat...</strong></div>
+            <div class="splask-ops-cell"><span>Status</span><strong data-splask-status><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></strong></div>
+            <div class="splask-ops-cell splask-ops-mini-chart"><span>7D Throughput</span><b aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></b></div>
+            <div class="splask-ops-cell"><span>Last Check</span><strong data-splask-date>Memuat...</strong></div>
+            <div class="splask-ops-cell"><span>Next Run</span><strong data-splask-next>Memuat...</strong></div>
+            <div class="splask-ops-cell splask-ops-stack"><span>Scheduler</span><strong>Baseline</strong><em>preserved</em></div>
           </div>
-          <ol class="splask-timeline-list">
-            <li><span>01</span><div><strong>Baseline captured</strong><em data-splask-date>Memuat...</em></div></li>
-            <li><span>02</span><div><strong>30-day trend window</strong><em>Modal graph unchanged</em></div></li>
-            <li><span>03</span><div><strong>Next verification</strong><em data-splask-next>Memuat...</em></div></li>
-            <li><span>04</span><div><strong>Current outcome</strong><em data-splask-status><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></em></div></li>
-          </ol>
-          <div class="splask-progress-track splask-timeline-progress" aria-hidden="true"><div class="splask-progress-bar" data-splask-progress-bar></div></div>
-        </div>
-      <?php elseif ($isGlassExecutive) : ?>
-        <div class="splask-glass-executive" aria-label="Glass executive analytics">
-          <div class="splask-glass-hero-card">
-            <span class="splask-mode-label"><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></span>
-            <strong data-splask-score>0%</strong>
-            <em data-splask-grade>Memuat...</em>
-          </div>
-          <div class="splask-glass-floating-grid">
-            <div><span>Status</span><strong data-splask-status><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></strong></div>
-            <div><span>Kemaskini</span><strong data-splask-date>Memuat...</strong></div>
-            <div><span>Semakan</span><strong data-splask-next>Memuat...</strong></div>
-          </div>
-          <div class="splask-progress-track splask-glass-progress" aria-hidden="true"><div class="splask-progress-bar" data-splask-progress-bar></div></div>
         </div>
       <?php else : ?>
-        <div class="splask-score-row">
-          <div class="splask-meter" role="img" aria-label="Peratus markah SPLaSK">
-            <svg viewBox="0 0 150 150" aria-hidden="true" focusable="false">
-              <circle class="splask-meter-bg" cx="75" cy="75" r="60" />
-              <circle
-                class="splask-meter-progress"
-                cx="75"
-                cy="75"
-                r="60"
-                stroke-dasharray="377"
-                stroke-dashoffset="377"
-                data-splask-progress-circle
-              />
-            </svg>
-            <div class="splask-meter-value" data-splask-score>0%</div>
-          </div>
-
-          <div class="splask-summary">
-            <p class="splask-grade-text" data-splask-grade>Memuat...</p>
-            <p class="splask-status" data-splask-status><?php echo htmlspecialchars($presetLabel, ENT_QUOTES, 'UTF-8'); ?></p>
-            <div class="splask-progress-track" aria-hidden="true">
-              <div class="splask-progress-bar" data-splask-progress-bar></div>
+        <div class="splask-cyber-deck" aria-label="Neon cyber analytics dashboard">
+          <div class="splask-cyber-hero">
+            <div class="splask-meter splask-cyber-orb" role="img" aria-label="Peratus markah SPLaSK">
+              <svg viewBox="0 0 150 150" aria-hidden="true" focusable="false">
+                <circle class="splask-meter-bg" cx="75" cy="75" r="60" />
+                <circle class="splask-meter-progress" cx="75" cy="75" r="60" stroke-dasharray="377" stroke-dashoffset="377" data-splask-progress-circle />
+              </svg>
+              <div class="splask-meter-value" data-splask-score>0%</div>
+            </div>
+            <div class="splask-cyber-status">
+              <span class="splask-mode-label"><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+              <strong data-splask-grade>Memuat...</strong>
+              <em data-splask-status><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></em>
             </div>
           </div>
+          <div class="splask-cyber-telemetry">
+            <div><span>Pulse</span><strong data-splask-date>Memuat...</strong></div>
+            <div><span>Re-scan</span><strong data-splask-next>Memuat...</strong></div>
+            <div class="splask-cyber-wave" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          </div>
         </div>
-
-        <ul class="splask-meta" aria-label="Maklumat semakan SPLaSK">
-          <li><span>Kemaskini Terakhir</span><strong data-splask-date>Memuat...</strong></li>
-          <li><span>Semakan Seterusnya</span><strong data-splask-next>Memuat...</strong></li>
-        </ul>
       <?php endif; ?>
 
       <div class="splask-actions">

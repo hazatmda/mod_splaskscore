@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.5.5';
+    private const ENGINE_VERSION = '1.5.6';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -42,6 +42,8 @@ final class ModSplaskscoreHelper
     private const DEFAULT_HISTORY_ROWS_PER_PAGE = 7;
 
     private const HISTORY_CHART_DAY_WINDOW = 30;
+
+    private const MINI_TREND_DAY_WINDOW = 7;
 
     private const SCHEDULER_TASK_TYPE = 'splaskscore.analytics.collect';
 
@@ -293,6 +295,7 @@ final class ModSplaskscoreHelper
                 'duplicate' => true,
                 'message' => 'Rekod sejarah terkini sudah wujud dan tidak disimpan semula.',
                 'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
+                'mini_trend' => self::buildDashboardMiniTrendSeries($moduleId, $tokenHash),
             ];
         }
 
@@ -336,6 +339,7 @@ final class ModSplaskscoreHelper
                     'duplicate' => false,
                     'message' => 'Rekod sejarah harian dikemaskini.',
                     'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
+                    'mini_trend' => self::buildDashboardMiniTrendSeries($moduleId, $tokenHash),
                 ];
             }
 
@@ -367,7 +371,35 @@ final class ModSplaskscoreHelper
             'duplicate' => false,
             'message' => 'Rekod sejarah disimpan.',
             'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
+            'mini_trend' => self::buildDashboardMiniTrendSeries($moduleId, $tokenHash),
         ];
+    }
+
+
+    /**
+     * Return compact dashboard mini-trend points from the same analytics chart dataset.
+     *
+     * @param   int     $moduleId   Joomla module id.
+     * @param   string  $tokenHash  SHA-256 token hash.
+     *
+     * @return  array<int, array<string, mixed>>
+     */
+    public static function getDashboardMiniTrendSeries(int $moduleId, string $tokenHash): array
+    {
+        if ($moduleId <= 0 || $tokenHash === '') {
+            return [];
+        }
+
+        try {
+            self::ensureHistoryTable();
+            self::normalizeDailyHistoryDuplicates($moduleId, $tokenHash);
+
+            return self::buildDashboardMiniTrendSeries($moduleId, $tokenHash);
+        } catch (\Throwable $exception) {
+            self::logAnalyticsEvent('warning', 'Dashboard mini trend unavailable.', ['module_id' => $moduleId, 'error' => $exception->getMessage()]);
+
+            return [];
+        }
     }
 
     /**
@@ -443,6 +475,7 @@ final class ModSplaskscoreHelper
         return array_merge($result, [
             'html' => self::renderHistoryModal($records, $appearance, self::getAnalyticsHealth($moduleId, $tokenHash), self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords),
             'chart' => self::buildTrendSeries($chartRecords),
+            'mini_trend' => self::buildMiniTrendSeriesFromChartRecords($chartRecords),
             'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
         ]);
     }
@@ -490,6 +523,7 @@ final class ModSplaskscoreHelper
             'success' => true,
             'html' => self::renderHistoryModal($records, $appearance, $health, self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords),
             'chart' => self::buildTrendSeries($chartRecords),
+            'mini_trend' => self::buildMiniTrendSeriesFromChartRecords($chartRecords),
             'health' => $health,
         ];
     }
@@ -549,6 +583,7 @@ final class ModSplaskscoreHelper
                     <thead>
                         <tr>
                             <th scope="col">Tarikh</th>
+                            <th scope="col">Masa Semakan</th>
                             <th scope="col">Markah</th>
                             <th scope="col">Gred</th>
                             <th scope="col">Status</th>
@@ -587,6 +622,7 @@ final class ModSplaskscoreHelper
         foreach ($records as $record) {
             $tableRecords[] = [
                 'date' => self::formatHistoryDateOnly((string) ($record->source_checked_at ?: $record->created_at)),
+                'time' => self::formatHistoryTimeOnly((string) ($record->source_checked_at ?: $record->created_at)),
                 'score' => self::formatScorePercent((float) $record->score),
                 'gradeKey' => (string) $record->grade_key,
                 'gradeLabel' => (string) $record->grade_label,
@@ -1632,6 +1668,29 @@ final class ModSplaskscoreHelper
         }));
     }
 
+
+    private static function buildDashboardMiniTrendSeries(int $moduleId, string $tokenHash): array
+    {
+        return self::buildMiniTrendSeriesFromChartRecords(self::getHistoryChartRecords($moduleId, $tokenHash));
+    }
+
+    private static function buildMiniTrendSeriesFromChartRecords(array $records): array
+    {
+        return array_slice(self::buildTrendSeries(self::getMiniTrendSlice($records)), -self::MINI_TREND_DAY_WINDOW);
+    }
+
+    private static function getMiniTrendSlice(array $records): array
+    {
+        $cutoff = (new \DateTimeImmutable('today', new \DateTimeZone('UTC')))
+            ->modify('-' . (self::MINI_TREND_DAY_WINDOW - 1) . ' days');
+
+        return array_values(array_filter($records, static function ($record) use ($cutoff) {
+            $recordDate = self::getHistoryRecordDate($record);
+
+            return $recordDate !== null && $recordDate >= $cutoff;
+        }));
+    }
+
     /**
      * Return chart-ready records in chronological order.
      *
@@ -1819,6 +1878,33 @@ final class ModSplaskscoreHelper
         $month = self::MALAY_MONTHS[(int) $date->format('n')];
 
         return $date->format('j') . ' ' . $month . ' ' . $date->format('Y');
+    }
+
+
+    /**
+     * Format a SQL datetime as a 12-hour operational time without date.
+     *
+     * @param   string  $value  SQL datetime.
+     *
+     * @return  string
+     */
+    private static function formatHistoryTimeOnly(string $value): string
+    {
+        if ($value === '') {
+            return 'Tiada';
+        }
+
+        try {
+            $date = new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
+        } catch (\Exception $exception) {
+            return $value;
+        }
+
+        $date = $date->setTimezone(new \DateTimeZone('UTC'));
+        $hour = (int) $date->format('G');
+        $displayHour = $hour % 12 ?: 12;
+
+        return $displayHour . ':' . $date->format('i') . ' ' . $date->format('A');
     }
 
     /**

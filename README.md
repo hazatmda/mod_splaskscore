@@ -11,7 +11,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.5.1.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.5.2.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 
@@ -20,11 +20,11 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 Tetapan modul ialah panel kawalan utama untuk automasi analitik. Selepas pemasangan atau simpanan modul, SPLaSK Score akan cuba memasang/mengaktifkan plugin Scheduler, mencipta tugas Joomla Scheduled Tasks yang diperlukan, dan menyelaraskan status aktif, frekuensi, masa kutipan, duplicate cooldown, retention days, serta had rekod sejarah daripada parameter modul.
 
-**Nota operasi penting:** Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. Pastikan infrastruktur Joomla Scheduled Tasks/cron di hosting anda berjalan untuk jaminan kutipan automatik; tanpa runner Scheduled Tasks yang aktif, tugas boleh wujud dan aktif tetapi tidak akan dilaksanakan sehingga scheduler Joomla diproses.
+**Nota operasi penting:** Kutipan analitik automatik bergantung pada Joomla Scheduled Tasks yang aktif dalam persekitaran hosting. Pastikan infrastruktur Joomla Scheduled Tasks/cron di hosting anda berjalan untuk jaminan kutipan automatik; tanpa runner Scheduled Tasks yang aktif, tugas boleh wujud dan aktif tetapi tidak akan dilaksanakan sehingga scheduler Joomla diproses.
 
 ### Tingkah Laku Multi-Modul
 
-SPLaSK Score menggunakan satu tugas Joomla Scheduled Tasks yang dikongsi untuk rutin `splaskscore.analytics.collect`. Semasa tugas dijalankan, collector memproses semua instance modul administrator yang published, mempunyai token, dan mengaktifkan **Enable Automatic Analytics Collection**.
+SPLaSK Score menggunakan satu tugas Joomla Scheduled Tasks yang dikongsi untuk rutin `splaskscore.analytics.collect`. Semasa tugas dijalankan, collector memproses semua instance modul administrator yang published, mempunyai token, dan mengaktifkan **Kutipan Analitik Automatik**.
 
 Untuk mengelakkan beberapa module instance saling menulis jadual scheduler yang sama semasa install/upgrade, bootstrap installer hanya menyelaraskan instance modul published pertama/terkini yang ditemui. Selepas itu, apabila mana-mana instance modul disimpan, instance terakhir yang disimpan akan menjadi sumber tetapan jadual bagi tugas scheduler yang dikongsi. Jika anda memasang beberapa instance modul, gunakan satu instance utama sebagai sumber tetapan automation bagi masa/frekuensi scheduler, sementara semua instance published yang enabled masih akan dikutip ketika scheduler berjalan.
 
@@ -59,6 +59,13 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
 ## Changelog
+
+**v1.5.2 (16 Mei 2026)**
+- Mengkonsolidasi paparan kepada satu sistem analitik operasi Grid Operasi tanpa pilihan preset dashboard lain.
+- Memusatkan hierarki KPI utama kepada struktur `100% / GRED A / Cemerlang`, membuang kad Status Pematuhan dan Penjadual, serta menukar label kepada Semakan Seterusnya.
+- Menyamakan graf mini dashboard dengan bahasa visual graf analitik melalui garis bercahaya minimal tanpa paksi, label, atau tooltip.
+- Memadatkan modal analitik dengan KPI `Skor Hari Ini`, tarikh di bawah skor, dan `Skor Terendah`.
+- Metadata release disegerakkan untuk tag `v1.5.2` dan pakej `mod_splaskscore_v1.5.2.zip`.
 
 **v1.5.1 (16 Mei 2026)**
 - Memperkemas irama papan pemuka eksekutif, operasi, dan keselamatan digital dengan susun atur KPI lebih padat serta rasa enterprise premium.
@@ -104,7 +111,7 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 ## Maklumat Tambahan
 
 - Dibangunkan oleh: **Muhammad Azizan Hazim**
-- Versi: **1.5.1**
+- Versi: **1.5.2**
 - Tarikh: **16 Mei 2026**
 
 ## Lesen

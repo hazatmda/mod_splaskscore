@@ -3,8 +3,8 @@
     <name>plg_task_splaskscoreanalytics</name>
     <author>Muhammad Azizan Hazim</author>
     <creationDate>2026-05-11</creationDate>
-    <version>1.5.1</version>
-    <description>Joomla Scheduler backend task managed by SPLaSK Score module automation settings. Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment.</description>
+    <version>1.5.2</version>
+    <description>Tugas backend Joomla Scheduler yang diurus oleh tetapan automasi modul SPLaSK Score. Kutipan analitik automatik bergantung pada Joomla Scheduled Tasks yang aktif dalam persekitaran hosting.</description>
     <files>
         <filename plugin="splaskscoreanalytics">splaskscoreanalytics.php</filename>
         <folder>forms</folder>
@@ -13,7 +13,7 @@
     <config>
         <fields name="params">
             <fieldset name="basic">
-                <field name="managed_by_module" type="text" default="Managed from SPLaSK Score module settings" readonly="true" label="Automation Source" description="Use the SPLaSK module settings to enable, disable, and schedule analytics collection." />
+                <field name="managed_by_module" type="text" default="Diurus daripada tetapan modul SPLaSK Score" readonly="true" label="Sumber Automasi" description="Gunakan tetapan modul SPLaSK untuk mengaktifkan, menyahaktifkan dan menjadualkan kutipan analitik." />
             </fieldset>
         </fields>
     </config>

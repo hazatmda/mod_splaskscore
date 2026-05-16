@@ -449,13 +449,13 @@ def validate_analytics_refinement() -> None:
         raise AssertionError("Analytics KPI regression: visible Trend KPI text must not appear")
     if "Gred Terendah" in helper:
         raise AssertionError("Analytics KPI regression: obsolete Gred Terendah KPI label is still present")
-    if "Markah Terendah" not in helper:
-        raise AssertionError("Analytics KPI regression: Markah Terendah KPI is missing")
+    if "Skor Terendah" not in helper:
+        raise AssertionError("Analytics KPI regression: Skor Terendah KPI is missing")
 
-    summary_start = helper.find('<div class="splask-history-summary"')
-    summary_end = helper.find('<div class="splask-history-chart"', summary_start)
+    summary_start = helper.find('<div class="splask-history-ops-rail"')
+    summary_end = helper.find('<div class="splask-history-ops-main"', summary_start)
     if summary_start == -1 or summary_end == -1:
-        raise AssertionError("Analytics KPI regression: history summary block was not found")
+        raise AssertionError("Analytics KPI regression: operational KPI rail was not found")
     summary = helper[summary_start:summary_end]
     if summary.count("formatHistoryDateOnly") < 2 or "formatMalayDate" in summary:
         raise AssertionError("Analytics KPI regression: KPI sublabels must use date-only formatting")

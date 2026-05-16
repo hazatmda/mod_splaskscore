@@ -3,8 +3,8 @@
     <name>plg_system_splaskscoreautomation</name>
     <author>Muhammad Azizan Hazim</author>
     <creationDate>2026-05-11</creationDate>
-    <version>1.5.1</version>
-    <description>Synchronizes SPLaSK Score module automation settings with Joomla Scheduled Tasks.</description>
+    <version>1.5.2</version>
+    <description>Menyelaraskan tetapan automasi modul SPLaSK Score dengan Joomla Scheduled Tasks.</description>
     <files>
         <filename plugin="splaskscoreautomation">splaskscoreautomation.php</filename>
         <folder>language</folder>

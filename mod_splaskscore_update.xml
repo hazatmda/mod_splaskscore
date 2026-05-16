@@ -2,14 +2,14 @@
 <updates>
     <update>
         <name>SPLaSK Score Module</name>
-        <description>Modul untuk memaparkan markah SPLaSK dari API rasmi. Kini guna label "Gred ..." dan logik baharu. [v1.5.1]</description>
+        <description>Modul untuk memaparkan markah SPLaSK dari API rasmi. Kini guna label "Gred ..." dan logik baharu. [v1.5.2]</description>
         <element>mod_splaskscore</element>
         <type>module</type>
-        <version>1.5.1</version>
+        <version>1.5.2</version>
         <client>administrator</client>
         <infourl>https://github.com/hazatmda/mod_splaskscore</infourl>
         <downloads>
-            <downloadurl type="full" format="zip">https://github.com/hazatmda/mod_splaskscore/releases/download/v1.5.1/mod_splaskscore_v1.5.1.zip</downloadurl>
+            <downloadurl type="full" format="zip">https://github.com/hazatmda/mod_splaskscore/releases/download/v1.5.2/mod_splaskscore_v1.5.2.zip</downloadurl>
         </downloads>
         <tags>
             <tag>stable</tag>

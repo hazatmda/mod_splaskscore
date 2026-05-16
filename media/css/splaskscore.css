@@ -1921,3 +1921,150 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* v1.5.2 permanent operational analytics system. */
+.splask-preset-dashboard_tile .splask-card {
+  border-color: color-mix(in srgb, var(--splask-grade-color) 24%, rgba(148, 163, 184, 0.24));
+  background:
+    radial-gradient(circle at 90% 4%, color-mix(in srgb, var(--splask-grade-color) 26%, transparent), transparent 32%),
+    linear-gradient(180deg, #0b1220, #111827 72%);
+}
+
+.splask-ops-console {
+  display: grid;
+  grid-template-columns: minmax(8.4rem, 0.52fr) minmax(0, 1.48fr);
+  gap: 0.58rem;
+  align-items: stretch;
+}
+
+.splask-ops-score-stream {
+  display: grid;
+  min-height: 10.4rem;
+  place-items: center;
+  align-content: center;
+  gap: 0.2rem;
+  padding: 0.78rem;
+  text-align: center;
+}
+
+.splask-ops-score-stream strong {
+  color: #f8fafc;
+  font-size: clamp(2.15rem, 10cqi, 3.65rem);
+  font-weight: 950;
+  letter-spacing: -0.075em;
+  line-height: 0.9;
+  text-shadow: 0 0 1.2rem color-mix(in srgb, var(--splask-grade-color) 42%, transparent);
+}
+
+.splask-ops-score-stream span,
+.splask-ops-score-stream em {
+  display: block;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.splask-ops-score-stream span {
+  color: var(--splask-grade-accent);
+  font-size: clamp(1rem, 4cqi, 1.38rem);
+  letter-spacing: 0.045em;
+}
+
+.splask-ops-score-stream em {
+  color: #dbeafe;
+  font-size: 0.78rem;
+  letter-spacing: 0.11em;
+}
+
+.splask-ops-console .splask-ops-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.48rem;
+}
+
+.splask-ops-console .splask-ops-cell {
+  display: grid;
+  min-height: 5rem;
+  align-content: center;
+  gap: 0.35rem;
+  padding: 0.62rem;
+}
+
+.splask-ops-mini-chart {
+  overflow: hidden;
+}
+
+.splask-ops-trend-wrap {
+  min-height: 4.25rem;
+  width: 100%;
+}
+
+.splask-ops-trend-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 4.25rem;
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-console {
+  grid-template-columns: minmax(10.5rem, 0.34fr) minmax(0, 1fr);
+  gap: 0.7rem;
+  margin-bottom: 0.7rem;
+  align-items: stretch;
+}
+
+.splask-history-ops-rail {
+  align-content: stretch;
+  gap: 0.48rem;
+}
+
+.splask-history-ops-rail > div {
+  display: grid;
+  min-height: 4.6rem;
+  align-content: center;
+  gap: 0.14rem;
+  padding: 0.64rem;
+}
+
+.splask-history-ops-rail > .splask-history-ops-primary {
+  min-height: 6rem;
+  text-align: center;
+}
+
+.splask-history-ops-rail span {
+  text-transform: uppercase;
+}
+
+.splask-history-ops-rail strong {
+  display: block;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  line-height: 0.95;
+}
+
+.splask-history-ops-rail small {
+  color: var(--splask-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-chart {
+  min-height: 13rem;
+}
+
+.splask-widget[data-splask-appearance='light'].splask-preset-dashboard_tile .splask-ops-score-stream strong {
+  color: #0f172a;
+}
+
+.splask-widget[data-splask-appearance='light'].splask-preset-dashboard_tile .splask-ops-score-stream em {
+  color: #475569;
+}
+
+@container (max-width: 620px) {
+  .splask-ops-console,
+  .splask-history-mode-operations-grid .splask-history-ops-console {
+    grid-template-columns: 1fr;
+  }
+
+  .splask-ops-console .splask-ops-grid {
+    grid-template-columns: 1fr;
+  }
+}

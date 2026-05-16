@@ -10,6 +10,6 @@
 defined('_JEXEC') or die;
 
 $splaskPreset = 'enterprise_kpi';
-$splaskPresetLabel = 'Enterprise KPI';
+$splaskPresetLabel = 'Executive KPI Board';
 
 require __DIR__ . '/_score_card.php';

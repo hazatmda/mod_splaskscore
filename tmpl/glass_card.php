@@ -10,6 +10,6 @@
 defined('_JEXEC') or die;
 
 $splaskPreset = 'glass_card';
-$splaskPresetLabel = 'Glass Card';
+$splaskPresetLabel = 'Glass Executive';
 
 require __DIR__ . '/_score_card.php';

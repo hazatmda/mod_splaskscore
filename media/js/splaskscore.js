@@ -103,10 +103,9 @@
   }
 
   function setText(root, name, value) {
-    const element = root.querySelector(`[data-splask-${name}]`);
-    if (element) {
+    root.querySelectorAll(`[data-splask-${name}]`).forEach((element) => {
       element.textContent = value;
-    }
+    });
   }
 
   function applyHealth(root, health) {
@@ -126,16 +125,14 @@
     root.style.setProperty('--splask-grade-text', grade.text);
     root.style.setProperty('--splask-score-percent', `${score}%`);
 
-    const circle = root.querySelector('[data-splask-progress-circle]');
-    if (circle) {
+    root.querySelectorAll('[data-splask-progress-circle]').forEach((circle) => {
       circle.style.stroke = grade.color;
       circle.style.strokeDashoffset = CIRCLE_LENGTH - (CIRCLE_LENGTH * score / 100);
-    }
+    });
 
-    const bar = root.querySelector('[data-splask-progress-bar]');
-    if (bar) {
+    root.querySelectorAll('[data-splask-progress-bar]').forEach((bar) => {
       bar.style.width = `${score}%`;
-    }
+    });
   }
 
   function buildAjaxParams(root, task, values) {
@@ -271,7 +268,7 @@
     const height = Math.floor(rect.height || cssHeight || canvas.clientHeight || 0);
 
     return {
-      width: Math.max(320, width || 640),
+      width: Math.max(1, width || 640),
       height: Math.max(220, height || 260),
       visible: width > 0 && height > 0
     };
@@ -451,24 +448,46 @@
     const rect = canvas.getBoundingClientRect();
     const pointerX = event.clientX - rect.left;
     const nearest = coordinates.reduce((best, point) => (Math.abs(point.x - pointerX) < Math.abs(best.x - pointerX) ? point : best), coordinates[0]);
+    const edgeGap = 8;
+    const caretGap = 12;
 
     tooltip.replaceChildren(document.createTextNode(nearest.label), document.createElement('br'), document.createTextNode(formatScore(nearest.score)));
     tooltip.hidden = false;
     tooltip.style.left = '0px';
     tooltip.style.top = '0px';
-    tooltip.style.maxWidth = `${Math.max(0, Math.floor(rect.width - 12))}px`;
+    tooltip.style.maxWidth = `${Math.max(0, Math.floor(rect.width - (edgeGap * 2)))}px`;
+    tooltip.dataset.splaskXAlign = 'center';
+    tooltip.dataset.splaskYAlign = 'top';
 
     const tooltipWidth = tooltip.offsetWidth || 0;
     const tooltipHeight = tooltip.offsetHeight || 0;
-    const horizontalPadding = Math.ceil(tooltipWidth / 2) + 6;
-    const verticalPadding = tooltipHeight + 6;
-    const minLeft = Math.min(horizontalPadding, rect.width / 2);
-    const maxLeft = Math.max(minLeft, rect.width - horizontalPadding);
-    const minTop = Math.min(verticalPadding, rect.height / 2);
-    const maxTop = Math.max(minTop, rect.height - 6);
+    const centeredLeft = nearest.x - (tooltipWidth / 2);
+    const centeredTop = nearest.y - tooltipHeight - caretGap;
+    const minLeft = edgeGap;
+    const maxLeft = Math.max(minLeft, rect.width - tooltipWidth - edgeGap);
+    const minTop = edgeGap;
+    const maxTop = Math.max(minTop, rect.height - tooltipHeight - edgeGap);
+    let nextLeft = centeredLeft;
+    let nextTop = centeredTop;
 
-    tooltip.style.left = `${Math.min(Math.max(nearest.x, minLeft), maxLeft)}px`;
-    tooltip.style.top = `${Math.min(Math.max(nearest.y - 14, minTop), maxTop)}px`;
+    if (centeredLeft < minLeft && nearest.x + caretGap + tooltipWidth <= rect.width - edgeGap) {
+      nextLeft = nearest.x + caretGap;
+      tooltip.dataset.splaskXAlign = 'left';
+    } else if (centeredLeft > maxLeft && nearest.x - caretGap - tooltipWidth >= edgeGap) {
+      nextLeft = nearest.x - caretGap - tooltipWidth;
+      tooltip.dataset.splaskXAlign = 'right';
+    }
+
+    if (centeredTop < minTop && nearest.y + caretGap + tooltipHeight <= rect.height - edgeGap) {
+      nextTop = nearest.y + caretGap;
+      tooltip.dataset.splaskYAlign = 'bottom';
+    } else if (centeredTop > maxTop && nearest.y - caretGap - tooltipHeight >= edgeGap) {
+      nextTop = nearest.y - caretGap - tooltipHeight;
+      tooltip.dataset.splaskYAlign = 'top';
+    }
+
+    tooltip.style.left = `${Math.min(Math.max(nextLeft, minLeft), maxLeft)}px`;
+    tooltip.style.top = `${Math.min(Math.max(nextTop, minTop), maxTop)}px`;
   }
 
   function hideChartTooltip(canvas) {

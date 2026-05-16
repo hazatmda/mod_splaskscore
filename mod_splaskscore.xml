@@ -2,8 +2,8 @@
 <extension type="module" client="administrator" method="upgrade">
     <name>mod_splaskscore</name>
     <author>Muhammad Azizan Hazim</author>
-    <version>1.4.1</version>
-    <description>Module to display SPLaSK Score in Joomla Admin Dashboard (Logik, label gred, and adaptive presets versi 1.4.1)</description>
+    <version>1.4.2</version>
+    <description>Module to display SPLaSK Score in Joomla Admin Dashboard (Logik, label gred, and adaptive presets versi 1.4.2)</description>
     <scriptfile>script.php</scriptfile>
     <files>
         <filename module="mod_splaskscore">mod_splaskscore.php</filename>
@@ -34,14 +34,14 @@
                 <field name="design_preset" type="list" label="Design Preset" description="Pilih reka bentuk paparan markah SPLaSK." default="modern_circle">
                     <option value="default">Default Card</option>
                     <option value="modern_circle">Modern Circle</option>
-                    <option value="glass_card">Glass Card</option>
+                    <option value="glass_card">Glass Executive</option>
                     <option value="minimal_clean">Minimal Clean</option>
-                    <option value="gradient_ring">Gradient Ring</option>
+                    <option value="gradient_ring">Timeline Analytics</option>
                     <option value="compact_badge">Compact Badge</option>
-                    <option value="dashboard_tile">Dashboard Tile</option>
-                    <option value="neon_glass">Neon Glass</option>
+                    <option value="dashboard_tile">Operations Grid</option>
+                    <option value="neon_glass">Neon Analytics</option>
                     <option value="minimal_oled">Minimal OLED</option>
-                    <option value="enterprise_kpi">Enterprise KPI</option>
+                    <option value="enterprise_kpi">Executive KPI Board</option>
                     <option value="arc_reactor">Arc Reactor</option>
                 </field>
                 <field name="appearance_mode" type="list" label="Appearance Mode" description="Pilih mod paparan: cerah, gelap, atau automatik mengikut tema pentadbir/peranti." default="light">

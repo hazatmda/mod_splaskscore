@@ -4,6 +4,7 @@
   const SELECTOR = '[data-splask-widget]';
   const CIRCLE_LENGTH = 377;
   const MALAY_MONTHS = ['Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'];
+  const MALAY_WEEKDAYS = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
 
 
   function hasDarkAdminSignal(element) {
@@ -98,6 +99,24 @@
     const month = MALAY_MONTHS[parsed.getUTCMonth()];
 
     return `${parsed.getUTCDate()} ${month} ${parsed.getUTCFullYear()}`;
+  }
+
+
+  function formatMalayOperationalTimestamp(dateStr) {
+    const parsed = parseSplaskDate(dateStr);
+
+    if (!parsed) {
+      return dateStr || 'Tiada';
+    }
+
+    const weekday = MALAY_WEEKDAYS[parsed.getUTCDay()];
+    const month = MALAY_MONTHS[parsed.getUTCMonth()];
+    const hours = parsed.getUTCHours();
+    const minutes = String(parsed.getUTCMinutes()).padStart(2, '0');
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+
+    return `${weekday} • ${parsed.getUTCDate()} ${month} ${parsed.getUTCFullYear()} • ${displayHours}:${minutes} ${period}`;
   }
 
   function setText(root, name, value) {
@@ -962,7 +981,7 @@
     setText(root, 'grade', grade.label.toUpperCase());
     setText(root, 'grade-short', grade.shortLabel);
     setText(root, 'status', grade.status);
-    setText(root, 'date', formatMalayDate(data.last_check));
+    setText(root, 'date', formatMalayOperationalTimestamp(data.last_check));
     setText(root, 'next', formatMalayDate(nextCheck));
     updateSevenDayMicroGraphs(root, score);
     updateMiniTrendCharts(root, score);

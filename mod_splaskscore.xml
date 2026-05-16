@@ -2,8 +2,8 @@
 <extension type="module" client="administrator" method="upgrade">
     <name>mod_splaskscore</name>
     <author>Muhammad Azizan Hazim</author>
-    <version>1.5.1</version>
-    <description>Module to display SPLaSK Score in Joomla Admin Dashboard (Logik, label gred, and premium dashboard modes versi 1.5.1)</description>
+    <version>1.5.2</version>
+    <description>Modul papan pemuka operasi SPLaSK dengan sistem analitik premium bersatu versi 1.5.2</description>
     <scriptfile>script.php</scriptfile>
     <files>
         <filename module="mod_splaskscore">mod_splaskscore.php</filename>
@@ -31,18 +31,13 @@
         <fields name="params">
             <fieldset name="basic">
                 <field name="splask_token" type="text" label="SPLaSK Token" description="Masukkan token SPLaSK anda untuk paparan markah." required="true" />
-                <field name="design_preset" type="list" label="Mod Papan Pemuka" description="Pilih satu daripada 3 mod papan pemuka premium v1.5.1." default="enterprise_kpi">
-                    <option value="enterprise_kpi">Ringkasan Eksekutif</option>
-                    <option value="dashboard_tile">Grid Operasi</option>
-                    <option value="neon_glass">Konsol Keselamatan Digital</option>
-                </field>
                 <field name="appearance_mode" type="list" label="Mod Paparan" description="Pilih mod paparan: cerah, gelap, atau automatik mengikut tema pentadbir/peranti." default="light">
                     <option value="light">Cerah</option>
                     <option value="dark">Gelap</option>
                     <option value="auto">Automatik</option>
                 </field>
-                <field name="analytics_scheduler_note" type="note" label="Nota Operasi Automasi" description="Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. The managed daily collection time uses the Joomla configured timezone, and the hosting cron/Scheduled Tasks runner must execute Joomla Scheduled Tasks for guaranteed automated collection." />
-                <field name="analytics_multi_module_note" type="note" label="Nota Penjadual Berbilang Modul" description="SPLaSK Score uses one shared Joomla Scheduled Task. Runtime collection processes every published enabled module instance, while install/upgrade bootstrap synchronizes the first/latest published instance and later module saves let the last-saved instance control the shared schedule." />
+                <field name="analytics_scheduler_note" type="note" label="Nota Operasi Automasi" description="Kutipan analitik automatik bergantung pada Joomla Scheduled Tasks yang aktif dalam persekitaran hosting. Masa kutipan harian terurus menggunakan zon masa Joomla, dan runner cron/Scheduled Tasks hosting mesti menjalankan Joomla Scheduled Tasks untuk menjamin kutipan automatik." />
+                <field name="analytics_multi_module_note" type="note" label="Nota Penjadual Berbilang Modul" description="SPLaSK Score menggunakan satu Joomla Scheduled Task yang dikongsi. Kutipan masa jalan memproses setiap modul diterbitkan yang diaktifkan, manakala pemasangan/naik taraf menyelaraskan modul diterbitkan pertama/terkini dan simpanan modul selepas itu membenarkan modul terakhir disimpan mengawal jadual dikongsi." />
                 <field name="analytics_auto_enabled" type="radio" label="Aktifkan Kutipan Analitik Automatik" description="Selaraskan Joomla Scheduled Task secara automatik daripada tetapan modul ini. Runner Joomla Scheduled Tasks mesti beroperasi dalam persekitaran hosting untuk menjamin kutipan automatik." default="1" layout="joomla.form.field.radio.switcher">
                     <option value="0">JDISABLED</option>
                     <option value="1">JENABLED</option>

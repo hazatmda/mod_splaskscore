@@ -31,7 +31,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.5.1';
+    private const ENGINE_VERSION = '1.5.2';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -57,9 +57,7 @@ final class ModSplaskscoreHelper
     public static function getAllowedDesignPresets(): array
     {
         return [
-            'enterprise_kpi',
             'dashboard_tile',
-            'neon_glass',
         ];
     }
 
@@ -72,9 +70,7 @@ final class ModSplaskscoreHelper
      */
     public static function getDesignPreset($params): string
     {
-        $layout = (string) $params->get('design_preset', 'enterprise_kpi');
-
-        return in_array($layout, self::getAllowedDesignPresets(), true) ? $layout : 'enterprise_kpi';
+        return 'dashboard_tile';
     }
 
     /**
@@ -405,7 +401,7 @@ final class ModSplaskscoreHelper
         $moduleId = $input->getInt('module_id', 0);
         $token = $input->getString('token', '');
         $appearance = $input->getCmd('appearance', 'light');
-        $preset = $input->getCmd('preset', 'enterprise_kpi');
+        $preset = 'dashboard_tile';
         $user = \Joomla\CMS\Factory::getUser();
 
         if (!$user || $user->guest || (!$user->authorise('core.manage', 'com_modules') && !$user->authorise('core.admin'))) {
@@ -456,7 +452,7 @@ final class ModSplaskscoreHelper
         $moduleId = $input->getInt('module_id', 0);
         $token = $input->getString('token', '');
         $appearance = $input->getCmd('appearance', 'light');
-        $preset = $input->getCmd('preset', 'enterprise_kpi');
+        $preset = 'dashboard_tile';
 
         if (!$moduleId || !$token) {
             return [
@@ -487,20 +483,11 @@ final class ModSplaskscoreHelper
      *
      * @return  string
      */
-    public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null, ?int $rowsPerPage = null, string $preset = 'enterprise_kpi'): string
+    public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null, ?int $rowsPerPage = null, string $preset = 'dashboard_tile'): string
     {
         $appearance = in_array($appearance, self::getAllowedAppearanceModes(), true) ? $appearance : 'light';
-        $preset = in_array($preset, self::getAllowedDesignPresets(), true) ? $preset : 'enterprise_kpi';
-        $modeClass = [
-            'enterprise_kpi' => 'executive-analytics',
-            'dashboard_tile' => 'operations-grid',
-            'neon_glass' => 'neon-cyber',
-        ][$preset];
-        $modeTitle = [
-            'enterprise_kpi' => 'Laporan Eksekutif',
-            'dashboard_tile' => 'Pemantauan Operasi',
-            'neon_glass' => 'Konsol Keselamatan Digital',
-        ][$preset];
+        $preset = 'dashboard_tile';
+        $modeClass = 'operations-grid';
         $meaningfulRecords = self::getDistinctMeaningfulHistoryRecords($records);
         $latest = $meaningfulRecords[0] ?? null;
         $lowest = null;
@@ -516,52 +503,18 @@ final class ModSplaskscoreHelper
         ob_start();
         ?>
         <div class="splask-history-content splask-history-<?php echo htmlspecialchars($appearance, ENT_QUOTES, 'UTF-8'); ?> splask-history-mode-<?php echo htmlspecialchars($modeClass, ENT_QUOTES, 'UTF-8'); ?>" data-splask-history-preset="<?php echo htmlspecialchars($preset, ENT_QUOTES, 'UTF-8'); ?>">
-            <?php if ($preset === 'enterprise_kpi') : ?>
-                <section class="splask-history-exec-report" aria-label="Laporan analitik eksekutif">
-                    <div class="splask-history-exec-brief">
-                        <span>Ringkasan Eksekutif</span>
-                        <strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></strong>
-                        <p><?php echo htmlspecialchars($modeTitle, ENT_QUOTES, 'UTF-8'); ?> — trend tadbir urus 30 hari dan laporan KPI.</p>
-                    </div>
-                    <div class="splask-history-summary" aria-label="Ringkasan eksekutif SPLaSK">
-                        <div><span>Rekod Terkini</span><strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></strong><?php if ($latest) : ?><small><?php echo htmlspecialchars(self::formatHistoryDateOnly((string) ($latest->source_checked_at ?: $latest->created_at)), ENT_QUOTES, 'UTF-8'); ?></small><?php endif; ?></div>
-                        <div><span>Markah Terendah</span><strong><?php echo $lowest ? htmlspecialchars(self::formatScorePercent((float) $lowest->score), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></strong><?php if ($lowest) : ?><small><?php echo htmlspecialchars(self::formatHistoryDateOnly((string) ($lowest->source_checked_at ?: $lowest->created_at)), ENT_QUOTES, 'UTF-8'); ?></small><?php endif; ?></div>
-                        <div><span>Jumlah Rekod</span><strong><?php echo count($meaningfulRecords); ?></strong><small>Tetingkap 30 hari</small></div>
-                    </div>
-                    <div class="splask-history-chart" data-splask-history-chart aria-label="Carta trend peratus SPLaSK">
+            <section class="splask-history-ops-console" aria-label="Pusat risikan operasi SPLaSK">
+                <div class="splask-history-ops-rail" aria-label="KPI analitik operasi">
+                    <div class="splask-history-ops-primary"><span>Skor Hari Ini</span><strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : '--'; ?></strong><small><?php echo $latest ? htmlspecialchars(self::formatHistoryDateOnly((string) ($latest->source_checked_at ?: $latest->created_at)), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></small></div>
+                    <div><span>Skor Terendah</span><strong><?php echo $lowest ? htmlspecialchars(self::formatScorePercent((float) $lowest->score), ENT_QUOTES, 'UTF-8') : '--'; ?></strong><?php if ($lowest) : ?><small><?php echo htmlspecialchars(self::formatHistoryDateOnly((string) ($lowest->source_checked_at ?: $lowest->created_at)), ENT_QUOTES, 'UTF-8'); ?></small><?php endif; ?></div>
+                    <div><span>Jumlah Rekod</span><strong><?php echo count($meaningfulRecords); ?></strong><small>Tetingkap 30 hari</small></div>
+                </div>
+                <div class="splask-history-ops-main">
+                    <div class="splask-history-chart splask-history-ops-chart" data-splask-history-chart aria-label="Carta trend peratus SPLaSK">
                         <?php echo self::renderTrendChart($meaningfulRecords); ?>
                     </div>
-                </section>
-            <?php elseif ($preset === 'dashboard_tile') : ?>
-                <section class="splask-history-ops-console" aria-label="Analitik pemantauan operasi">
-                    <div class="splask-history-ops-rail">
-                        <div><span>Skor Operasi</span><strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : '--'; ?></strong></div>
-                        <div><span>Markah Terendah</span><strong><?php echo $lowest ? htmlspecialchars(self::formatScorePercent((float) $lowest->score), ENT_QUOTES, 'UTF-8') : '--'; ?></strong></div>
-                        <div><span>Jumlah Rekod</span><strong><?php echo count($meaningfulRecords); ?></strong></div>
-                    </div>
-                    <div class="splask-history-ops-main">
-                        <div class="splask-history-chart splask-history-ops-chart" data-splask-history-chart aria-label="Carta trend peratus SPLaSK">
-                            <?php echo self::renderTrendChart($meaningfulRecords); ?>
-                        </div>
-                    </div>
-                </section>
-            <?php else : ?>
-                <section class="splask-history-cyber-deck" aria-label="Konsol analitik keselamatan digital">
-                    <div class="splask-history-cyber-orb" role="img" aria-label="Skor keselamatan digital">
-                        <span><?php echo htmlspecialchars($modeTitle, ENT_QUOTES, 'UTF-8'); ?></span>
-                        <strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : '0%'; ?></strong>
-                        <em>Isyarat disahkan</em>
-                    </div>
-                    <div class="splask-history-cyber-grid">
-                        <div><span>Rekod Terkini</span><strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></strong></div>
-                        <div><span>Markah Terendah</span><strong><?php echo $lowest ? htmlspecialchars(self::formatScorePercent((float) $lowest->score), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></strong></div>
-                        <div><span>Jumlah Rekod</span><strong><?php echo count($meaningfulRecords); ?></strong></div>
-                    </div>
-                    <div class="splask-history-chart splask-history-cyber-chart" data-splask-history-chart aria-label="Carta trend peratus SPLaSK">
-                        <?php echo self::renderTrendChart($meaningfulRecords); ?>
-                    </div>
-                </section>
-            <?php endif; ?>
+                </div>
+            </section>
 
             <div class="splask-history-table-shell" data-splask-history-pagination data-splask-history-page-size="<?php echo $pageSize; ?>">
                 <script type="application/json" data-splask-history-records><?php echo htmlspecialchars(json_encode(self::buildHistoryTableRecords($meaningfulRecords), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></script>
@@ -955,6 +908,8 @@ final class ModSplaskscoreHelper
         return $results;
     }
 
+    /* Validation note: Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. Runtime collection still processes every published enabled module instance; install/upgrade bootstrap synchronizes the first/latest published instance. */
+
     /**
      * Synchronize Joomla Scheduler with the saved module automation settings.
      *
@@ -1004,7 +959,7 @@ final class ModSplaskscoreHelper
                 'state' => $enabled ? 1 : 0,
                 'execution_rules' => $rules['execution_rules'],
                 'params' => $taskParams,
-                'note' => 'Managed automatically from the SPLaSK Score module settings. Daily collection time uses the Joomla configured timezone. Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. Manual scheduler edits are preserved only until the module is saved again.',
+                'note' => 'Diurus secara automatik daripada tetapan modul SPLaSK Score. Masa kutipan harian menggunakan zon masa Joomla yang dikonfigurasi. Kutipan analitik automatik bergantung pada Joomla Scheduled Tasks yang aktif dalam persekitaran hosting. Suntingan manual penjadual dikekalkan hanya sehingga modul disimpan semula.',
                 'priority' => 5,
                 'cli_exclusive' => 0,
             ];

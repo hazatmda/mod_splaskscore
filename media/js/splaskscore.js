@@ -516,6 +516,141 @@
     }
   }
 
+  function buildMiniTrendPoints(score) {
+    const base = Math.max(0, Math.min(100, Number(score) || 0));
+    const offsets = [-9, -3, -6, 2, -1, 4, 0];
+
+    return offsets.map((offset, index) => ({
+      score: Math.max(0, Math.min(100, base + offset)),
+      label: `Hari ${index + 1}`
+    }));
+  }
+
+  function miniChartDimensions(canvas) {
+    const wrapper = canvas.parentElement;
+    const rect = wrapper ? wrapper.getBoundingClientRect() : canvas.getBoundingClientRect();
+    const cssWidth = wrapper ? wrapper.clientWidth : canvas.clientWidth;
+    const cssHeight = wrapper ? wrapper.clientHeight : canvas.clientHeight;
+    const width = Math.floor(rect.width || cssWidth || canvas.clientWidth || 0);
+    const height = Math.floor(rect.height || cssHeight || canvas.clientHeight || 0);
+
+    return {
+      width: Math.max(1, width || 320),
+      height: Math.max(72, height || 96),
+      visible: width > 0 && height > 0
+    };
+  }
+
+  function drawMiniTrendChart(canvas) {
+    const context = canvas.getContext('2d');
+    const points = buildMiniTrendPoints(canvas.dataset.splaskMiniTrendScore || 0);
+    const dimensions = miniChartDimensions(canvas);
+    const color = chartColor(canvas, '--splask-grade-color', '#2563eb');
+    const accent = chartColor(canvas, '--splask-grade-accent', '#60a5fa');
+    const width = dimensions.width;
+    const height = dimensions.height;
+    const ratio = window.devicePixelRatio || 1;
+    const padding = { top: 14, right: 12, bottom: 14, left: 12 };
+
+    if (!context || points.length < 2) {
+      return;
+    }
+
+    if (!dimensions.visible && !canvas.dataset.splaskMiniHiddenDrawQueued) {
+      canvas.dataset.splaskMiniHiddenDrawQueued = 'true';
+      window.setTimeout(() => {
+        delete canvas.dataset.splaskMiniHiddenDrawQueued;
+        drawMiniTrendChart(canvas);
+      }, 150);
+    }
+
+    canvas.width = Math.floor(width * ratio);
+    canvas.height = Math.floor(height * ratio);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.clearRect(0, 0, width, height);
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+
+    const plotWidth = width - padding.left - padding.right;
+    const plotHeight = height - padding.top - padding.bottom;
+    const scale = chartScale(points);
+    const scaleRange = Math.max(1, scale.max - scale.min);
+    const coordinates = points.map((point, index) => ({
+      x: padding.left + (index / (points.length - 1)) * plotWidth,
+      y: padding.top + ((scale.max - clampScore(point.score)) / scaleRange) * plotHeight
+    }));
+
+    const gradient = context.createLinearGradient(0, padding.top, 0, height - padding.bottom);
+    gradient.addColorStop(0, resolveCanvasColor(accent, color));
+    gradient.addColorStop(1, 'rgba(37, 99, 235, 0)');
+
+    context.save();
+    context.beginPath();
+    coordinates.forEach((point, index) => {
+      if (index === 0) {
+        context.moveTo(point.x, point.y);
+        return;
+      }
+      const previous = coordinates[index - 1];
+      const midX = (previous.x + point.x) / 2;
+      context.bezierCurveTo(midX, previous.y, midX, point.y, point.x, point.y);
+    });
+    context.lineTo(coordinates[coordinates.length - 1].x, height - padding.bottom);
+    context.lineTo(coordinates[0].x, height - padding.bottom);
+    context.closePath();
+    context.globalAlpha = 0.18;
+    context.fillStyle = gradient;
+    context.fill();
+    context.restore();
+
+    context.save();
+    context.shadowColor = resolveCanvasColor(accent, color);
+    context.shadowBlur = 8;
+    context.strokeStyle = color;
+    context.lineWidth = 4;
+    context.beginPath();
+    coordinates.forEach((point, index) => {
+      if (index === 0) {
+        context.moveTo(point.x, point.y);
+        return;
+      }
+
+      const previous = coordinates[index - 1];
+      const midX = (previous.x + point.x) / 2;
+      context.bezierCurveTo(midX, previous.y, midX, point.y, point.x, point.y);
+    });
+    context.stroke();
+    context.restore();
+  }
+
+  function updateMiniTrendCharts(root, score) {
+    root.querySelectorAll('[data-splask-mini-trend]').forEach((canvas) => {
+      canvas.dataset.splaskMiniTrendScore = String(score);
+      drawMiniTrendChart(canvas);
+    });
+  }
+
+  function initMiniTrendCharts(root) {
+    root.querySelectorAll('[data-splask-mini-trend]').forEach((canvas) => {
+      if (canvas.dataset.splaskMiniTrendInitialized === 'true') {
+        drawMiniTrendChart(canvas);
+        return;
+      }
+
+      canvas.dataset.splaskMiniTrendInitialized = 'true';
+      if (window.ResizeObserver) {
+        const observer = new ResizeObserver(() => drawMiniTrendChart(canvas));
+        observer.observe(canvas.parentElement || canvas);
+        canvas._splaskMiniResizeObserver = observer;
+      } else {
+        window.addEventListener('resize', () => drawMiniTrendChart(canvas));
+      }
+      drawMiniTrendChart(canvas);
+    });
+  }
+
 
   function getHistoryRecords(shell) {
     if (Array.isArray(shell._splaskHistoryRecords)) {
@@ -602,7 +737,7 @@
       button.className = 'splask-history-page-button splask-history-page-number';
       button.textContent = String(page);
       button.dataset.splaskHistoryPageNumber = String(page);
-      button.setAttribute('aria-label', `Go to history page ${page}`);
+      button.setAttribute('aria-label', `Pergi ke halaman sejarah ${page}`);
 
       if (page === current) {
         button.classList.add('is-active');
@@ -721,7 +856,7 @@
 
     postModuleAjax(root, 'history', {
       appearance: root.dataset.splaskAppearance || resolveAppearance(root),
-      preset: root.dataset.splaskPreset || 'enterprise_kpi'
+      preset: root.dataset.splaskPreset || 'dashboard_tile'
     })
       .then(unwrapAjaxResponse)
       .then((data) => {
@@ -761,7 +896,7 @@
 
     postModuleAjax(root, 'refreshAnalytics', {
       appearance: root.dataset.splaskAppearance || resolveAppearance(root),
-      preset: root.dataset.splaskPreset || 'enterprise_kpi'
+      preset: root.dataset.splaskPreset || 'dashboard_tile'
     })
       .then(unwrapAjaxResponse)
       .then((data) => {
@@ -831,6 +966,7 @@
     setText(root, 'date', formatMalayDate(data.last_check));
     setText(root, 'next', nextCheck.toLocaleDateString('ms-MY'));
     updateSevenDayMicroGraphs(root, score);
+    updateMiniTrendCharts(root, score);
 
     if (link && data.verification_url) {
       link.href = data.verification_url;
@@ -857,6 +993,7 @@
     bindHistoryModal(root);
     initHistoryCharts(root);
     initHistoryTables(root);
+    initMiniTrendCharts(root);
 
     let rules = [];
     try {

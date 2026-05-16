@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.5.4';
+    private const ENGINE_VERSION = '1.5.5';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -236,7 +236,7 @@ final class ModSplaskscoreHelper
     }
 
     /**
-     * Store a score snapshot when it differs from the latest saved record.
+     * Store a normalized daily score snapshot for one module/token pair.
      *
      * @param   array<string, mixed>  $payload  Client score payload.
      *
@@ -279,6 +279,8 @@ final class ModSplaskscoreHelper
 
         self::ensureHistoryTable();
 
+        self::normalizeDailyHistoryDuplicates($moduleId, $tokenHash);
+
         $latest = self::getLatestHistoryRecord($moduleId, $tokenHash);
 
         if ($latest && self::isDuplicateHistoryRecord($latest, $signature, $recordedAt, $cooldownMinutes)) {
@@ -314,23 +316,32 @@ final class ModSplaskscoreHelper
 
         try {
             $db->transactionStart();
-            $latest = self::getLatestHistoryRecord($moduleId, $tokenHash, true);
-            if ($latest && self::isDuplicateHistoryRecord($latest, $signature, $recordedAt, $cooldownMinutes)) {
-                self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', 'Rekod pendua diabaikan.', $recordedAt);
+            self::normalizeDailyHistoryDuplicates($moduleId, $tokenHash);
+            $daily = self::getDailyHistoryRecord($moduleId, $tokenHash, $sourceCheckedAt ?: $recordedAt, true);
+
+            if ($daily) {
+                $record->id = (int) $daily->id;
+                $record->created_at = (string) ($daily->created_at ?? $recordedAt);
+                $db->updateObject(self::getHistoryTableName(), $record, ['id']);
+                self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', 'Rekod harian dikemaskini.', $recordedAt);
+                self::normalizeDailyHistoryDuplicates($moduleId, $tokenHash);
+                self::applyRetentionPolicy($moduleId, $tokenHash);
                 $db->transactionCommit();
                 self::updateModuleLastSuccessfulCollection($moduleId, self::latestSuccessfulCollectionTimestamp($moduleId, $tokenHash));
 
                 return [
                     'success' => true,
-                    'saved' => false,
-                    'duplicate' => true,
-                    'message' => 'Rekod sejarah terkini sudah wujud dan tidak disimpan semula.',
+                    'saved' => true,
+                    'updated' => true,
+                    'duplicate' => false,
+                    'message' => 'Rekod sejarah harian dikemaskini.',
                     'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
                 ];
             }
 
             $db->insertObject(self::getHistoryTableName(), $record);
             self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', '', $recordedAt);
+            self::normalizeDailyHistoryDuplicates($moduleId, $tokenHash);
             self::applyRetentionPolicy($moduleId, $tokenHash);
             $db->transactionCommit();
             self::updateModuleLastSuccessfulCollection($moduleId, self::latestSuccessfulCollectionTimestamp($moduleId, $tokenHash));
@@ -352,6 +363,7 @@ final class ModSplaskscoreHelper
         return [
             'success' => true,
             'saved' => true,
+            'updated' => false,
             'duplicate' => false,
             'message' => 'Rekod sejarah disimpan.',
             'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
@@ -423,6 +435,7 @@ final class ModSplaskscoreHelper
 
         $result = self::collectSingleModuleAnalytics($moduleId, $token, 'manual', $triggeredBy);
         $tokenHash = hash('sha256', $token);
+        self::normalizeDailyHistoryDuplicates($moduleId, $tokenHash);
         $records = self::getHistoryRecords($moduleId, $tokenHash);
         $chartRecords = self::getHistoryChartRecords($moduleId, $tokenHash);
         $totalRecords = self::getHistoryRecordCount($moduleId, $tokenHash);
@@ -466,6 +479,7 @@ final class ModSplaskscoreHelper
         self::ensureHistoryTable();
 
         $tokenHash = hash('sha256', $token);
+        self::normalizeDailyHistoryDuplicates($moduleId, $tokenHash);
         $records = self::getHistoryRecords($moduleId, $tokenHash);
         $chartRecords = self::getHistoryChartRecords($moduleId, $tokenHash);
         $totalRecords = self::getHistoryRecordCount($moduleId, $tokenHash);
@@ -646,7 +660,7 @@ final class ModSplaskscoreHelper
             ->from($db->quoteName(self::getHistoryTableName()))
             ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
             ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
-            ->order($db->quoteName('created_at') . ' DESC, ' . $db->quoteName('id') . ' DESC');
+            ->order($db->quoteName('recorded_at') . ' DESC, ' . $db->quoteName('created_at') . ' DESC, ' . $db->quoteName('id') . ' DESC');
 
         $limit === null ? $db->setQuery($query) : $db->setQuery($query, 0, $limit);
 
@@ -667,14 +681,14 @@ final class ModSplaskscoreHelper
         $cutoff = (new \DateTimeImmutable('today', new \DateTimeZone('UTC')))
             ->modify('-' . (self::HISTORY_CHART_DAY_WINDOW - 1) . ' days')
             ->format('Y-m-d 00:00:00');
-        $recordDate = 'COALESCE(' . $db->quoteName('recorded_at') . ', ' . $db->quoteName('created_at') . ')';
+        $recordDate = 'COALESCE(' . $db->quoteName('source_checked_at') . ', ' . $db->quoteName('recorded_at') . ', ' . $db->quoteName('created_at') . ')';
         $query = $db->getQuery(true)
             ->select('*')
             ->from($db->quoteName(self::getHistoryTableName()))
             ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
             ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
             ->where($recordDate . ' >= ' . $db->quote($cutoff))
-            ->order($db->quoteName('created_at') . ' DESC, ' . $db->quoteName('id') . ' DESC');
+            ->order($db->quoteName('recorded_at') . ' DESC, ' . $db->quoteName('created_at') . ' DESC, ' . $db->quoteName('id') . ' DESC');
         $db->setQuery($query);
 
         return $db->loadObjectList() ?: [];
@@ -724,12 +738,126 @@ final class ModSplaskscoreHelper
             ->from($db->quoteName(self::getHistoryTableName()))
             ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
             ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
-            ->order($db->quoteName('created_at') . ' DESC, ' . $db->quoteName('id') . ' DESC');
+            ->order($db->quoteName('recorded_at') . ' DESC, ' . $db->quoteName('created_at') . ' DESC, ' . $db->quoteName('id') . ' DESC');
 
         $db->setQuery((string) $query . ' LIMIT 1 FOR UPDATE');
         $record = $db->loadObject();
 
         return $record ?: null;
+    }
+
+    /**
+     * Return the existing normalized daily record for a module/token/date pair.
+     *
+     * @param   int     $moduleId    Joomla module id.
+     * @param   string  $tokenHash   SHA-256 token hash.
+     * @param   string  $recordedAt  Candidate snapshot timestamp.
+     * @param   bool    $forUpdate   Lock the row during write transactions.
+     *
+     * @return  object|null
+     */
+    private static function getDailyHistoryRecord(int $moduleId, string $tokenHash, string $recordedAt, bool $forUpdate = false): ?object
+    {
+        $day = self::getHistoryDayKey($recordedAt);
+        if ($day === '') {
+            return null;
+        }
+
+        $db = \Joomla\CMS\Factory::getDbo();
+        $recordDate = 'DATE(COALESCE(' . $db->quoteName('source_checked_at') . ', ' . $db->quoteName('recorded_at') . ', ' . $db->quoteName('created_at') . '))';
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName(self::getHistoryTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
+            ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
+            ->where($recordDate . ' = ' . $db->quote($day))
+            ->order($db->quoteName('recorded_at') . ' DESC, ' . $db->quoteName('created_at') . ' DESC, ' . $db->quoteName('id') . ' DESC');
+
+        if ($forUpdate) {
+            $db->setQuery((string) $query . ' LIMIT 1 FOR UPDATE');
+        } else {
+            $db->setQuery($query, 0, 1);
+        }
+        $record = $db->loadObject();
+
+        return $record ?: null;
+    }
+
+    /**
+     * Collapse legacy duplicate daily snapshots so one calendar day keeps one best/latest row.
+     *
+     * @param   int|null     $moduleId   Optional module id scope.
+     * @param   string|null  $tokenHash  Optional token hash scope.
+     *
+     * @return  void
+     */
+    private static function normalizeDailyHistoryDuplicates(?int $moduleId = null, ?string $tokenHash = null): void
+    {
+        $db = \Joomla\CMS\Factory::getDbo();
+        $recordDate = 'DATE(COALESCE(' . $db->quoteName('source_checked_at') . ', ' . $db->quoteName('recorded_at') . ', ' . $db->quoteName('created_at') . '))';
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('id'),
+                $db->quoteName('module_id'),
+                $db->quoteName('token_hash'),
+                $recordDate . ' AS ' . $db->quoteName('history_day'),
+            ])
+            ->from($db->quoteName(self::getHistoryTableName()))
+            ->order($db->quoteName('module_id') . ' ASC, ' . $db->quoteName('token_hash') . ' ASC, history_day DESC, ' . $db->quoteName('recorded_at') . ' DESC, ' . $db->quoteName('created_at') . ' DESC, ' . $db->quoteName('id') . ' DESC');
+
+        if ($moduleId !== null) {
+            $query->where($db->quoteName('module_id') . ' = ' . (int) $moduleId);
+        }
+
+        if ($tokenHash !== null && $tokenHash !== '') {
+            $query->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash));
+        }
+
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $seen = [];
+        $deleteIds = [];
+
+        foreach ($rows as $row) {
+            $day = (string) ($row->history_day ?? '');
+            if ($day === '') {
+                continue;
+            }
+
+            $key = (int) $row->module_id . '|' . (string) $row->token_hash . '|' . $day;
+            if (isset($seen[$key])) {
+                $deleteIds[] = (int) $row->id;
+                continue;
+            }
+
+            $seen[$key] = true;
+        }
+
+        if (!$deleteIds) {
+            return;
+        }
+
+        foreach (array_chunk(array_unique($deleteIds), 500) as $ids) {
+            $delete = $db->getQuery(true)
+                ->delete($db->quoteName(self::getHistoryTableName()))
+                ->where($db->quoteName('id') . ' IN (' . implode(',', array_map('intval', $ids)) . ')');
+            $db->setQuery($delete)->execute();
+        }
+    }
+
+    private static function getHistoryDayKey(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+
+        try {
+            return (new \DateTimeImmutable($value, new \DateTimeZone('UTC')))
+                ->setTimezone(new \DateTimeZone('UTC'))
+                ->format('Y-m-d');
+        } catch (\Exception $exception) {
+            return '';
+        }
     }
 
     /**
@@ -1390,6 +1518,7 @@ final class ModSplaskscoreHelper
 
         $db->setQuery("UPDATE `#__splaskscore_history` SET `recorded_at` = `created_at` WHERE `recorded_at` IS NULL")->execute();
         $db->setQuery("UPDATE `#__splaskscore_history` SET `signature` = SHA2(CONCAT(FORMAT(`score`, 2), '|', `grade_key`, '|', `status_label`, '|', `verification_url`, '|', COALESCE(`source_checked_at`, '')), 256) WHERE `signature` = ''")->execute();
+        self::normalizeDailyHistoryDuplicates();
     }
 
     private static function getHealthTableName(): string
@@ -1447,11 +1576,11 @@ final class ModSplaskscoreHelper
 
         $missingToday = true;
         if ($latest) {
-            $recorded = (string) ($latest->recorded_at ?? $latest->created_at);
+            $recorded = (string) (($latest->source_checked_at ?? '') ?: ($latest->recorded_at ?? $latest->created_at));
             $missingToday = $recorded < $today;
         }
 
-        $fallbackSuccess = $latest ? (string) ($latest->recorded_at ?? $latest->created_at) : '';
+        $fallbackSuccess = $latest ? (string) (($latest->source_checked_at ?? '') ?: ($latest->recorded_at ?? $latest->created_at)) : '';
         $effectiveSuccess = $lastSuccess !== '' ? $lastSuccess : $fallbackSuccess;
         if ($fallbackSuccess !== '' && ($effectiveSuccess === '' || strcmp($fallbackSuccess, $effectiveSuccess) > 0)) {
             $effectiveSuccess = $fallbackSuccess;
@@ -1480,7 +1609,7 @@ final class ModSplaskscoreHelper
     {
         $latest = $records[0] ?? null;
         $today = (new \DateTimeImmutable('today', new \DateTimeZone('UTC')))->format('Y-m-d 00:00:00');
-        $recorded = $latest ? (string) ($latest->recorded_at ?? $latest->created_at) : '';
+        $recorded = $latest ? (string) (($latest->source_checked_at ?? '') ?: ($latest->recorded_at ?? $latest->created_at)) : '';
 
         return [
             'last_success' => $recorded,
@@ -1572,7 +1701,7 @@ final class ModSplaskscoreHelper
 
     private static function getHistoryRecordDate(object $record): ?\DateTimeImmutable
     {
-        $value = (string) (($record->recorded_at ?? '') ?: ($record->source_checked_at ?? '') ?: ($record->created_at ?? '') ?: '');
+        $value = (string) (($record->source_checked_at ?? '') ?: ($record->recorded_at ?? '') ?: ($record->created_at ?? '') ?: '');
         if ($value === '') {
             return null;
         }

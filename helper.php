@@ -14,8 +14,6 @@ defined('_JEXEC') or die;
  */
 final class ModSplaskscoreHelper
 {
-    private const MALAY_WEEKDAYS = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
-
     private const MALAY_MONTHS = [
         1 => 'Januari',
         2 => 'Februari',
@@ -31,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.5.2';
+    private const ENGINE_VERSION = '1.5.3';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -1620,7 +1618,7 @@ final class ModSplaskscoreHelper
     }
 
     /**
-     * Format a SQL datetime for display using Malay weekday and month names.
+     * Format a SQL datetime for display using Malay month names without time.
      *
      * @param   string  $value  SQL datetime.
      *
@@ -1639,10 +1637,9 @@ final class ModSplaskscoreHelper
         }
 
         $date = $date->setTimezone(new \DateTimeZone('UTC'));
-        $weekday = self::MALAY_WEEKDAYS[(int) $date->format('w')];
         $month = self::MALAY_MONTHS[(int) $date->format('n')];
 
-        return $weekday . ' • ' . $date->format('j') . ' ' . $month . ' ' . $date->format('Y') . ' • ' . $date->format('g:i A');
+        return $date->format('j') . ' ' . $month . ' ' . $date->format('Y');
     }
 
     /**

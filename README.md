@@ -11,7 +11,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.3.0.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.5.0.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 
@@ -60,6 +60,11 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 
 ## Changelog
 
+**v1.5.0 (16 Mei 2026)**
+- Mengkonsolidasi preset dashboard kepada hanya 3 mod premium: Executive Analytics, Operations Grid, dan Neon Cyber.
+- Menyelaraskan widget dashboard dan modal Sejarah & Analitik supaya setiap mod mempunyai struktur DOM, hierarki KPI, rawatan graf, dan personaliti visual tersendiri.
+- Mengekalkan pagination sejarah, carta analitik 30 hari, tooltip chart yang readable, scheduler baseline, dan metadata release `v1.5.0`.
+
 **v1.3.0 (12 Mei 2026)**
 - Menstabilkan sejarah analitik dengan pencegahan snapshot pendua, trend berdasarkan rekod bermakna yang distinct, dan rendering carta yang mengabaikan salinan identik.
 - Memindahkan tindakan refresh hanya ke modal Sejarah & Analitik serta menyatukan gaya butang refresh/tutup modal.
@@ -93,8 +98,8 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 ## Maklumat Tambahan
 
 - Dibangunkan oleh: **Muhammad Azizan Hazim**
-- Versi: **1.3.0**
-- Tarikh: **12 Mei 2026**
+- Versi: **1.5.0**
+- Tarikh: **16 Mei 2026**
 
 ## Lesen
 

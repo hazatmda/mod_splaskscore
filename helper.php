@@ -31,7 +31,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.3.8';
+    private const ENGINE_VERSION = '1.3.9';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -48,12 +48,6 @@ final class ModSplaskscoreHelper
     private const MANUAL_REFRESH_COOLDOWN_SECONDS = 60;
 
     private const API_RETRY_ATTEMPTS = 3;
-
-    private const API_ENDPOINT = 'https://splask-api.jdn.gov.my/api/get_my_score';
-
-    private const DEFAULT_VERIFY_BASE_URL = 'https://splask-api.jdn.gov.my/verify';
-
-    private const API_TIMEOUT_SECONDS = 30;
 
     /**
      * Return the layout names currently supported by the module.
@@ -273,7 +267,7 @@ final class ModSplaskscoreHelper
         }
 
         $moduleId = max(0, (int) ($payload['module_id'] ?? $input->getInt('module_id', 0)));
-        $plainToken = self::resolveRuntimeToken($moduleId, (string) ($payload['token'] ?? ''));
+        $plainToken = (string) ($payload['token'] ?? '');
         $tokenHash = hash('sha256', $plainToken);
         $score = max(0, min(100, (float) ($payload['score'] ?? 0)));
         $gradeKey = self::cleanHistoryText((string) ($payload['grade_key'] ?? ''), 32);
@@ -387,12 +381,12 @@ final class ModSplaskscoreHelper
 
         return self::saveHistoryRecord([
             'module_id' => $input->getInt('module_id', 0),
-            'token' => '',
+            'token' => $input->getString('token', ''),
             'score' => $input->getFloat('score', 0),
             'grade_key' => $input->getCmd('grade_key', ''),
             'grade_label' => $input->getString('grade_label', ''),
             'status_label' => $input->getString('status_label', ''),
-            'verification_url' => '',
+            'verification_url' => $input->getString('verification_url', ''),
             'source_checked_at' => $input->getString('source_checked_at', ''),
             'source' => 'dashboard',
             'triggered_by' => 'dashboard',
@@ -417,9 +411,8 @@ final class ModSplaskscoreHelper
         }
 
         $moduleId = $input->getInt('module_id', 0);
-        $token = self::resolveRuntimeToken($moduleId);
+        $token = $input->getString('token', '');
         $appearance = $input->getCmd('appearance', 'light');
-        $isInitialRender = $input->getBool('initial', false);
         $user = \Joomla\CMS\Factory::getUser();
 
         if (!$user || $user->guest || (!$user->authorise('core.manage', 'com_modules') && !$user->authorise('core.admin'))) {
@@ -429,7 +422,7 @@ final class ModSplaskscoreHelper
             ];
         }
 
-        if (!$isInitialRender && !self::allowManualRefresh($moduleId, (int) $user->id)) {
+        if (!self::allowManualRefresh($moduleId, (int) $user->id)) {
             return [
                 'success' => false,
                 'message' => 'Sila tunggu sebentar sebelum menyegarkan analitik semula.',
@@ -437,10 +430,9 @@ final class ModSplaskscoreHelper
             ];
         }
 
-        $triggeredBy = $isInitialRender ? 'dashboard-initial:user:' . (int) $user->id : 'user:' . (int) $user->id;
-        $source = $isInitialRender ? 'dashboard' : 'manual';
+        $triggeredBy = 'user:' . (int) $user->id;
 
-        $result = self::collectSingleModuleAnalytics($moduleId, $token, $source, $triggeredBy);
+        $result = self::collectSingleModuleAnalytics($moduleId, $token, 'manual', $triggeredBy);
         $tokenHash = hash('sha256', $token);
         $records = self::getHistoryRecords($moduleId, $tokenHash);
 
@@ -469,7 +461,7 @@ final class ModSplaskscoreHelper
         }
 
         $moduleId = $input->getInt('module_id', 0);
-        $token = self::resolveRuntimeToken($moduleId);
+        $token = $input->getString('token', '');
         $appearance = $input->getCmd('appearance', 'light');
 
         if (!$moduleId || !$token) {
@@ -722,10 +714,6 @@ final class ModSplaskscoreHelper
      */
     public static function collectSingleModuleAnalytics(int $moduleId, string $token, string $source = 'scheduler', string $triggeredBy = 'scheduler'): array
     {
-        $params = self::getModuleParams($moduleId);
-        $token = self::resolveRuntimeToken($moduleId, $token, $params);
-        $params['splask_token'] = $token;
-
         if ($moduleId <= 0 || $token === '') {
             return [
                 'success' => false,
@@ -737,7 +725,7 @@ final class ModSplaskscoreHelper
         $tokenHash = hash('sha256', $token);
 
         try {
-            $apiData = self::fetchScoreFromApiWithRetry($params, $moduleId, $source);
+            $apiData = self::fetchScoreFromApiWithRetry($token, $moduleId, $source);
             if (empty($apiData['status'])) {
                 throw new \RuntimeException('Markah tidak dijumpai daripada API SPLaSK.');
             }
@@ -752,7 +740,7 @@ final class ModSplaskscoreHelper
                 'grade_key' => (string) $grade['key'],
                 'grade_label' => (string) $grade['label'],
                 'status_label' => (string) $grade['status'],
-                'verification_url' => self::buildVerifyUrl($params),
+                'verification_url' => (string) ($apiData['verification_url'] ?? ''),
                 'source_checked_at' => (string) ($apiData['last_check'] ?? ''),
                 'source' => $source,
                 'triggered_by' => $triggeredBy,
@@ -766,17 +754,16 @@ final class ModSplaskscoreHelper
                     'grade_label' => (string) $grade['label'],
                     'grade_short' => (string) $grade['shortLabel'],
                     'status_label' => (string) $grade['status'],
-                    'verification_url' => '',
+                    'verification_url' => (string) ($apiData['verification_url'] ?? ''),
                     'last_check' => (string) ($apiData['last_check'] ?? ''),
                 ],
             ]);
         } catch (\Throwable $exception) {
-            $safeMessage = self::sanitizeDiagnosticMessage($exception->getMessage());
-            self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'failed', $safeMessage);
+            self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'failed', $exception->getMessage());
 
             return [
                 'success' => false,
-                'message' => 'Analitik gagal dikemaskini: ' . $safeMessage,
+                'message' => 'Analitik gagal dikemaskini: ' . $exception->getMessage(),
                 'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
             ];
         }
@@ -793,7 +780,7 @@ final class ModSplaskscoreHelper
         $results = [];
 
         foreach ($modules as $module) {
-            $results[] = self::collectSingleModuleAnalytics((int) $module->id, '', 'scheduler', 'joomla-scheduler');
+            $results[] = self::collectSingleModuleAnalytics((int) $module->id, (string) $module->token, 'scheduler', 'joomla-scheduler');
         }
 
         if (!$modules) {
@@ -808,44 +795,38 @@ final class ModSplaskscoreHelper
     }
 
     /**
-     * Fetch the current SPLaSK score through the shared runtime request path.
+     * Fetch the current SPLaSK score through Joomla HTTP or a cURL fallback.
      *
-     * @param   array<string, mixed>  $params  Runtime module configuration.
-     * @param   int     $moduleId  Module id used for safe diagnostics only.
-     * @param   string  $source    Collection source used for safe diagnostics only.
+     * @param   string  $token  SPLaSK token.
      *
      * @return  array<string, mixed>
      */
-    private static function fetchScoreFromApi(array $params, int $moduleId, string $source): array
+    private static function fetchScoreFromApi(string $token): array
     {
-        $request = self::buildSplaskScoreRequest($params);
-        $content = '';
-        $statusCode = 0;
-
-        if ($request['url'] === '') {
-            throw new \RuntimeException('Konfigurasi token API SPLaSK tidak lengkap.');
-        }
+        $url = 'https://splask-api.jdn.gov.my/api/get_my_score';
+        $body = json_encode(['_token' => $token]);
 
         if (class_exists('\\Joomla\\CMS\\Http\\HttpFactory')) {
             $http = \Joomla\CMS\Http\HttpFactory::getHttp();
-            $response = $http->post($request['url'], $request['body'], $request['headers'], self::API_TIMEOUT_SECONDS);
+            $response = $http->post($url, $body, ['Content-Type' => 'application/json']);
             $content = (string) ($response->body ?? '');
-            $statusCode = (int) ($response->code ?? 0);
-        } else {
-            $streamResult = self::fetchScoreWithStreams($request);
-            $content = $streamResult['content'];
-            $statusCode = $streamResult['status_code'];
-        }
-
-        if ($statusCode >= 400) {
-            self::logAnalyticsEvent('warning', 'SPLaSK API returned a non-success status.', [
-                'module_id' => $moduleId,
-                'source' => $source,
-                'status_code' => $statusCode,
-                'endpoint' => self::describeEndpoint($request['url']),
+        } elseif (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+                CURLOPT_POSTFIELDS => $body,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 30,
             ]);
-
-            throw new \RuntimeException('SPLaSK API request failed with HTTP status ' . $statusCode . '.');
+            $content = (string) curl_exec($ch);
+            $error = curl_error($ch);
+            curl_close($ch);
+            if ($error !== '') {
+                throw new \RuntimeException($error);
+            }
+        } else {
+            throw new \RuntimeException('Joomla HTTP client atau cURL tidak tersedia.');
         }
 
         $data = json_decode($content, true);
@@ -857,126 +838,7 @@ final class ModSplaskscoreHelper
     }
 
     /**
-     * Build the SPLaSK score request once so manual and scheduler flows stay identical.
-     *
-     * @param   array<string, mixed>  $params  Runtime module configuration.
-     *
-     * @return  array{url: string, method: string, body: string, headers: array<string, string>}
-     */
-    private static function buildSplaskScoreRequest(array $params): array
-    {
-        $token = trim((string) ($params['splask_token'] ?? ''));
-
-        return [
-            'url' => $token === '' ? '' : self::API_ENDPOINT,
-            'method' => 'POST',
-            'body' => (string) json_encode(['_token' => $token]),
-            'headers' => [
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-                'User-Agent' => 'mod_splaskscore/' . self::ENGINE_VERSION . ' Joomla',
-            ],
-        ];
-    }
-
-    /**
-     * Build the server-side SPLaSK verification URL from separate base URL and token params.
-     *
-     * @param   array<string, mixed>  $params  Runtime module configuration.
-     *
-     * @return  string
-     */
-    private static function buildVerifyUrl(array $params): string
-    {
-        $baseUrl = trim((string) ($params['splask_api_base_url'] ?? self::DEFAULT_VERIFY_BASE_URL));
-        $token = trim((string) ($params['splask_token'] ?? ''));
-
-        if ($baseUrl === '' || $token === '') {
-            return '';
-        }
-
-        $baseUrl = rtrim($baseUrl, "/ \t\n\r\0\x0B");
-
-        $parts = parse_url($baseUrl);
-        $scheme = is_array($parts) ? strtolower((string) ($parts['scheme'] ?? '')) : '';
-        if (!filter_var($baseUrl, FILTER_VALIDATE_URL) || !in_array($scheme, ['http', 'https'], true) || isset($parts['query']) || isset($parts['fragment'])) {
-            return '';
-        }
-
-        return $baseUrl . '/' . rawurlencode($token);
-    }
-
-    /**
-     * Fetch the current score with PHP streams when Joomla HttpFactory is unavailable.
-     *
-     * @param   array{url: string, method: string, body: string, headers: array<string, string>}  $request  Runtime request.
-     *
-     * @return  array{content: string, status_code: int}
-     */
-    private static function fetchScoreWithStreams(array $request): array
-    {
-        $headers = [];
-        foreach ($request['headers'] as $name => $value) {
-            $headers[] = $name . ': ' . $value;
-        }
-
-        $context = stream_context_create([
-            'http' => [
-                'method' => $request['method'],
-                'header' => implode("\r\n", $headers),
-                'content' => $request['body'],
-                'timeout' => self::API_TIMEOUT_SECONDS,
-                'ignore_errors' => true,
-            ],
-        ]);
-        $content = file_get_contents($request['url'], false, $context);
-
-        if ($content === false) {
-            throw new \RuntimeException('SPLaSK API transport failed using PHP streams.');
-        }
-
-        return [
-            'content' => (string) $content,
-            'status_code' => self::extractStreamStatusCode($http_response_header ?? []),
-        ];
-    }
-
-    /**
-     * Extract an HTTP status code from PHP stream response headers.
-     *
-     * @param   array<int, string>  $headers  Response headers.
-     *
-     * @return  int
-     */
-    private static function extractStreamStatusCode(array $headers): int
-    {
-        foreach ($headers as $header) {
-            if (preg_match('/^HTTP\/\S+\s+(\d{3})\b/', $header, $matches)) {
-                return (int) $matches[1];
-            }
-        }
-
-        return 0;
-    }
-
-    private static function describeEndpoint(string $url): string
-    {
-        $parts = parse_url($url);
-        if (!is_array($parts)) {
-            return 'invalid-endpoint';
-        }
-
-        $path = (string) ($parts['path'] ?? '');
-        $segments = array_values(array_filter(explode('/', $path), static fn ($segment) => $segment !== ''));
-        if ($segments) {
-            $segments[count($segments) - 1] = '[redacted]';
-        }
-
-        return (string) ($parts['host'] ?? '') . '/' . implode('/', $segments);
-    }
-
-    /**
-     * Return published module ids that are enabled for scheduler collection.
+     * Return published module ids and tokens for scheduler collection.
      *
      * @return  array<int, object>
      */
@@ -996,10 +858,9 @@ final class ModSplaskscoreHelper
         foreach ($rows as $row) {
             $params = json_decode((string) $row->params, true) ?: [];
             $token = trim((string) ($params['splask_token'] ?? ''));
-            $params['splask_token'] = $token;
             $enabled = (string) ($params['analytics_auto_enabled'] ?? '1') === '1';
             if ($enabled && $token !== '') {
-                $modules[] = (object) ['id' => (int) $row->id];
+                $modules[] = (object) ['id' => (int) $row->id, 'token' => $token];
             }
         }
 
@@ -1308,7 +1169,7 @@ final class ModSplaskscoreHelper
         try {
             self::writeModuleParams($moduleId, $params);
         } catch (\Throwable $exception) {
-            self::logAnalyticsEvent('warning', 'Unable to update last successful analytics collection metadata.', ['module_id' => $moduleId, 'error' => self::sanitizeDiagnosticMessage($exception->getMessage())]);
+            self::logAnalyticsEvent('warning', 'Unable to update last successful analytics collection metadata.', ['module_id' => $moduleId, 'error' => $exception->getMessage()]);
         }
     }
 
@@ -1358,15 +1219,15 @@ final class ModSplaskscoreHelper
         return strcmp($historySuccess, $healthSuccess) > 0 ? $historySuccess : $healthSuccess;
     }
 
-    private static function fetchScoreFromApiWithRetry(array $params, int $moduleId, string $source): array
+    private static function fetchScoreFromApiWithRetry(string $token, int $moduleId, string $source): array
     {
         $lastException = null;
         for ($attempt = 1; $attempt <= self::API_RETRY_ATTEMPTS; $attempt++) {
             try {
-                return self::fetchScoreFromApi($params, $moduleId, $source);
+                return self::fetchScoreFromApi($token);
             } catch (\Throwable $exception) {
                 $lastException = $exception;
-                self::logAnalyticsEvent('warning', 'SPLaSK API fetch attempt failed.', ['module_id' => $moduleId, 'source' => $source, 'attempt' => $attempt, 'error' => self::sanitizeDiagnosticMessage($exception->getMessage())]);
+                self::logAnalyticsEvent('warning', 'SPLaSK API fetch attempt failed.', ['module_id' => $moduleId, 'source' => $source, 'attempt' => $attempt, 'error' => $exception->getMessage()]);
                 if ($attempt < self::API_RETRY_ATTEMPTS) {
                     usleep((int) (200000 * $attempt));
                 }
@@ -1413,28 +1274,7 @@ final class ModSplaskscoreHelper
             $priority = \Joomla\CMS\Log\Log::WARNING;
         }
 
-        \Joomla\CMS\Log\Log::add($message . ' ' . json_encode(self::sanitizeLogContext($context)), $priority, 'mod_splaskscore.analytics');
-    }
-
-    /**
-     * @param   array<string, mixed>  $context  Log context.
-     *
-     * @return  array<string, mixed>
-     */
-    private static function sanitizeLogContext(array $context): array
-    {
-        foreach ($context as $key => $value) {
-            if (is_array($value)) {
-                $context[$key] = self::sanitizeLogContext($value);
-                continue;
-            }
-
-            if (is_string($value)) {
-                $context[$key] = self::sanitizeDiagnosticMessage($value);
-            }
-        }
-
-        return $context;
+        \Joomla\CMS\Log\Log::add($message . ' ' . json_encode($context), $priority, 'mod_splaskscore.analytics');
     }
 
     /**
@@ -1453,23 +1293,6 @@ final class ModSplaskscoreHelper
 
         $params = self::getModuleParams($moduleId);
         return max(1, (int) ($params['analytics_duplicate_cooldown'] ?? self::DEFAULT_DUPLICATE_COOLDOWN_MINUTES));
-    }
-
-    private static function resolveRuntimeToken(int $moduleId, string $providedToken = '', ?array $params = null): string
-    {
-        $params = $params ?? self::getModuleParams($moduleId);
-
-        return trim((string) ($params['splask_token'] ?? ''));
-    }
-
-    private static function sanitizeDiagnosticMessage(string $message): string
-    {
-        $message = preg_replace('/(_token=)[^&\s]+/i', '$1[redacted]', $message) ?? $message;
-        $message = preg_replace('/("_token"\s*:\s*")[^"]+/i', '$1[redacted]', $message) ?? $message;
-        $message = preg_replace('/(token\s*[=:]\s*)[^&\s]+/i', '$1[redacted]', $message) ?? $message;
-        $message = preg_replace('/(Authorization:\s*Bearer\s+)[^&\s]+/i', '$1[redacted]', $message) ?? $message;
-
-        return substr($message, 0, 240);
     }
 
     private static function getModuleParams(int $moduleId): array

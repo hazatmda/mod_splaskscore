@@ -13,8 +13,10 @@ use Joomla\CMS\Helper\ModuleHelper;
 
 require_once __DIR__ . '/helper.php';
 
-// Keep the configured token server-side; AJAX refreshes resolve it from module params.
+// Get token parameter securely and escape it for safe JS embedding.
+// Phase 1 keeps the existing client-side API behavior for backward compatibility.
 $token = $params->get('splask_token', '');
+$token_escaped = htmlspecialchars($token, ENT_QUOTES, 'UTF-8');
 
 $layout = ModSplaskscoreHelper::getDesignPreset($params);
 

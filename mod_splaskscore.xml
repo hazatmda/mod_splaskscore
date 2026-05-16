@@ -2,8 +2,8 @@
 <extension type="module" client="administrator" method="upgrade">
     <name>mod_splaskscore</name>
     <author>Muhammad Azizan Hazim</author>
-    <version>1.5.3</version>
-    <description>Modul papan pemuka operasi SPLaSK dengan sistem analitik premium bersatu versi 1.5.3</description>
+    <version>1.5.4</version>
+    <description>Modul papan pemuka operasi SPLaSK dengan sistem analitik premium bersatu versi 1.5.4</description>
     <scriptfile>script.php</scriptfile>
     <files>
         <filename module="mod_splaskscore">mod_splaskscore.php</filename>
@@ -48,8 +48,12 @@
                 </field>
                 <field name="analytics_collection_time" type="time" label="Masa Kutipan" description="Masa kutipan harian mengikut zon masa Joomla yang digunakan oleh tugas penjadual terurus apabila Joomla Scheduled Tasks sedang berjalan." default="06:00" showon="analytics_frequency:daily" />
                 <field name="analytics_duplicate_cooldown" type="number" label="Tempoh Bertenang Pendua (minit)" description="Sela minimum sebelum snapshot analitik yang sama boleh disimpan semula." default="10" min="1" max="1440" />
-                <field name="analytics_retention_days" type="number" label="Pengekalan Analitik (hari)" description="Pangkas rekod analitik yang melebihi bilangan hari ini secara automatik." default="365" min="1" />
-                <field name="analytics_max_rows" type="number" label="Maksimum Baris Sejarah" description="Jumlah maksimum rekod analitik yang dikekalkan bagi setiap pasangan modul/token selepas pangkasan." default="500" min="1" />
+                <field name="analytics_retention_enabled" type="radio" label="Aktifkan Pengekalan Analitik" description="Dimatikan secara lalai supaya sejarah analitik enterprise kekal berterusan. Aktifkan hanya jika organisasi mahu pangkasan automatik." default="0" layout="joomla.form.field.radio.switcher">
+                    <option value="0">JDISABLED</option>
+                    <option value="1">JENABLED</option>
+                </field>
+                <field name="analytics_retention_days" type="number" label="Pengekalan Analitik (hari)" description="Digunakan hanya apabila pengekalan analitik diaktifkan secara manual; rekod lebih lama daripada nilai ini akan dipangkas." default="365" min="1" showon="analytics_retention_enabled:1" />
+                <field name="analytics_max_rows" type="number" label="Maksimum Baris Sejarah" description="Digunakan hanya apabila pengekalan analitik diaktifkan secara manual; had rekod bagi setiap pasangan modul/token selepas pangkasan." default="500" min="1" showon="analytics_retention_enabled:1" />
                 <field name="analytics_rows_per_page" type="number" label="Baris Setiap Halaman" description="Bilangan rekod sejarah analitik yang dipaparkan pada setiap halaman jadual klien." default="7" min="1" max="50" />
                 <field name="analytics_scheduler_status" type="text" label="Status Penjadual" description="Status baca sahaja untuk Joomla Scheduled Task terurus SPLaSK selepas simpanan modul terakhir. Ini tidak menggantikan keperluan hosting untuk runner Joomla Scheduled Tasks yang aktif." readonly="true" default="Menunggu simpanan" />
                 <field name="analytics_last_successful_collection" type="text" label="Kutipan Berjaya Terakhir" description="Cap masa baca sahaja daripada rekod kesihatan analitik terkini yang diketahui oleh modul ini." readonly="true" default="" />

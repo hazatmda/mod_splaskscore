@@ -29,9 +29,11 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.5.3';
+    private const ENGINE_VERSION = '1.5.4';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
+
+    private const DEFAULT_RETENTION_ENABLED = false;
 
     private const DEFAULT_RETENTION_DAYS = 365;
 
@@ -422,10 +424,12 @@ final class ModSplaskscoreHelper
         $result = self::collectSingleModuleAnalytics($moduleId, $token, 'manual', $triggeredBy);
         $tokenHash = hash('sha256', $token);
         $records = self::getHistoryRecords($moduleId, $tokenHash);
+        $chartRecords = self::getHistoryChartRecords($moduleId, $tokenHash);
+        $totalRecords = self::getHistoryRecordCount($moduleId, $tokenHash);
 
         return array_merge($result, [
-            'html' => self::renderHistoryModal($records, $appearance, self::getAnalyticsHealth($moduleId, $tokenHash), self::getHistoryRowsPerPage($moduleId), $preset),
-            'chart' => self::buildTrendSeries($records),
+            'html' => self::renderHistoryModal($records, $appearance, self::getAnalyticsHealth($moduleId, $tokenHash), self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords),
+            'chart' => self::buildTrendSeries($chartRecords),
             'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
         ]);
     }
@@ -461,14 +465,17 @@ final class ModSplaskscoreHelper
 
         self::ensureHistoryTable();
 
-        $records = self::getHistoryRecords($moduleId, hash('sha256', $token));
+        $tokenHash = hash('sha256', $token);
+        $records = self::getHistoryRecords($moduleId, $tokenHash);
+        $chartRecords = self::getHistoryChartRecords($moduleId, $tokenHash);
+        $totalRecords = self::getHistoryRecordCount($moduleId, $tokenHash);
 
-        $health = self::getAnalyticsHealth($moduleId, hash('sha256', $token));
+        $health = self::getAnalyticsHealth($moduleId, $tokenHash);
 
         return [
             'success' => true,
-            'html' => self::renderHistoryModal($records, $appearance, $health, self::getHistoryRowsPerPage($moduleId), $preset),
-            'chart' => self::buildTrendSeries($records),
+            'html' => self::renderHistoryModal($records, $appearance, $health, self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords),
+            'chart' => self::buildTrendSeries($chartRecords),
             'health' => $health,
         ];
     }
@@ -481,21 +488,22 @@ final class ModSplaskscoreHelper
      *
      * @return  string
      */
-    public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null, ?int $rowsPerPage = null, string $preset = 'dashboard_tile'): string
+    public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null, ?int $rowsPerPage = null, string $preset = 'dashboard_tile', ?array $chartRecords = null, ?int $totalRecords = null): string
     {
         $appearance = in_array($appearance, self::getAllowedAppearanceModes(), true) ? $appearance : 'light';
         $preset = 'dashboard_tile';
         $modeClass = 'operations-grid';
-        $meaningfulRecords = self::getDistinctMeaningfulHistoryRecords($records);
-        $latest = $meaningfulRecords[0] ?? null;
+        $tableRecords = $records;
+        $chartRecords = $chartRecords ?? self::getHistoryChartSlice($records);
+        $latest = $tableRecords[0] ?? null;
         $lowest = null;
-        foreach ($meaningfulRecords as $record) {
+        foreach ($tableRecords as $record) {
             if ($lowest === null || (float) $record->score < (float) $lowest->score) {
                 $lowest = $record;
             }
         }
         $health = $health ?? self::buildHealthFromRecords($records);
-        $historyCount = count($meaningfulRecords);
+        $historyCount = $totalRecords ?? count($tableRecords);
         $pageSize = self::normaliseHistoryRowsPerPage($rowsPerPage);
 
         ob_start();
@@ -505,17 +513,17 @@ final class ModSplaskscoreHelper
                 <div class="splask-history-ops-rail" aria-label="KPI analitik operasi">
                     <div class="splask-history-ops-primary"><span>Skor Hari Ini</span><strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : '--'; ?></strong><small><?php echo $latest ? htmlspecialchars(self::formatHistoryDateOnly((string) ($latest->source_checked_at ?: $latest->created_at)), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></small></div>
                     <div><span>Skor Terendah</span><strong><?php echo $lowest ? htmlspecialchars(self::formatScorePercent((float) $lowest->score), ENT_QUOTES, 'UTF-8') : '--'; ?></strong><?php if ($lowest) : ?><small><?php echo htmlspecialchars(self::formatHistoryDateOnly((string) ($lowest->source_checked_at ?: $lowest->created_at)), ENT_QUOTES, 'UTF-8'); ?></small><?php endif; ?></div>
-                    <div><span>Jumlah Rekod</span><strong><?php echo count($meaningfulRecords); ?></strong><small>Tetingkap 30 hari</small></div>
+                    <div><span>Jumlah Rekod</span><strong><?php echo $historyCount; ?></strong><small>Semua rekod DB</small></div>
                 </div>
                 <div class="splask-history-ops-main">
                     <div class="splask-history-chart splask-history-ops-chart" data-splask-history-chart aria-label="Carta trend peratus SPLaSK">
-                        <?php echo self::renderTrendChart($meaningfulRecords); ?>
+                        <?php echo self::renderTrendChart($chartRecords); ?>
                     </div>
                 </div>
             </section>
 
             <div class="splask-history-table-shell" data-splask-history-pagination data-splask-history-page-size="<?php echo $pageSize; ?>">
-                <script type="application/json" data-splask-history-records><?php echo htmlspecialchars(json_encode(self::buildHistoryTableRecords($meaningfulRecords), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></script>
+                <script type="application/json" data-splask-history-records><?php echo htmlspecialchars(json_encode(self::buildHistoryTableRecords($tableRecords), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></script>
                 <div class="splask-history-page-size-control">
                     <label>
                         <span>Baris Setiap Halaman</span>
@@ -630,7 +638,7 @@ final class ModSplaskscoreHelper
      *
      * @return  array<int, object>
      */
-    private static function getHistoryRecords(int $moduleId, string $tokenHash, int $limit = 30): array
+    private static function getHistoryRecords(int $moduleId, string $tokenHash, ?int $limit = null): array
     {
         $db = \Joomla\CMS\Factory::getDbo();
         $query = $db->getQuery(true)
@@ -640,9 +648,57 @@ final class ModSplaskscoreHelper
             ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
             ->order($db->quoteName('created_at') . ' DESC, ' . $db->quoteName('id') . ' DESC');
 
-        $db->setQuery($query, 0, $limit);
+        $limit === null ? $db->setQuery($query) : $db->setQuery($query, 0, $limit);
 
         return $db->loadObjectList() ?: [];
+    }
+
+    /**
+     * Return graph records scoped to the latest 30-day operational window only.
+     *
+     * @param   int     $moduleId   Joomla module id.
+     * @param   string  $tokenHash  SHA-256 token hash.
+     *
+     * @return  array<int, object>
+     */
+    private static function getHistoryChartRecords(int $moduleId, string $tokenHash): array
+    {
+        $db = \Joomla\CMS\Factory::getDbo();
+        $cutoff = (new \DateTimeImmutable('today', new \DateTimeZone('UTC')))
+            ->modify('-' . (self::HISTORY_CHART_DAY_WINDOW - 1) . ' days')
+            ->format('Y-m-d 00:00:00');
+        $recordDate = 'COALESCE(' . $db->quoteName('recorded_at') . ', ' . $db->quoteName('created_at') . ')';
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName(self::getHistoryTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
+            ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
+            ->where($recordDate . ' >= ' . $db->quote($cutoff))
+            ->order($db->quoteName('created_at') . ' DESC, ' . $db->quoteName('id') . ' DESC');
+        $db->setQuery($query);
+
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
+     * Return the true persisted analytics row count for Jumlah Rekod.
+     *
+     * @param   int     $moduleId   Joomla module id.
+     * @param   string  $tokenHash  SHA-256 token hash.
+     *
+     * @return  int
+     */
+    private static function getHistoryRecordCount(int $moduleId, string $tokenHash): int
+    {
+        $db = \Joomla\CMS\Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName(self::getHistoryTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
+            ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash));
+        $db->setQuery($query);
+
+        return (int) $db->loadResult();
     }
 
     /**
@@ -947,6 +1003,7 @@ final class ModSplaskscoreHelper
                 'frequency' => $frequency,
                 'collection_time' => $time,
                 'duplicate_cooldown_minutes' => self::getDuplicateCooldownMinutes($moduleId),
+                'retention_enabled' => !empty($params['analytics_retention_enabled']),
                 'retention_days' => max(1, (int) ($params['analytics_retention_days'] ?? self::DEFAULT_RETENTION_DAYS)),
                 'max_history_records' => max(1, (int) ($params['analytics_max_rows'] ?? self::DEFAULT_MAX_HISTORY_ROWS)),
             ];
@@ -1280,6 +1337,12 @@ final class ModSplaskscoreHelper
     private static function applyRetentionPolicy(int $moduleId, string $tokenHash): void
     {
         $params = self::getModuleParams($moduleId);
+        $retentionEnabled = (bool) ($params['analytics_retention_enabled'] ?? self::DEFAULT_RETENTION_ENABLED);
+
+        if (!$retentionEnabled) {
+            return;
+        }
+
         $retentionDays = max(1, (int) ($params['analytics_retention_days'] ?? self::DEFAULT_RETENTION_DAYS));
         $maxRows = max(1, (int) ($params['analytics_max_rows'] ?? self::DEFAULT_MAX_HISTORY_ROWS));
         $db = \Joomla\CMS\Factory::getDbo();
@@ -1428,6 +1491,18 @@ final class ModSplaskscoreHelper
         ];
     }
 
+    private static function getHistoryChartSlice(array $records): array
+    {
+        $cutoff = (new \DateTimeImmutable('today', new \DateTimeZone('UTC')))
+            ->modify('-' . (self::HISTORY_CHART_DAY_WINDOW - 1) . ' days');
+
+        return array_values(array_filter($records, static function ($record) use ($cutoff) {
+            $recordDate = self::getHistoryRecordDate($record);
+
+            return $recordDate !== null && $recordDate >= $cutoff;
+        }));
+    }
+
     /**
      * Return chart-ready records in chronological order.
      *
@@ -1497,7 +1572,7 @@ final class ModSplaskscoreHelper
 
     private static function getHistoryRecordDate(object $record): ?\DateTimeImmutable
     {
-        $value = (string) ($record->source_checked_at ?: $record->created_at ?: '');
+        $value = (string) (($record->recorded_at ?? '') ?: ($record->source_checked_at ?? '') ?: ($record->created_at ?? '') ?: '');
         if ($value === '') {
             return null;
         }

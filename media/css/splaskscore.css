@@ -800,7 +800,7 @@
 }
 
 .splask-history-chart {
-  overflow: hidden;
+  overflow: visible;
   min-height: 10.5rem;
   margin-bottom: 0.6rem;
   border: 1px solid var(--splask-panel-border);
@@ -833,7 +833,7 @@
   position: absolute;
   z-index: 2;
   pointer-events: none;
-  transform: translate(-50%, -100%);
+  box-sizing: border-box;
   border: 1px solid color-mix(in srgb, var(--splask-grade-color) 35%, var(--splask-panel-border));
   border-radius: 0.6rem;
   padding: 0.45rem 0.6rem;

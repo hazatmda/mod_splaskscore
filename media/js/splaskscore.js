@@ -152,25 +152,6 @@
     });
   }
 
-  function updateSevenDayMicroGraphs(root, score) {
-    const base = Math.max(0, Math.min(100, Number(score) || 0));
-    const offsets = [-9, -3, -6, 2, -1, 4, 0];
-
-    root.querySelectorAll('[data-splask-seven-day]').forEach((graph) => {
-      const mode = graph.dataset.splaskSevenDay || 'sparkline';
-      const points = Array.from(graph.querySelectorAll('i'));
-
-      points.forEach((point, index) => {
-        const variation = offsets[index % offsets.length] + (mode === 'wave' ? Math.sin(index * 1.35) * 8 : 0);
-        const value = Math.max(8, Math.min(100, base + variation));
-        point.style.setProperty('--splask-point', value.toFixed(1));
-        point.setAttribute('aria-hidden', 'true');
-      });
-
-      graph.setAttribute('title', `Trend 7 hari sekitar ${formatScore(base)}`);
-    });
-  }
-
   function buildAjaxParams(root, task, values) {
     const params = new URLSearchParams(values || {});
     params.set('method', task);
@@ -218,6 +199,10 @@
       .then((response) => {
         if (response && response.health) {
           applyHealth(root, response.health);
+        }
+
+        if (response && response.mini_trend) {
+          applyMiniTrendDataset(root, response.mini_trend);
         }
       })
       .catch(() => {
@@ -533,14 +518,32 @@
     }
   }
 
-  function buildMiniTrendPoints(score) {
-    const base = Math.max(0, Math.min(100, Number(score) || 0));
-    const offsets = [-9, -3, -6, 2, -1, 4, 0];
+  function miniTrendPoints(canvas) {
+    try {
+      const points = JSON.parse(canvas.dataset.splaskMiniTrendPoints || '[]');
+      return Array.isArray(points) ? points.filter((point) => Number.isFinite(Number(point.score))) : [];
+    } catch (error) {
+      return [];
+    }
+  }
 
-    return offsets.map((offset, index) => ({
-      score: Math.max(0, Math.min(100, base + offset)),
-      label: `Hari ${index + 1}`
-    }));
+  function applyMiniTrendDataset(root, points) {
+    if (!Array.isArray(points)) {
+      return;
+    }
+
+    const sanitized = points
+      .filter((point) => Number.isFinite(Number(point.score)))
+      .slice(-7)
+      .map((point) => ({
+        label: point.label || '',
+        score: clampScore(point.score)
+      }));
+
+    root.querySelectorAll('[data-splask-mini-trend]').forEach((canvas) => {
+      canvas.dataset.splaskMiniTrendPoints = JSON.stringify(sanitized);
+      drawMiniTrendChart(canvas);
+    });
   }
 
   function miniChartDimensions(canvas) {
@@ -560,7 +563,7 @@
 
   function drawMiniTrendChart(canvas) {
     const context = canvas.getContext('2d');
-    const points = buildMiniTrendPoints(canvas.dataset.splaskMiniTrendScore || 0);
+    const points = miniTrendPoints(canvas);
     const dimensions = miniChartDimensions(canvas);
     const color = chartColor(canvas, '--splask-grade-color', '#2563eb');
     const accent = chartColor(canvas, '--splask-grade-accent', '#60a5fa');
@@ -569,7 +572,7 @@
     const ratio = window.devicePixelRatio || 1;
     const padding = { top: 14, right: 12, bottom: 14, left: 12 };
 
-    if (!context || points.length < 2) {
+    if (!context || !points.length) {
       return;
     }
 
@@ -594,8 +597,9 @@
     const plotHeight = height - padding.top - padding.bottom;
     const scale = chartScale(points);
     const scaleRange = Math.max(1, scale.max - scale.min);
-    const coordinates = points.map((point, index) => ({
-      x: padding.left + (index / (points.length - 1)) * plotWidth,
+    const drawablePoints = points.length === 1 ? [points[0], points[0]] : points;
+    const coordinates = drawablePoints.map((point, index) => ({
+      x: padding.left + (index / (drawablePoints.length - 1)) * plotWidth,
       y: padding.top + ((scale.max - clampScore(point.score)) / scaleRange) * plotHeight
     }));
 
@@ -642,9 +646,8 @@
     context.restore();
   }
 
-  function updateMiniTrendCharts(root, score) {
+  function updateMiniTrendCharts(root) {
     root.querySelectorAll('[data-splask-mini-trend]').forEach((canvas) => {
-      canvas.dataset.splaskMiniTrendScore = String(score);
       drawMiniTrendChart(canvas);
     });
   }
@@ -713,7 +716,7 @@
     if (!records.length) {
       const emptyRow = document.createElement('tr');
       const emptyCell = document.createElement('td');
-      emptyCell.colSpan = 4;
+      emptyCell.colSpan = 5;
       emptyCell.className = 'text-center py-4';
       emptyCell.textContent = 'Belum ada rekod sejarah. Rekod akan disimpan selepas markah berjaya dimuatkan.';
       emptyRow.appendChild(emptyCell);
@@ -726,6 +729,7 @@
       row.dataset.splaskHistoryGrade = record.gradeKey || '';
 
       renderHistoryCell(row, record.date, false);
+      renderHistoryCell(row, record.time, false);
       renderHistoryCell(row, record.score, true);
 
       const gradeCell = document.createElement('td');
@@ -883,6 +887,7 @@
           initHistoryTables(body);
           scheduleHistoryChartRedraw(body);
           applyHealth(root, data.health);
+          applyMiniTrendDataset(root, data.mini_trend || data.chart || []);
           return;
         }
 
@@ -929,6 +934,10 @@
             verification_url: payload.verification_url,
             last_check: payload.last_check
           }, JSON.parse(root.dataset.splaskGradeRules || '[]'));
+        }
+
+        if (data && (data.mini_trend || data.chart)) {
+          applyMiniTrendDataset(root, data.mini_trend || data.chart || []);
         }
 
         if (body && data && data.html) {
@@ -983,8 +992,7 @@
     setText(root, 'status', grade.status);
     setText(root, 'date', formatMalayOperationalTimestamp(data.last_check));
     setText(root, 'next', formatMalayDate(nextCheck));
-    updateSevenDayMicroGraphs(root, score);
-    updateMiniTrendCharts(root, score);
+    updateMiniTrendCharts(root);
 
     if (link && data.verification_url) {
       link.href = data.verification_url;

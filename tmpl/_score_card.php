@@ -36,6 +36,8 @@ $initialHealth = $token !== '' ? ModSplaskscoreHelper::getAnalyticsHealth($modul
     'status' => 'UNKNOWN',
     'missing_today' => true,
 ];
+$miniTrendSeries = $token !== '' ? ModSplaskscoreHelper::getDashboardMiniTrendSeries($moduleId, hash('sha256', (string) $token)) : [];
+$miniTrendJson = htmlspecialchars(json_encode($miniTrendSeries, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_QUOTES, 'UTF-8');
 $analyticsModeLabel = 'Grid Operasi';
 ?>
 
@@ -74,7 +76,7 @@ $analyticsModeLabel = 'Grid Operasi';
           <em data-splask-status>Menunggu semakan</em>
         </div>
         <div class="splask-ops-grid" aria-label="Grid KPI operasi">
-          <div class="splask-ops-cell splask-ops-mini-chart"><span>Trend 7 Hari</span><div class="splask-ops-trend-wrap"><canvas data-splask-mini-trend width="320" height="96" aria-label="Graf garis trend operasi tujuh hari" role="img"></canvas></div></div>
+          <div class="splask-ops-cell splask-ops-mini-chart"><span>Trend 7 Hari</span><div class="splask-ops-trend-wrap"><canvas data-splask-mini-trend data-splask-mini-trend-points="<?php echo $miniTrendJson; ?>" width="320" height="96" aria-label="Graf garis trend operasi tujuh hari" role="img"></canvas></div></div>
           <div class="splask-ops-cell"><span>Tarikh Semakan</span><strong data-splask-date>Memuatkan...</strong></div>
           <div class="splask-ops-cell"><span>Semakan Seterusnya</span><strong data-splask-next>Memuatkan...</strong></div>
         </div>

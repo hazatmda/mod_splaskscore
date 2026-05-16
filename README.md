@@ -11,7 +11,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.5.0.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.5.1.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 
@@ -60,10 +60,16 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 
 ## Changelog
 
+**v1.5.1 (16 Mei 2026)**
+- Memperkemas irama papan pemuka eksekutif, operasi, dan keselamatan digital dengan susun atur KPI lebih padat serta rasa enterprise premium.
+- Menambah graf mikro 7 hari yang berbeza bagi setiap preset: sparkline eksekutif, bar operasi, dan gelombang isyarat keselamatan digital.
+- Menukar teks dashboard dan analitik kepada Bahasa Melayu yang lebih konsisten serta membuang nama preset daripada paparan awam.
+- Metadata release disegerakkan untuk tag `v1.5.1` dan pakej `mod_splaskscore_v1.5.1.zip`.
+
 **v1.5.0 (16 Mei 2026)**
-- Mengkonsolidasi preset dashboard kepada hanya 3 mod premium: Executive Analytics, Operations Grid, dan Neon Cyber.
+- Mengkonsolidasi preset dashboard kepada hanya 3 mod premium dalaman untuk laporan eksekutif, grid operasi, dan konsol keselamatan digital.
 - Menyelaraskan widget dashboard dan modal Sejarah & Analitik supaya setiap mod mempunyai struktur DOM, hierarki KPI, rawatan graf, dan personaliti visual tersendiri.
-- Mengekalkan pagination sejarah, carta analitik 30 hari, tooltip chart yang readable, scheduler baseline, dan metadata release `v1.5.0`.
+- Mengekalkan pagination sejarah, carta analitik 30 hari, tooltip carta yang mudah dibaca, asas scheduler, dan metadata release `v1.5.0`.
 
 **v1.3.0 (12 Mei 2026)**
 - Menstabilkan sejarah analitik dengan pencegahan snapshot pendua, trend berdasarkan rekod bermakna yang distinct, dan rendering carta yang mengabaikan salinan identik.
@@ -98,7 +104,7 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 ## Maklumat Tambahan
 
 - Dibangunkan oleh: **Muhammad Azizan Hazim**
-- Versi: **1.5.0**
+- Versi: **1.5.1**
 - Tarikh: **16 Mei 2026**
 
 ## Lesen

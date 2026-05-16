@@ -10,6 +10,6 @@
 defined('_JEXEC') or die;
 
 $splaskPreset = 'neon_glass';
-$splaskPresetLabel = 'Neon Cyber';
+$splaskPresetLabel = 'Konsol Keselamatan Digital';
 
 require __DIR__ . '/_score_card.php';

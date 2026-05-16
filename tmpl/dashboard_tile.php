@@ -10,6 +10,6 @@
 defined('_JEXEC') or die;
 
 $splaskPreset = 'dashboard_tile';
-$splaskPresetLabel = 'Dashboard Tile';
+$splaskPresetLabel = 'Operations Grid';
 
 require __DIR__ . '/_score_card.php';

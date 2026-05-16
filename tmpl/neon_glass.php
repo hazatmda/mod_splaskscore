@@ -10,6 +10,6 @@
 defined('_JEXEC') or die;
 
 $splaskPreset = 'neon_glass';
-$splaskPresetLabel = 'Neon Glass';
+$splaskPresetLabel = 'Neon Analytics';
 
 require __DIR__ . '/_score_card.php';

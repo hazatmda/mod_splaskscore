@@ -103,10 +103,9 @@
   }
 
   function setText(root, name, value) {
-    const element = root.querySelector(`[data-splask-${name}]`);
-    if (element) {
+    root.querySelectorAll(`[data-splask-${name}]`).forEach((element) => {
       element.textContent = value;
-    }
+    });
   }
 
   function applyHealth(root, health) {
@@ -126,16 +125,14 @@
     root.style.setProperty('--splask-grade-text', grade.text);
     root.style.setProperty('--splask-score-percent', `${score}%`);
 
-    const circle = root.querySelector('[data-splask-progress-circle]');
-    if (circle) {
+    root.querySelectorAll('[data-splask-progress-circle]').forEach((circle) => {
       circle.style.stroke = grade.color;
       circle.style.strokeDashoffset = CIRCLE_LENGTH - (CIRCLE_LENGTH * score / 100);
-    }
+    });
 
-    const bar = root.querySelector('[data-splask-progress-bar]');
-    if (bar) {
+    root.querySelectorAll('[data-splask-progress-bar]').forEach((bar) => {
       bar.style.width = `${score}%`;
-    }
+    });
   }
 
   function buildAjaxParams(root, task, values) {
@@ -271,7 +268,7 @@
     const height = Math.floor(rect.height || cssHeight || canvas.clientHeight || 0);
 
     return {
-      width: Math.max(320, width || 640),
+      width: Math.max(1, width || 640),
       height: Math.max(220, height || 260),
       visible: width > 0 && height > 0
     };

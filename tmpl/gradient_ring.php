@@ -10,6 +10,6 @@
 defined('_JEXEC') or die;
 
 $splaskPreset = 'gradient_ring';
-$splaskPresetLabel = 'Gradient Ring';
+$splaskPresetLabel = 'Timeline Analytics';
 
 require __DIR__ . '/_score_card.php';

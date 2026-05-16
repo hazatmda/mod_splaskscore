@@ -488,7 +488,7 @@
   font-weight: 850;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  content: 'Neon Cyber';
+  content: '';
 }
 
 .splask-preset-neon_glass .splask-meter {
@@ -560,7 +560,7 @@
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  content: 'Executive Analytics';
+  content: '';
 }
 
 .splask-preset-enterprise_kpi .splask-score-row {
@@ -715,7 +715,7 @@
 }
 
 .splask-preset-enterprise_kpi .splask-title::after {
-  content: 'Executive Analytics';
+  content: '';
 }
 
 .splask-exec-board {
@@ -1554,9 +1554,9 @@
 }
 
 /* v1.5.0 consolidated dashboard-system: only three differentiated premium modes. */
-.splask-preset-enterprise_kpi .splask-title::after { content: 'Executive Analytics'; }
-.splask-preset-dashboard_tile .splask-title::after { content: 'Operations Grid'; }
-.splask-preset-neon_glass .splask-title::after { content: 'Neon Cyber'; }
+.splask-preset-enterprise_kpi .splask-title::after { content: ''; }
+.splask-preset-dashboard_tile .splask-title::after { content: ''; }
+.splask-preset-neon_glass .splask-title::after { content: ''; }
 
 .splask-preset-enterprise_kpi .splask-card {
   border-radius: 1rem;
@@ -1699,6 +1699,225 @@
   .splask-history-mode-executive-analytics .splask-history-exec-report,
   .splask-history-mode-operations-grid .splask-history-ops-console,
   .splask-history-mode-neon-cyber .splask-history-cyber-deck {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* v1.5.1 dashboard polish: dense Bahasa Melayu KPI rhythm and unique 7-day micro graphs. */
+.splask-preset-enterprise_kpi .splask-title::after,
+.splask-preset-dashboard_tile .splask-title::after,
+.splask-preset-neon_glass .splask-title::after {
+  display: none;
+  content: '';
+}
+
+.splask-preset-enterprise_kpi .splask-card {
+  border-color: color-mix(in srgb, var(--splask-grade-color) 18%, rgba(15, 23, 42, 0.12));
+  background:
+    radial-gradient(circle at 92% 10%, color-mix(in srgb, var(--splask-grade-color) 16%, transparent), transparent 30%),
+    linear-gradient(180deg, #ffffff, #f3f6fb 82%);
+  box-shadow: 0 1.1rem 2.4rem rgba(15, 23, 42, 0.14);
+}
+
+.splask-preset-enterprise_kpi .splask-header {
+  padding: 0.82rem 1rem;
+}
+
+.splask-preset-enterprise_kpi .splask-body {
+  padding: 0.9rem;
+}
+
+.splask-preset-enterprise_kpi .splask-exec-board {
+  gap: 0.62rem;
+}
+
+.splask-preset-enterprise_kpi .splask-exec-primary-strip {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  min-height: auto;
+  padding: 0.72rem 0.85rem;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--splask-grade-surface) 74%, #ffffff), #ffffff 64%);
+}
+
+.splask-preset-enterprise_kpi .splask-exec-primary-strip strong {
+  font-size: clamp(1.35rem, 5cqi, 2.05rem);
+}
+
+.splask-preset-enterprise_kpi .splask-kpi-strips {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.52rem;
+}
+
+.splask-preset-enterprise_kpi .splask-kpi-strip {
+  min-height: 4.65rem;
+  padding: 0.62rem 0.7rem;
+  background:
+    linear-gradient(180deg, #ffffff, color-mix(in srgb, var(--splask-grade-surface) 32%, #ffffff));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.splask-sparkline-exec {
+  position: relative;
+  min-width: 5.8rem;
+  min-height: 2rem;
+  align-items: center;
+  gap: 0;
+}
+
+.splask-sparkline-exec::before {
+  position: absolute;
+  inset: auto 0 45% 0;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--splask-grade-color) 70%, transparent), transparent);
+  content: '';
+}
+
+.splask-sparkline-exec i {
+  width: 0.85rem;
+  height: 0.85rem !important;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  opacity: 1 !important;
+  transform: translateY(calc((50 - var(--splask-point, 50)) * 0.018rem));
+  box-shadow: 0 0.45rem 0.9rem color-mix(in srgb, var(--splask-grade-color) 18%, transparent);
+}
+
+.splask-preset-dashboard_tile .splask-card {
+  background:
+    linear-gradient(180deg, #0b1220, #111827 72%),
+    radial-gradient(circle at 90% 0, color-mix(in srgb, var(--splask-grade-color) 22%, transparent), transparent 30%);
+}
+
+.splask-ops-console {
+  grid-template-columns: minmax(7.4rem, 0.56fr) minmax(0, 1.44fr);
+  gap: 0.48rem;
+}
+
+.splask-ops-score-stream {
+  min-height: 10.2rem;
+  padding: 0.58rem;
+}
+
+.splask-ops-score-stream strong {
+  font-size: clamp(1.55rem, 7cqi, 2.45rem);
+  letter-spacing: -0.06em;
+}
+
+.splask-ops-console .splask-ops-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.42rem;
+}
+
+.splask-ops-console .splask-ops-cell {
+  min-height: 4.55rem;
+  padding: 0.48rem;
+}
+
+.splask-ops-mini-chart b {
+  height: 2.4rem;
+  gap: 0.14rem;
+}
+
+.splask-ops-mini-chart i {
+  min-width: 0.28rem;
+  height: calc(var(--splask-point, 55) * 1%);
+}
+
+.splask-preset-neon_glass .splask-card {
+  border-radius: 1.1rem;
+  background:
+    linear-gradient(115deg, rgba(14, 165, 233, 0.16), transparent 24%),
+    radial-gradient(circle at 76% 16%, color-mix(in srgb, var(--splask-grade-accent) 28%, transparent), transparent 25%),
+    radial-gradient(circle at 8% 92%, color-mix(in srgb, var(--splask-grade-color) 22%, transparent), transparent 30%),
+    linear-gradient(145deg, #020617, #08111f 54%, #0f172a);
+}
+
+.splask-cyber-deck {
+  gap: 0.58rem;
+}
+
+.splask-cyber-hero {
+  grid-template-columns: minmax(6.6rem, 0.62fr) minmax(0, 1.38fr);
+  gap: 0.64rem;
+}
+
+.splask-cyber-orb {
+  width: min(8.6rem, 100%);
+}
+
+.splask-cyber-status {
+  align-content: center;
+  min-height: 6.4rem;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 0.9rem;
+  padding: 0.72rem;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(2, 6, 23, 0.42));
+}
+
+.splask-cyber-telemetry {
+  gap: 0.45rem;
+}
+
+.splask-cyber-telemetry > div {
+  padding: 0.58rem;
+}
+
+.splask-cyber-wave {
+  position: relative;
+  min-height: 3.35rem;
+  grid-auto-columns: 1fr;
+  gap: 0;
+  overflow: hidden;
+}
+
+.splask-cyber-wave::before,
+.splask-cyber-wave::after {
+  position: absolute;
+  inset: 48% 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.58), transparent);
+  content: '';
+}
+
+.splask-cyber-wave::after {
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 0.68rem, rgba(125, 211, 252, 0.08) 0.68rem 0.72rem);
+}
+
+.splask-cyber-wave i {
+  z-index: 1;
+  width: 100%;
+  height: 0.2rem !important;
+  border-radius: 999px;
+  opacity: 0.96;
+  transform: translateY(calc((50 - var(--splask-point, 50)) * 0.022rem));
+}
+
+.splask-widget[data-splask-appearance='light'].splask-preset-neon_glass .splask-cyber-status {
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.splask-widget[data-splask-appearance='dark'].splask-preset-enterprise_kpi .splask-card {
+  background:
+    radial-gradient(circle at 92% 10%, color-mix(in srgb, var(--splask-grade-color) 18%, transparent), transparent 30%),
+    linear-gradient(180deg, #0b1120, #020617 82%);
+}
+
+.splask-widget[data-splask-appearance='dark'].splask-preset-enterprise_kpi .splask-exec-primary-strip,
+.splask-widget[data-splask-appearance='dark'].splask-preset-enterprise_kpi .splask-kpi-strip {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.58));
+}
+
+@container (max-width: 620px) {
+  .splask-ops-console .splask-ops-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 430px) {
+  .splask-preset-enterprise_kpi .splask-kpi-strips,
+  .splask-ops-console .splask-ops-grid {
     grid-template-columns: 1fr;
   }
 }

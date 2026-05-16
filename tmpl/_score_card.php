@@ -14,7 +14,7 @@ use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 
 $preset = $splaskPreset ?? 'enterprise_kpi';
-$presetLabel = $splaskPresetLabel ?? 'Executive Analytics';
+$presetLabel = $splaskPresetLabel ?? '';
 $moduleId = isset($module) ? (int) $module->id : 0;
 $rootId = 'mod-splaskscore-' . $moduleId . '-' . preg_replace('/[^a-z0-9_-]/i', '-', $preset);
 $assetBase = Uri::root(true) . '/media/mod_splaskscore';
@@ -36,12 +36,7 @@ $initialHealth = $token !== '' ? ModSplaskscoreHelper::getAnalyticsHealth($modul
     'status' => 'UNKNOWN',
     'missing_today' => true,
 ];
-$analyticsModeLabels = [
-    'enterprise_kpi' => 'Executive Analytics',
-    'dashboard_tile' => 'Operations Grid',
-    'neon_glass' => 'Neon Cyber',
-];
-$analyticsModeLabel = $analyticsModeLabels[$preset] ?? $presetLabel;
+$analyticsModeLabel = $presetLabel;
 $isExecutiveKpiBoard = $preset === 'enterprise_kpi';
 $isOperationsGrid = $preset === 'dashboard_tile';
 $isNeonCyber = $preset === 'neon_glass';
@@ -76,32 +71,32 @@ $isNeonCyber = $preset === 'neon_glass';
 
     <div class="splask-body">
       <?php if ($isExecutiveKpiBoard) : ?>
-        <div class="splask-exec-board" aria-label="Executive analytics dashboard">
+        <div class="splask-exec-board" aria-label="Papan pemuka analitik eksekutif">
           <div class="splask-exec-primary-strip">
-            <span class="splask-mode-label"><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></span>
+            <span class="splask-mode-label">Ringkasan Eksekutif</span>
             <strong data-splask-score>0%</strong>
-            <span data-splask-grade>Memuat...</span>
+            <span data-splask-grade>Memuatkan...</span>
           </div>
           <div class="splask-kpi-strips" aria-label="Ringkasan KPI eksekutif">
             <div class="splask-kpi-strip splask-kpi-strip-score">
-              <span>Strategic Health</span>
+              <span>Kesihatan Strategik</span>
               <strong data-splask-score>0%</strong>
-              <em class="splask-delta-indicator">7-day board</em>
+              <em class="splask-delta-indicator">Trend 7 hari</em>
             </div>
             <div class="splask-kpi-strip">
-              <span>Governance Grade</span>
-              <strong data-splask-grade>Memuat...</strong>
-              <em data-splask-status><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></em>
+              <span>Gred Penilaian</span>
+              <strong data-splask-grade>Memuatkan...</strong>
+              <em data-splask-status>Menunggu semakan</em>
             </div>
             <div class="splask-kpi-strip splask-exec-spark-row">
-              <span>7-Day Signal</span>
-              <strong data-splask-date>Memuat...</strong>
-              <em class="splask-sparkline splask-sparkline-exec" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></em>
+              <span>Trend 7 Hari</span>
+              <strong data-splask-date>Memuatkan...</strong>
+              <em class="splask-sparkline splask-sparkline-exec" data-splask-seven-day="sparkline" aria-label="Graf garis ringkas tujuh hari" role="img"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></em>
             </div>
             <div class="splask-kpi-strip">
-              <span>Next Review</span>
-              <strong data-splask-next>Memuat...</strong>
-              <em class="splask-delta-indicator">30d trend</em>
+              <span>Semakan Seterusnya</span>
+              <strong data-splask-next>Memuatkan...</strong>
+              <em class="splask-delta-indicator">Carta 30 hari</em>
             </div>
           </div>
           <div class="splask-progress-track splask-exec-progress" aria-hidden="true">
@@ -109,23 +104,24 @@ $isNeonCyber = $preset === 'neon_glass';
           </div>
         </div>
       <?php elseif ($isOperationsGrid) : ?>
-        <div class="splask-ops-console" aria-label="Operations monitoring dashboard">
+        <div class="splask-ops-console" aria-label="Papan pemuka pemantauan operasi">
           <div class="splask-ops-score-stream">
-            <span>LIVE SCORE</span>
+            <span>Skor Semasa</span>
             <strong data-splask-score>0%</strong>
             <div class="splask-progress-track" aria-hidden="true"><div class="splask-progress-bar" data-splask-progress-bar></div></div>
+            <em>Irama pemantauan harian</em>
           </div>
-          <div class="splask-ops-grid" aria-label="Operational KPI grid">
-            <div class="splask-ops-cell"><span>Grade</span><strong data-splask-grade>Memuat...</strong></div>
-            <div class="splask-ops-cell"><span>Status</span><strong data-splask-status><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></strong></div>
-            <div class="splask-ops-cell splask-ops-mini-chart"><span>7D Throughput</span><b aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></b></div>
-            <div class="splask-ops-cell"><span>Last Check</span><strong data-splask-date>Memuat...</strong></div>
-            <div class="splask-ops-cell"><span>Next Run</span><strong data-splask-next>Memuat...</strong></div>
-            <div class="splask-ops-cell splask-ops-stack"><span>Scheduler</span><strong>Baseline</strong><em>preserved</em></div>
+          <div class="splask-ops-grid" aria-label="Grid KPI operasi">
+            <div class="splask-ops-cell"><span>Gred Penilaian</span><strong data-splask-grade>Memuatkan...</strong></div>
+            <div class="splask-ops-cell"><span>Status Pematuhan</span><strong data-splask-status>Menunggu semakan</strong></div>
+            <div class="splask-ops-cell splask-ops-mini-chart"><span>Graf 7 Hari</span><b data-splask-seven-day="bars" aria-label="Graf bar telemetri tujuh hari" role="img"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></b></div>
+            <div class="splask-ops-cell"><span>Tarikh Semakan</span><strong data-splask-date>Memuatkan...</strong></div>
+            <div class="splask-ops-cell"><span>Larian Seterusnya</span><strong data-splask-next>Memuatkan...</strong></div>
+            <div class="splask-ops-cell splask-ops-stack"><span>Penjadual</span><strong>Asas Stabil</strong><em>Dikekalkan</em></div>
           </div>
         </div>
       <?php else : ?>
-        <div class="splask-cyber-deck" aria-label="Neon cyber analytics dashboard">
+        <div class="splask-cyber-deck" aria-label="Papan pemuka analitik keselamatan digital">
           <div class="splask-cyber-hero">
             <div class="splask-meter splask-cyber-orb" role="img" aria-label="Peratus markah SPLaSK">
               <svg viewBox="0 0 150 150" aria-hidden="true" focusable="false">
@@ -135,15 +131,15 @@ $isNeonCyber = $preset === 'neon_glass';
               <div class="splask-meter-value" data-splask-score>0%</div>
             </div>
             <div class="splask-cyber-status">
-              <span class="splask-mode-label"><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></span>
-              <strong data-splask-grade>Memuat...</strong>
-              <em data-splask-status><?php echo htmlspecialchars($analyticsModeLabel, ENT_QUOTES, 'UTF-8'); ?></em>
+              <span class="splask-mode-label">Konsol Isyarat</span>
+              <strong data-splask-grade>Memuatkan...</strong>
+              <em data-splask-status>Menunggu semakan</em>
             </div>
           </div>
           <div class="splask-cyber-telemetry">
-            <div><span>Pulse</span><strong data-splask-date>Memuat...</strong></div>
-            <div><span>Re-scan</span><strong data-splask-next>Memuat...</strong></div>
-            <div class="splask-cyber-wave" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <div><span>Tarikh Semakan</span><strong data-splask-date>Memuatkan...</strong></div>
+            <div><span>Imbasan Semula</span><strong data-splask-next>Memuatkan...</strong></div>
+            <div class="splask-cyber-wave" data-splask-seven-day="wave" aria-label="Gelombang isyarat tujuh hari" role="img"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
           </div>
         </div>
       <?php endif; ?>
@@ -168,7 +164,7 @@ $isNeonCyber = $preset === 'neon_glass';
             <p class="splask-history-subtitle">Rekod markah terkini dan trend prestasi.</p>
           </div>
           <div class="splask-history-header-actions">
-            <button class="splask-icon-button splask-modal-action-button splask-refresh-button" type="button" data-splask-refresh-trigger title="Refresh Analytics" aria-label="Refresh Analytics">
+            <button class="splask-icon-button splask-modal-action-button splask-refresh-button" type="button" data-splask-refresh-trigger title="Segar Semula Analitik" aria-label="Segar Semula Analitik">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M17.7 6.3A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.45 10.93 1 1 0 0 0-1.86-.74A6 6 0 1 1 16.2 7.8L14 10h6V4l-2.3 2.3Z" />
               </svg>

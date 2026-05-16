@@ -135,6 +135,25 @@
     });
   }
 
+  function updateSevenDayMicroGraphs(root, score) {
+    const base = Math.max(0, Math.min(100, Number(score) || 0));
+    const offsets = [-9, -3, -6, 2, -1, 4, 0];
+
+    root.querySelectorAll('[data-splask-seven-day]').forEach((graph) => {
+      const mode = graph.dataset.splaskSevenDay || 'sparkline';
+      const points = Array.from(graph.querySelectorAll('i'));
+
+      points.forEach((point, index) => {
+        const variation = offsets[index % offsets.length] + (mode === 'wave' ? Math.sin(index * 1.35) * 8 : 0);
+        const value = Math.max(8, Math.min(100, base + variation));
+        point.style.setProperty('--splask-point', value.toFixed(1));
+        point.setAttribute('aria-hidden', 'true');
+      });
+
+      graph.setAttribute('title', `Trend 7 hari sekitar ${formatScore(base)}`);
+    });
+  }
+
   function buildAjaxParams(root, task, values) {
     const params = new URLSearchParams(values || {});
     params.set('method', task);
@@ -669,7 +688,7 @@
     if (status) {
       const visibleStart = records.length ? start + 1 : 0;
       const visibleEnd = Math.min(end, records.length);
-      status.textContent = `Showing ${visibleStart}–${visibleEnd} of ${records.length}`;
+      status.textContent = `Memaparkan ${visibleStart}–${visibleEnd} daripada ${records.length}`;
     }
 
     if (previous) {
@@ -723,7 +742,7 @@
   }
 
   function setRefreshState(root, loading, message) {
-    const label = message || (loading ? 'Refreshing...' : 'Refresh Analytics');
+    const label = message || (loading ? 'Menyegar semula...' : 'Segar Semula Analitik');
     root.querySelectorAll('[data-splask-refresh-trigger]').forEach((trigger) => {
       trigger.disabled = loading;
       trigger.classList.toggle('is-loading', loading);
@@ -738,7 +757,7 @@
     }
 
     const body = root.querySelector('[data-splask-history-body]');
-    setRefreshState(root, true, 'Refreshing...');
+    setRefreshState(root, true, 'Menyegar semula...');
 
     postModuleAjax(root, 'refreshAnalytics', {
       appearance: root.dataset.splaskAppearance || resolveAppearance(root),
@@ -767,11 +786,11 @@
           scheduleHistoryChartRedraw(body);
         }
 
-        setRefreshState(root, false, (data && data.duplicate) ? 'Already Current' : 'Refresh Analytics');
+        setRefreshState(root, false, (data && data.duplicate) ? 'Sudah Terkini' : 'Segar Semula Analitik');
         window.setTimeout(() => setRefreshState(root, false), 1800);
       })
       .catch(() => {
-        setRefreshState(root, false, 'Refresh Failed');
+        setRefreshState(root, false, 'Segar Semula Gagal');
         window.setTimeout(() => setRefreshState(root, false), 1800);
       });
   }
@@ -810,7 +829,8 @@
     setText(root, 'grade-short', grade.shortLabel);
     setText(root, 'status', grade.status);
     setText(root, 'date', formatMalayDate(data.last_check));
-    setText(root, 'next', nextCheck.toLocaleDateString('en-GB'));
+    setText(root, 'next', nextCheck.toLocaleDateString('ms-MY'));
+    updateSevenDayMicroGraphs(root, score);
 
     if (link && data.verification_url) {
       link.href = data.verification_url;

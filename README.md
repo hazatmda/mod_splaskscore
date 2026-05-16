@@ -11,7 +11,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.5.2.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.5.3.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 
@@ -59,6 +59,11 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
 ## Changelog
+
+**v1.5.3 (16 Mei 2026)**
+- Menukar tarikh operasi dashboard kepada format Bahasa Melayu boleh baca seperti `17 Mei 2026` tanpa slash, label hari, masa, atau pemisah bullet.
+- Memusatkan rail KPI analitik operasi untuk `Skor Hari Ini`, `Skor Terendah`, dan `Jumlah Rekod` supaya komposisi lebih padat dan seimbang.
+- Metadata release disegerakkan untuk tag `v1.5.3` dan pakej `mod_splaskscore_v1.5.3.zip`.
 
 **v1.5.2 (16 Mei 2026)**
 - Mengkonsolidasi paparan kepada satu sistem analitik operasi Grid Operasi tanpa pilihan preset dashboard lain.
@@ -111,7 +116,7 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 ## Maklumat Tambahan
 
 - Dibangunkan oleh: **Muhammad Azizan Hazim**
-- Versi: **1.5.2**
+- Versi: **1.5.3**
 - Tarikh: **16 Mei 2026**
 
 ## Lesen

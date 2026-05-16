@@ -3,7 +3,6 @@
 
   const SELECTOR = '[data-splask-widget]';
   const CIRCLE_LENGTH = 377;
-  const MALAY_WEEKDAYS = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
   const MALAY_MONTHS = ['Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'];
 
 
@@ -66,6 +65,10 @@
       return null;
     }
 
+    if (dateStr instanceof Date) {
+      return Number.isNaN(dateStr.getTime()) ? null : dateStr;
+    }
+
     const value = String(dateStr).trim();
     const slashMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
     if (slashMatch) {
@@ -92,14 +95,9 @@
       return dateStr || 'Tiada';
     }
 
-    const weekday = MALAY_WEEKDAYS[parsed.getUTCDay()];
     const month = MALAY_MONTHS[parsed.getUTCMonth()];
-    const hour = parsed.getUTCHours();
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-    const minute = String(parsed.getUTCMinutes()).padStart(2, '0');
 
-    return `${weekday} • ${parsed.getUTCDate()} ${month} ${parsed.getUTCFullYear()} • ${hour12}:${minute} ${ampm}`;
+    return `${parsed.getUTCDate()} ${month} ${parsed.getUTCFullYear()}`;
   }
 
   function setText(root, name, value) {
@@ -956,7 +954,8 @@
     const nextCheck = new Date();
     const link = root.querySelector('[data-splask-link]');
 
-    nextCheck.setDate(nextCheck.getDate() + 1);
+    nextCheck.setUTCHours(12, 0, 0, 0);
+    nextCheck.setUTCDate(nextCheck.getUTCDate() + 1);
     applyGradeStyles(root, grade, score);
 
     setText(root, 'score', formatScore(score));
@@ -964,7 +963,7 @@
     setText(root, 'grade-short', grade.shortLabel);
     setText(root, 'status', grade.status);
     setText(root, 'date', formatMalayDate(data.last_check));
-    setText(root, 'next', nextCheck.toLocaleDateString('ms-MY'));
+    setText(root, 'next', formatMalayDate(nextCheck));
     updateSevenDayMicroGraphs(root, score);
     updateMiniTrendCharts(root, score);
 

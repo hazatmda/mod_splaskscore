@@ -509,8 +509,8 @@ def validate_dashboard_consistency() -> None:
     checks = {
         "central PHP score formatter": "formatScorePercent" in helper,
         "dashboard JS score formatter": "function formatScore" in script and "formatScore(score)" in script,
-        "Malay weekday/month PHP formatting": "MALAY_WEEKDAYS" in helper and "MALAY_MONTHS" in helper,
-        "Malay weekday/month JS formatting": "const MALAY_WEEKDAYS" in script and "const MALAY_MONTHS" in script,
+        "Malay month-only PHP formatting": "MALAY_MONTHS" in helper and "formatHistoryDateOnly" in helper,
+        "Malay month-only JS formatting": "const MALAY_MONTHS" in script and "formatMalayDate(nextCheck)" in script,
         "analytics modal rendering": "renderHistoryModal" in helper and "data-splask-history-chart" in helper,
         "history AJAX rendering": "loadHistory" in script and "bindHistoryModal" in script,
         "dark appearance behavior": "resolveAppearance" in script and ("data-splask-appearance=\"dark\"" in styles or "data-splask-appearance='dark'" in styles),
@@ -523,6 +523,17 @@ def validate_dashboard_consistency() -> None:
 
     if re.search(r"number_format\([^\n]+score[^\n]+,\s*0\)", helper, re.IGNORECASE):
         raise AssertionError("Precision consistency failed: score displays must not round to whole percentages")
+
+    format_malay_date = extract_function_body(script, "formatMalayDate")
+    forbidden_date_tokens = ["MALAY_WEEKDAYS", "toLocaleDateString", "getUTCHours", "getUTCMinutes", " • ", "AM", "PM"]
+    leaked_date_tokens = [token for token in forbidden_date_tokens if token in format_malay_date or (token == "toLocaleDateString" and token in script)]
+    if leaked_date_tokens:
+        raise AssertionError("Date formatting regression: operational dates must be month-only BM dates without weekday, time, slash locale, or bullets: " + ", ".join(leaked_date_tokens))
+
+    required_kpi_alignment = ["place-items: center", "justify-content: center", "text-align: center", "letter-spacing: -0.035em"]
+    missing_kpi_alignment = [token for token in required_kpi_alignment if token not in styles]
+    if missing_kpi_alignment:
+        raise AssertionError("Analytics KPI rail alignment regression: centered compact KPI styles are missing: " + ", ".join(missing_kpi_alignment))
 
 
 def main() -> int:

@@ -2,8 +2,8 @@
 <extension type="module" client="administrator" method="upgrade">
     <name>mod_splaskscore</name>
     <author>Muhammad Azizan Hazim</author>
-    <version>1.4.0</version>
-    <description>Module to display SPLaSK Score in Joomla Admin Dashboard (Logik, label gred, and adaptive presets versi 1.4.0)</description>
+    <version>1.4.1</version>
+    <description>Module to display SPLaSK Score in Joomla Admin Dashboard (Logik, label gred, and adaptive presets versi 1.4.1)</description>
     <scriptfile>script.php</scriptfile>
     <files>
         <filename module="mod_splaskscore">mod_splaskscore.php</filename>
@@ -63,6 +63,7 @@
                 <field name="analytics_duplicate_cooldown" type="number" label="Duplicate Cooldown (minutes)" description="Minimum interval before identical analytics snapshots can be stored again." default="10" min="1" max="1440" />
                 <field name="analytics_retention_days" type="number" label="Analytics Retention (days)" description="Automatically prune analytics records older than this number of days." default="365" min="1" />
                 <field name="analytics_max_rows" type="number" label="Maximum History Rows" description="Maximum analytics records retained per module/token pair after pruning." default="500" min="1" />
+                <field name="analytics_rows_per_page" type="number" label="Rows Per Page" description="Number of analytics history records shown on each client-side table page." default="7" min="1" max="50" />
                 <field name="analytics_scheduler_status" type="text" label="Scheduler Status" description="Read-only status of the SPLaSK managed Joomla Scheduled Task after the last module save. This does not replace the hosting requirement for an active Joomla Scheduled Tasks runner." readonly="true" default="Pending save" />
                 <field name="analytics_last_successful_collection" type="text" label="Last Successful Collection" description="Read-only timestamp from the latest analytics health record known to this module." readonly="true" default="" />
             </fieldset>

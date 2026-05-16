@@ -31,7 +31,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.4.0';
+    private const ENGINE_VERSION = '1.4.1';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -39,9 +39,9 @@ final class ModSplaskscoreHelper
 
     private const DEFAULT_MAX_HISTORY_ROWS = 500;
 
-    private const HISTORY_TABLE_PAGE_SIZE = 7;
+    private const DEFAULT_HISTORY_ROWS_PER_PAGE = 7;
 
-    private const HISTORY_CHART_RECORD_LIMIT = 7;
+    private const HISTORY_CHART_DAY_WINDOW = 30;
 
     private const SCHEDULER_TASK_TYPE = 'splaskscore.analytics.collect';
 
@@ -437,7 +437,7 @@ final class ModSplaskscoreHelper
         $records = self::getHistoryRecords($moduleId, $tokenHash);
 
         return array_merge($result, [
-            'html' => self::renderHistoryModal($records, $appearance, self::getAnalyticsHealth($moduleId, $tokenHash)),
+            'html' => self::renderHistoryModal($records, $appearance, self::getAnalyticsHealth($moduleId, $tokenHash), self::getHistoryRowsPerPage($moduleId)),
             'chart' => self::buildTrendSeries($records),
             'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
         ]);
@@ -479,7 +479,7 @@ final class ModSplaskscoreHelper
 
         return [
             'success' => true,
-            'html' => self::renderHistoryModal($records, $appearance, $health),
+            'html' => self::renderHistoryModal($records, $appearance, $health, self::getHistoryRowsPerPage($moduleId)),
             'chart' => self::buildTrendSeries($records),
             'health' => $health,
         ];
@@ -493,7 +493,7 @@ final class ModSplaskscoreHelper
      *
      * @return  string
      */
-    public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null): string
+    public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null, ?int $rowsPerPage = null): string
     {
         $appearance = in_array($appearance, self::getAllowedAppearanceModes(), true) ? $appearance : 'light';
         $meaningfulRecords = self::getDistinctMeaningfulHistoryRecords($records);
@@ -506,8 +506,7 @@ final class ModSplaskscoreHelper
         }
         $health = $health ?? self::buildHealthFromRecords($records);
         $historyCount = count($meaningfulRecords);
-        $pageSize = self::HISTORY_TABLE_PAGE_SIZE;
-        $pageCount = max(1, (int) ceil($historyCount / $pageSize));
+        $pageSize = self::normaliseHistoryRowsPerPage($rowsPerPage);
 
         ob_start();
         ?>
@@ -538,6 +537,13 @@ final class ModSplaskscoreHelper
             </div>
 
             <div class="splask-history-table-shell" data-splask-history-pagination data-splask-history-page-size="<?php echo $pageSize; ?>">
+                <script type="application/json" data-splask-history-records><?php echo htmlspecialchars(json_encode(self::buildHistoryTableRecords($meaningfulRecords), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></script>
+                <div class="splask-history-page-size-control">
+                    <label>
+                        <span>Rows Per Page</span>
+                        <input type="number" min="1" max="50" value="<?php echo $pageSize; ?>" data-splask-history-page-size-input aria-label="Rows Per Page" />
+                    </label>
+                </div>
                 <div class="table-responsive splask-history-table-wrap" tabindex="0" aria-label="Senarai sejarah SPLaSK boleh ditatal">
                     <table class="table table-sm align-middle splask-history-table">
                     <thead>
@@ -548,35 +554,61 @@ final class ModSplaskscoreHelper
                             <th scope="col">Status</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php if (!$meaningfulRecords) : ?>
-                            <tr><td colspan="4" class="text-center py-4">Belum ada rekod sejarah. Rekod akan disimpan selepas markah berjaya dimuatkan.</td></tr>
-                        <?php endif; ?>
-                        <?php foreach ($meaningfulRecords as $record) : ?>
-                            <tr data-splask-history-grade="<?php echo htmlspecialchars((string) $record->grade_key, ENT_QUOTES, 'UTF-8'); ?>">
-                                <td><?php echo htmlspecialchars(self::formatHistoryDateOnly((string) ($record->source_checked_at ?: $record->created_at)), ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><strong><?php echo htmlspecialchars(self::formatScorePercent((float) $record->score), ENT_QUOTES, 'UTF-8'); ?></strong></td>
-                                <td><span class="splask-history-grade"><?php echo htmlspecialchars((string) $record->grade_label, ENT_QUOTES, 'UTF-8'); ?></span></td>
-                                <td><?php echo htmlspecialchars((string) $record->status_label, ENT_QUOTES, 'UTF-8'); ?></td>
-                            </tr>
-                        <?php endforeach; ?>
+                    <tbody data-splask-history-page-body>
                     </tbody>
                     </table>
                 </div>
-                <?php if ($historyCount > $pageSize) : ?>
-                    <div class="splask-history-pagination" aria-label="Navigasi halaman sejarah">
-                        <span data-splask-history-page-status>Halaman 1 daripada <?php echo $pageCount; ?></span>
-                        <div class="splask-history-pagination-actions">
-                            <button type="button" class="splask-history-page-button" data-splask-history-page-prev aria-label="Halaman sejarah sebelumnya">Sebelum</button>
-                            <button type="button" class="splask-history-page-button" data-splask-history-page-next aria-label="Halaman sejarah seterusnya">Seterusnya</button>
-                        </div>
+                <div class="splask-history-pagination" aria-label="Navigasi halaman sejarah">
+                    <span data-splask-history-page-status>Showing 0–0 of <?php echo $historyCount; ?></span>
+                    <div class="splask-history-pagination-actions" data-splask-history-page-actions>
+                        <button type="button" class="splask-history-page-button" data-splask-history-page-prev aria-label="Previous history page">Previous</button>
+                        <span class="splask-history-page-numbers" data-splask-history-page-numbers></span>
+                        <button type="button" class="splask-history-page-button" data-splask-history-page-next aria-label="Next history page">Next</button>
                     </div>
-                <?php endif; ?>
+                </div>
             </div>
         </div>
         <?php
 
         return trim((string) ob_get_clean());
+    }
+
+    /**
+     * Build compact JSON payload used by client-side table pagination.
+     *
+     * @param   array<int, object>  $records  History rows newest first.
+     *
+     * @return  array<int, array<string, string>>
+     */
+    private static function buildHistoryTableRecords(array $records): array
+    {
+        $tableRecords = [];
+
+        foreach ($records as $record) {
+            $tableRecords[] = [
+                'date' => self::formatHistoryDateOnly((string) ($record->source_checked_at ?: $record->created_at)),
+                'score' => self::formatScorePercent((float) $record->score),
+                'gradeKey' => (string) $record->grade_key,
+                'gradeLabel' => (string) $record->grade_label,
+                'status' => (string) $record->status_label,
+            ];
+        }
+
+        return $tableRecords;
+    }
+
+    private static function getHistoryRowsPerPage(int $moduleId): int
+    {
+        $params = self::getModuleParams($moduleId);
+
+        return self::normaliseHistoryRowsPerPage($params['analytics_rows_per_page'] ?? null);
+    }
+
+    private static function normaliseHistoryRowsPerPage($value): int
+    {
+        $rowsPerPage = (int) ($value ?? self::DEFAULT_HISTORY_ROWS_PER_PAGE);
+
+        return min(50, max(1, $rowsPerPage ?: self::DEFAULT_HISTORY_ROWS_PER_PAGE));
     }
 
     /**
@@ -1460,8 +1492,18 @@ final class ModSplaskscoreHelper
     private static function buildTrendSeries(array $records): array
     {
         $series = [];
+        $cutoff = (new \DateTimeImmutable('today', new \DateTimeZone('UTC')))
+            ->modify('-' . (self::HISTORY_CHART_DAY_WINDOW - 1) . ' days');
+        $recentRecords = [];
 
-        $recentRecords = array_slice(self::getDistinctMeaningfulHistoryRecords($records), 0, self::HISTORY_CHART_RECORD_LIMIT);
+        foreach (self::getDistinctMeaningfulHistoryRecords($records) as $record) {
+            $recordDate = self::getHistoryRecordDate($record);
+            if ($recordDate === null || $recordDate < $cutoff) {
+                continue;
+            }
+
+            $recentRecords[] = $record;
+        }
 
         foreach (array_reverse($recentRecords) as $record) {
             $series[] = [
@@ -1471,6 +1513,20 @@ final class ModSplaskscoreHelper
         }
 
         return $series;
+    }
+
+    private static function getHistoryRecordDate(object $record): ?\DateTimeImmutable
+    {
+        $value = (string) ($record->source_checked_at ?: $record->created_at ?: '');
+        if ($value === '') {
+            return null;
+        }
+
+        try {
+            return new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
+        } catch (\Exception $exception) {
+            return null;
+        }
     }
 
     /**
@@ -1491,7 +1547,7 @@ final class ModSplaskscoreHelper
         $encodedSeries = htmlspecialchars(json_encode($series, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_QUOTES, 'UTF-8');
 
         return '<div class="splask-history-chart-canvas-wrap">'
-            . '<canvas class="splask-history-line-chart" data-splask-line-chart data-splask-chart-points="' . $encodedSeries . '" width="640" height="220" aria-label="Carta garis peratus sejarah SPLaSK untuk 7 rekod terkini" role="img"></canvas>'
+            . '<canvas class="splask-history-line-chart" data-splask-line-chart data-splask-chart-points="' . $encodedSeries . '" width="640" height="220" aria-label="Carta garis peratus sejarah SPLaSK untuk trend 30 hari terkini" role="img"></canvas>'
             . '<div class="splask-history-tooltip" data-splask-chart-tooltip hidden></div>'
             . '</div>';
     }

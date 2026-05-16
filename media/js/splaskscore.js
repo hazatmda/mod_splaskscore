@@ -479,6 +479,107 @@
   }
 
 
+  function getHistoryRecords(shell) {
+    if (Array.isArray(shell._splaskHistoryRecords)) {
+      return shell._splaskHistoryRecords;
+    }
+
+    const source = shell.querySelector('[data-splask-history-records]');
+    try {
+      const records = JSON.parse(source ? source.textContent || '[]' : '[]');
+      shell._splaskHistoryRecords = Array.isArray(records) ? records : [];
+    } catch (error) {
+      shell._splaskHistoryRecords = [];
+    }
+
+    return shell._splaskHistoryRecords;
+  }
+
+  function normaliseHistoryPageSize(value) {
+    const size = Number.parseInt(value, 10);
+    return Math.min(50, Math.max(1, Number.isFinite(size) ? size : 7));
+  }
+
+  function renderHistoryCell(row, value, strong) {
+    const cell = document.createElement('td');
+    const target = strong ? document.createElement('strong') : cell;
+    target.textContent = value || '';
+
+    if (strong) {
+      cell.appendChild(target);
+    }
+
+    row.appendChild(cell);
+  }
+
+  function renderHistoryRows(shell, records) {
+    const body = shell.querySelector('[data-splask-history-page-body]');
+    if (!body) {
+      return;
+    }
+
+    body.replaceChildren();
+
+    if (!records.length) {
+      const emptyRow = document.createElement('tr');
+      const emptyCell = document.createElement('td');
+      emptyCell.colSpan = 4;
+      emptyCell.className = 'text-center py-4';
+      emptyCell.textContent = 'Belum ada rekod sejarah. Rekod akan disimpan selepas markah berjaya dimuatkan.';
+      emptyRow.appendChild(emptyCell);
+      body.appendChild(emptyRow);
+      return;
+    }
+
+    records.forEach((record) => {
+      const row = document.createElement('tr');
+      row.dataset.splaskHistoryGrade = record.gradeKey || '';
+
+      renderHistoryCell(row, record.date, false);
+      renderHistoryCell(row, record.score, true);
+
+      const gradeCell = document.createElement('td');
+      const grade = document.createElement('span');
+      grade.className = 'splask-history-grade';
+      grade.textContent = record.gradeLabel || '';
+      gradeCell.appendChild(grade);
+      row.appendChild(gradeCell);
+
+      renderHistoryCell(row, record.status, false);
+      body.appendChild(row);
+    });
+  }
+
+  function renderHistoryPageNumbers(shell, pageCount, current) {
+    const numbers = shell.querySelector('[data-splask-history-page-numbers]');
+    if (!numbers) {
+      return;
+    }
+
+    numbers.replaceChildren();
+
+    for (let page = 1; page <= pageCount; page += 1) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'splask-history-page-button splask-history-page-number';
+      button.textContent = String(page);
+      button.dataset.splaskHistoryPageNumber = String(page);
+      button.setAttribute('aria-label', `Go to history page ${page}`);
+
+      if (page === current) {
+        button.classList.add('is-active');
+        button.setAttribute('aria-current', 'page');
+      }
+
+      button.addEventListener('click', () => {
+        shell.dataset.splaskHistoryPage = String(page);
+        updateHistoryPage(shell);
+      });
+
+      numbers.appendChild(button);
+    }
+  }
+
   function initHistoryTables(scope) {
     const container = scope || document;
     container.querySelectorAll('[data-splask-history-pagination]').forEach((shell) => {
@@ -489,9 +590,21 @@
 
       shell.dataset.splaskPaginationInitialized = 'true';
       shell.dataset.splaskHistoryPage = '1';
+      shell.dataset.splaskHistoryPageSize = String(normaliseHistoryPageSize(shell.dataset.splaskHistoryPageSize || '7'));
 
       const previous = shell.querySelector('[data-splask-history-page-prev]');
       const next = shell.querySelector('[data-splask-history-page-next]');
+      const pageSizeInput = shell.querySelector('[data-splask-history-page-size-input]');
+
+      if (pageSizeInput) {
+        pageSizeInput.value = shell.dataset.splaskHistoryPageSize;
+        pageSizeInput.addEventListener('change', () => {
+          shell.dataset.splaskHistoryPageSize = String(normaliseHistoryPageSize(pageSizeInput.value));
+          pageSizeInput.value = shell.dataset.splaskHistoryPageSize;
+          shell.dataset.splaskHistoryPage = '1';
+          updateHistoryPage(shell);
+        });
+      }
 
       if (previous) {
         previous.addEventListener('click', () => {
@@ -503,9 +616,9 @@
 
       if (next) {
         next.addEventListener('click', () => {
-          const pageSize = Number(shell.dataset.splaskHistoryPageSize || '7') || 7;
-          const rows = Array.from(shell.querySelectorAll('tbody tr[data-splask-history-grade]'));
-          const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+          const pageSize = normaliseHistoryPageSize(shell.dataset.splaskHistoryPageSize || '7');
+          const records = getHistoryRecords(shell);
+          const pageCount = Math.max(1, Math.ceil(records.length / pageSize));
           const current = Number(shell.dataset.splaskHistoryPage || '1');
           shell.dataset.splaskHistoryPage = String(Math.min(pageCount, current + 1));
           updateHistoryPage(shell);
@@ -517,26 +630,27 @@
   }
 
   function updateHistoryPage(shell) {
-    const pageSize = Number(shell.dataset.splaskHistoryPageSize || '7') || 7;
-    const rows = Array.from(shell.querySelectorAll('tbody tr[data-splask-history-grade]'));
-    const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+    const pageSize = normaliseHistoryPageSize(shell.dataset.splaskHistoryPageSize || '7');
+    const records = getHistoryRecords(shell);
+    const pageCount = Math.max(1, Math.ceil(records.length / pageSize));
     const current = Math.min(pageCount, Math.max(1, Number(shell.dataset.splaskHistoryPage || '1') || 1));
     const start = (current - 1) * pageSize;
     const end = start + pageSize;
+    const pageRecords = records.slice(start, end);
     const status = shell.querySelector('[data-splask-history-page-status]');
     const previous = shell.querySelector('[data-splask-history-page-prev]');
     const next = shell.querySelector('[data-splask-history-page-next]');
     const scrollWrap = shell.querySelector('.splask-history-table-wrap');
 
     shell.dataset.splaskHistoryPage = String(current);
-    rows.forEach((row, index) => {
-      row.hidden = index < start || index >= end;
-    });
+    shell.dataset.splaskHistoryPageSize = String(pageSize);
+    renderHistoryRows(shell, pageRecords);
+    renderHistoryPageNumbers(shell, pageCount, current);
 
     if (status) {
-      const visibleStart = rows.length ? start + 1 : 0;
-      const visibleEnd = Math.min(end, rows.length);
-      status.textContent = `Rekod ${visibleStart}-${visibleEnd} daripada ${rows.length} • Halaman ${current}/${pageCount}`;
+      const visibleStart = records.length ? start + 1 : 0;
+      const visibleEnd = Math.min(end, records.length);
+      status.textContent = `Showing ${visibleStart}–${visibleEnd} of ${records.length}`;
     }
 
     if (previous) {

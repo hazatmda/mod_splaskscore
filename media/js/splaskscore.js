@@ -391,12 +391,12 @@
     const labelProjectedWidth = Math.ceil((widestLabel * labelCos) + (labelFontSize * labelSin));
     const labelProjectedHeight = Math.ceil((widestLabel * labelSin) + (labelFontSize * labelCos));
     const horizontalEdgePadding = Math.ceil(labelProjectedWidth / 2) + 14;
-    const labelBaselineOffset = Math.ceil(labelProjectedHeight / 2) + 8;
+    const labelBaselineOffset = Math.ceil(labelProjectedHeight / 2) + 7;
     const padding = {
-      top: 18,
-      right: Math.min(70, Math.max(30, horizontalEdgePadding)),
-      bottom: Math.min(76, Math.max(54, labelProjectedHeight + 16)),
-      left: Math.min(70, Math.max(46, horizontalEdgePadding))
+      top: 12,
+      right: Math.min(64, Math.max(30, horizontalEdgePadding)),
+      bottom: Math.min(62, Math.max(44, labelProjectedHeight + 10)),
+      left: Math.min(66, Math.max(44, horizontalEdgePadding))
     };
     const plotWidth = Math.max(1, width - padding.left - padding.right);
     const plotHeight = Math.max(1, height - padding.top - padding.bottom);

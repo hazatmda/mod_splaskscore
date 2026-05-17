@@ -100,16 +100,70 @@
                 <field name="history_connection_error_label" type="text" label="History Connection Error Label" default="Ralat sambungan semasa memuatkan sejarah." />
             </fieldset>
             <fieldset name="about" label="About">
-                <field name="about_product" type="note" label="Product Information" description="SPLaSK Score administrator dashboard module with managed Joomla Scheduled Task analytics." />
-                <field name="about_owner" type="text" label="Owner" default="Muhammad Azizan Hazim" readonly="true" />
-                <field name="about_organization" type="text" label="Organization" default="SPLaSK Score" readonly="true" />
-                <field name="about_repository_url" type="url" label="Repository URL" default="https://github.com/hazatmda/mod_splaskscore" readonly="true" />
-                <field name="about_issue_tracker_url" type="url" label="Issue Tracker URL" default="https://github.com/hazatmda/mod_splaskscore/issues" readonly="true" />
-                <field name="about_version" type="text" label="Version" default="1.6.1" readonly="true" />
-                <field name="about_joomla_compatibility" type="text" label="Joomla Compatibility" default="Joomla 5.x" readonly="true" />
-                <field name="about_php_compatibility" type="text" label="PHP Compatibility" default="PHP 8.1+" readonly="true" />
-                <field name="about_release_channel" type="text" label="Release Channel" default="Stable" readonly="true" />
-                <field name="about_release_target" type="text" label="Release Target" default="v1.6.1" readonly="true" />
+                <field
+                    name="about_metadata_panel"
+                    type="note"
+                    label="SPLaSK Score Metadata"
+                    class="p-0 border-0 bg-transparent shadow-none"
+                    description="
+                        &lt;div class=&quot;card border shadow-sm bg-body text-body&quot;&gt;
+                            &lt;div class=&quot;card-body p-4&quot;&gt;
+                                &lt;div class=&quot;d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4&quot;&gt;
+                                    &lt;div&gt;
+                                        &lt;p class=&quot;text-uppercase text-body-secondary fw-semibold small mb-1&quot;&gt;Product Information&lt;/p&gt;
+                                        &lt;h3 class=&quot;h5 mb-1&quot;&gt;SPLaSK Score&lt;/h3&gt;
+                                        &lt;p class=&quot;mb-0 text-body-secondary&quot;&gt;Administrator dashboard module with managed Joomla Scheduled Task analytics.&lt;/p&gt;
+                                    &lt;/div&gt;
+                                    &lt;span class=&quot;badge rounded-pill text-bg-success align-self-lg-start&quot;&gt;Stable&lt;/span&gt;
+                                &lt;/div&gt;
+                                &lt;div class=&quot;row g-3&quot;&gt;
+                                    &lt;div class=&quot;col-12 col-md-6&quot;&gt;
+                                        &lt;div class=&quot;border rounded-3 p-3 h-100 bg-body-tertiary&quot;&gt;
+                                            &lt;div class=&quot;small text-body-secondary mb-1&quot;&gt;Owner&lt;/div&gt;
+                                            &lt;div class=&quot;fw-semibold&quot;&gt;Muhammad Azizan Hazim&lt;/div&gt;
+                                        &lt;/div&gt;
+                                    &lt;/div&gt;
+                                    &lt;div class=&quot;col-12 col-md-6&quot;&gt;
+                                        &lt;div class=&quot;border rounded-3 p-3 h-100 bg-body-tertiary&quot;&gt;
+                                            &lt;div class=&quot;small text-body-secondary mb-1&quot;&gt;Organization&lt;/div&gt;
+                                            &lt;div class=&quot;fw-semibold&quot;&gt;Bahagian Digital dan Teknologi Maklumat (BDTM), Medical Device Authority (MDA)&lt;/div&gt;
+                                        &lt;/div&gt;
+                                    &lt;/div&gt;
+                                    &lt;div class=&quot;col-12 col-md-6&quot;&gt;
+                                        &lt;div class=&quot;border rounded-3 p-3 h-100 bg-body-tertiary&quot;&gt;
+                                            &lt;div class=&quot;small text-body-secondary mb-1&quot;&gt;Repository&lt;/div&gt;
+                                            &lt;a class=&quot;fw-semibold text-decoration-none&quot; href=&quot;https://github.com/hazatmda/mod_splaskscore&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot;&gt;github.com/hazatmda/mod_splaskscore&lt;/a&gt;
+                                        &lt;/div&gt;
+                                    &lt;/div&gt;
+                                    &lt;div class=&quot;col-12 col-md-6&quot;&gt;
+                                        &lt;div class=&quot;border rounded-3 p-3 h-100 bg-body-tertiary&quot;&gt;
+                                            &lt;div class=&quot;small text-body-secondary mb-1&quot;&gt;Issue Tracker&lt;/div&gt;
+                                            &lt;a class=&quot;fw-semibold text-decoration-none&quot; href=&quot;https://github.com/hazatmda/mod_splaskscore/issues&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot;&gt;GitHub Issues&lt;/a&gt;
+                                        &lt;/div&gt;
+                                    &lt;/div&gt;
+                                    &lt;div class=&quot;col-12 col-md-4&quot;&gt;
+                                        &lt;div class=&quot;border rounded-3 p-3 h-100 bg-body-tertiary&quot;&gt;
+                                            &lt;div class=&quot;small text-body-secondary mb-1&quot;&gt;Version&lt;/div&gt;
+                                            &lt;div class=&quot;fw-semibold&quot;&gt;1.6.2&lt;/div&gt;
+                                        &lt;/div&gt;
+                                    &lt;/div&gt;
+                                    &lt;div class=&quot;col-12 col-md-4&quot;&gt;
+                                        &lt;div class=&quot;border rounded-3 p-3 h-100 bg-body-tertiary&quot;&gt;
+                                            &lt;div class=&quot;small text-body-secondary mb-1&quot;&gt;Joomla Compatibility&lt;/div&gt;
+                                            &lt;div class=&quot;fw-semibold&quot;&gt;Joomla 5.x&lt;/div&gt;
+                                        &lt;/div&gt;
+                                    &lt;/div&gt;
+                                    &lt;div class=&quot;col-12 col-md-4&quot;&gt;
+                                        &lt;div class=&quot;border rounded-3 p-3 h-100 bg-body-tertiary&quot;&gt;
+                                            &lt;div class=&quot;small text-body-secondary mb-1&quot;&gt;PHP Compatibility&lt;/div&gt;
+                                            &lt;div class=&quot;fw-semibold&quot;&gt;PHP 8.1+&lt;/div&gt;
+                                        &lt;/div&gt;
+                                    &lt;/div&gt;
+                                &lt;/div&gt;
+                            &lt;/div&gt;
+                        &lt;/div&gt;
+                    "
+                />
             </fieldset>
         </fields>
     </config>

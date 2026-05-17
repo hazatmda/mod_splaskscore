@@ -385,11 +385,18 @@
     context.lineJoin = 'round';
 
     const widestLabel = points.reduce((widest, point) => Math.max(widest, context.measureText(String(point.label || '')).width), 0);
+    const labelRotation = -Math.PI / 5.4;
+    const labelCos = Math.abs(Math.cos(labelRotation));
+    const labelSin = Math.abs(Math.sin(labelRotation));
+    const labelProjectedWidth = Math.ceil((widestLabel * labelCos) + (labelFontSize * labelSin));
+    const labelProjectedHeight = Math.ceil((widestLabel * labelSin) + (labelFontSize * labelCos));
+    const horizontalEdgePadding = Math.ceil(labelProjectedWidth / 2) + 14;
+    const labelBaselineOffset = Math.ceil(labelProjectedHeight / 2) + 8;
     const padding = {
-      top: 16,
-      right: Math.min(64, Math.max(18, Math.ceil(widestLabel * 0.72))),
-      bottom: Math.min(68, Math.max(46, Math.ceil(widestLabel * 0.68) + labelFontSize)),
-      left: 44
+      top: 18,
+      right: Math.min(70, Math.max(30, horizontalEdgePadding)),
+      bottom: Math.min(76, Math.max(54, labelProjectedHeight + 16)),
+      left: Math.min(70, Math.max(46, horizontalEdgePadding))
     };
     const plotWidth = Math.max(1, width - padding.left - padding.right);
     const plotHeight = Math.max(1, height - padding.top - padding.bottom);
@@ -417,9 +424,9 @@
       const label = String(point.label || '');
 
       context.save();
-      context.translate(x, height - Math.max(12, Math.floor(labelFontSize * 1.2)));
-      context.rotate(-Math.PI / 4);
-      context.textAlign = 'left';
+      context.translate(x, height - labelBaselineOffset);
+      context.rotate(labelRotation);
+      context.textAlign = 'center';
       context.fillText(label, 0, 0);
       context.restore();
     });

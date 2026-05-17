@@ -11,7 +11,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.6.1.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.6.2.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 
@@ -60,17 +60,41 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 
 ## Changelog
 
-**v1.6.1 (17 Mei 2026)**
+### Evolusi Release Enterprise Terkini
 
-- Menambah tab Configuration untuk konfigurasi tajuk dashboard, tajuk/subtajuk analitik, label butang, label KPI, label graf, dan label jadual sejarah melalui parameter modul Joomla.
-- Menambah tab About dengan maklumat produk, owner, organisasi, repository, issue tracker, compatibility, channel, dan release target.
+Rangkaian release terkini disusun sebagai perkembangan produk yang berurutan: asas analitik operasi dimantapkan dahulu, paparan graf diperhalus, telemetry dashboard disatukan, konfigurasi branding enterprise dibuka kepada pentadbir, dan panel About akhirnya diperhalus sebagai metadata produk yang konsisten.
+
+**v1.5.7 (17 Mei 2026) — Operational analytics foundation**
+
+- Memantapkan kebolehbacaan graf analitik dengan paparan semua tarikh paksi-x untuk setiap titik data operasi.
+- Mengekalkan normalisasi satu rekod sehari, dataset analitik bersatu, pagination frontend, dan struktur dashboard operasi sebagai asas kesinambungan audit.
+- Metadata release disegerakkan untuk tag `v1.5.7` dan pakej `mod_splaskscore_v1.5.7.zip`.
+
+**v1.5.8 (17 Mei 2026) — Graph visual balance refinement**
+
+- Memperhalus keseimbangan visual graf melalui ruang paksi-x, anchoring tick, alignment tepi, dan jarak bawah yang lebih terkawal.
+- Mengurangkan keagresifan label condong supaya tarikh operasi kekal lengkap tetapi lebih bersih dalam susun atur enterprise yang padat.
+- Metadata release disegerakkan untuk tag `v1.5.8` dan pakej `mod_splaskscore_v1.5.8.zip`.
+
+**v1.6.0 (17 Mei 2026) — Unified telemetry dashboard**
+
+- Menyatukan modal `Sejarah & Analitik SPLaSK` sebagai permukaan telemetry enterprise dengan rail KPI dan carta dalam satu komposisi visual yang konsisten.
+- Mengoptimumkan nisbah KPI/carta, irama jarak dalaman, dan ruang menegak carta tanpa mengubah sumber dataset analitik atau label tarikh paksi-x.
+- Metadata release disegerakkan untuk tag `v1.6.0` dan pakej `mod_splaskscore_v1.6.0.zip`.
+
+**v1.6.1 (17 Mei 2026) — Enterprise branding/configuration**
+
+- Menambah tab Configuration untuk mengurus tajuk dashboard, tajuk/subtajuk analitik, label butang, label KPI, label graf, dan label jadual sejarah melalui parameter modul Joomla.
+- Menambah tab About sebagai permulaan metadata produk yang meliputi produk, owner, organisasi, repository, issue tracker, compatibility, channel, dan release target.
 - Metadata release disegerakkan untuk tag `v1.6.1` dan pakej `mod_splaskscore_v1.6.1.zip`.
 
-**v1.6.0 (17 Mei 2026)**
+**v1.6.2 (17 Mei 2026) — About panel refinement**
 
-- Memperkemas modal `Sejarah & Analitik SPLaSK` kepada satu permukaan telemetry enterprise yang menyatukan rail KPI dan carta tanpa mengubah sumber dataset analitik.
-- Mengoptimumkan nisbah KPI/carta, irama jarak dalaman, dan ruang menegak carta supaya graf menggunakan kawasan visual dengan lebih seimbang sambil mengekalkan semua label tarikh paksi-x.
-- Metadata release disegerakkan untuk tag `v1.6.0` dan pakej `mod_splaskscore_v1.6.0.zip`.
+- Memperhalus tab About kepada panel metadata enterprise yang lebih kemas, tanpa rupa input readonly, dengan hierarki tipografi dan jarak yang lebih konsisten.
+- Menyelaraskan maklumat organisasi rasmi, membuang seksyen Release Target yang tidak lagi diperlukan, dan mengekalkan keserasian dark mode serta rendering responsif.
+- Metadata release disegerakkan untuk tag `v1.6.2` dan pakej `mod_splaskscore_v1.6.2.zip`.
+
+### Release Terdahulu
 
 **v1.5.6 (16 Mei 2026)**
 
@@ -140,7 +164,7 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 ## Maklumat Tambahan
 
 - Dibangunkan oleh: **Muhammad Azizan Hazim**
-- Versi: **1.6.1**
+- Versi: **1.6.2**
 - Tarikh: **17 Mei 2026**
 
 ## Lesen

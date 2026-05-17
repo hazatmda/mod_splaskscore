@@ -11,7 +11,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.6.0.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.6.1.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 
@@ -59,6 +59,12 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
 ## Changelog
+
+**v1.6.1 (17 Mei 2026)**
+
+- Menambah tab Configuration untuk konfigurasi tajuk dashboard, tajuk/subtajuk analitik, label butang, label KPI, label graf, dan label jadual sejarah melalui parameter modul Joomla.
+- Menambah tab About dengan maklumat produk, owner, organisasi, repository, issue tracker, compatibility, channel, dan release target.
+- Metadata release disegerakkan untuk tag `v1.6.1` dan pakej `mod_splaskscore_v1.6.1.zip`.
 
 **v1.6.0 (17 Mei 2026)**
 
@@ -134,7 +140,7 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 ## Maklumat Tambahan
 
 - Dibangunkan oleh: **Muhammad Azizan Hazim**
-- Versi: **1.6.0**
+- Versi: **1.6.1**
 - Tarikh: **17 Mei 2026**
 
 ## Lesen

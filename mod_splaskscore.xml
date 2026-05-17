@@ -2,8 +2,8 @@
 <extension type="module" client="administrator" method="upgrade">
     <name>mod_splaskscore</name>
     <author>Muhammad Azizan Hazim</author>
-    <version>1.6.0</version>
-    <description>Modul papan pemuka operasi SPLaSK dengan sistem analitik premium bersatu versi 1.6.0</description>
+    <version>1.6.1</version>
+    <description>Modul papan pemuka operasi SPLaSK dengan sistem analitik premium bersatu versi 1.6.1</description>
     <scriptfile>script.php</scriptfile>
     <files>
         <filename module="mod_splaskscore">mod_splaskscore.php</filename>
@@ -57,6 +57,59 @@
                 <field name="analytics_rows_per_page" type="number" label="Baris Setiap Halaman" description="Bilangan rekod sejarah analitik yang dipaparkan pada setiap halaman jadual klien." default="7" min="1" max="50" />
                 <field name="analytics_scheduler_status" type="text" label="Status Penjadual" description="Status baca sahaja untuk Joomla Scheduled Task terurus SPLaSK selepas simpanan modul terakhir. Ini tidak menggantikan keperluan hosting untuk runner Joomla Scheduled Tasks yang aktif." readonly="true" default="Menunggu simpanan" />
                 <field name="analytics_last_successful_collection" type="text" label="Kutipan Berjaya Terakhir" description="Cap masa baca sahaja daripada rekod kesihatan analitik terkini yang diketahui oleh modul ini." readonly="true" default="" />
+            </fieldset>
+            <fieldset name="configuration" label="Configuration">
+                <field name="configuration_note" type="note" label="Dashboard Branding" description="Configure dashboard, analytics, button, KPI, and graph labels without changing the dashboard architecture or analytics behavior." />
+                <field name="dashboard_title" type="text" label="Dashboard Title" default="Markah Penilaian SPLaSK" />
+                <field name="dashboard_subtitle" type="text" label="Dashboard Subtitle" default="Papan pemuka pemantauan operasi" />
+                <field name="analytics_title" type="text" label="Analytics Modal Title" default="Sejarah &amp; Analitik SPLaSK" />
+                <field name="analytics_subtitle" type="text" label="Analytics Subtitle" default="Rekod markah terkini dan trend prestasi." />
+                <field name="button_verification_label" type="text" label="Verification Button Label" default="Lihat Pengesahan Penuh" />
+                <field name="button_history_label" type="text" label="Analytics Button Label" default="Sejarah &amp; Analitik" />
+                <field name="button_refresh_label" type="text" label="Refresh Button Label" default="Segar Semula Analitik" />
+                <field name="button_refresh_loading_label" type="text" label="Refresh Loading Label" default="Menyegar semula..." />
+                <field name="button_refresh_current_label" type="text" label="Refresh Current Label" default="Sudah Terkini" />
+                <field name="button_refresh_failed_label" type="text" label="Refresh Failed Label" default="Segar Semula Gagal" />
+                <field name="button_close_label" type="text" label="Close Button Label" default="Tutup" />
+                <field name="kpi_mini_trend_label" type="text" label="Mini Trend KPI Label" default="Trend 7 Hari" />
+                <field name="kpi_check_date_label" type="text" label="Check Date KPI Label" default="Tarikh Semakan" />
+                <field name="kpi_next_check_label" type="text" label="Next Check KPI Label" default="Semakan Seterusnya" />
+                <field name="kpi_score_today_label" type="text" label="Score Today KPI Label" default="Skor Hari Ini" />
+                <field name="kpi_lowest_score_label" type="text" label="Lowest Score KPI Label" default="Skor Terendah" />
+                <field name="kpi_total_records_label" type="text" label="Total Records KPI Label" default="Jumlah Rekod" />
+                <field name="kpi_total_records_caption" type="text" label="Total Records Caption" default="Semua rekod DB" />
+                <field name="kpi_rows_per_page_label" type="text" label="Rows Per Page Label" default="Baris Setiap Halaman" />
+                <field name="graph_mini_trend_aria_label" type="text" label="Mini Trend Graph Label" default="Graf garis trend operasi tujuh hari" />
+                <field name="graph_history_chart_aria_label" type="text" label="Analytics Graph Label" default="Carta trend peratus SPLaSK" />
+                <field name="history_table_aria_label" type="text" label="History Table Label" default="Senarai sejarah SPLaSK boleh ditatal" />
+                <field name="history_table_date_label" type="text" label="History Date Column Label" default="Tarikh" />
+                <field name="history_table_time_label" type="text" label="History Time Column Label" default="Masa Semakan" />
+                <field name="history_table_score_label" type="text" label="History Score Column Label" default="Markah" />
+                <field name="history_table_grade_label" type="text" label="History Grade Column Label" default="Gred" />
+                <field name="history_table_status_label" type="text" label="History Status Column Label" default="Status" />
+                <field name="score_loading_label" type="text" label="Dashboard Loading Label" default="Memuatkan..." />
+                <field name="status_waiting_label" type="text" label="Dashboard Waiting Status Label" default="Menunggu semakan" />
+                <field name="history_pagination_aria_label" type="text" label="History Pagination Label" default="Navigasi halaman sejarah" />
+                <field name="history_previous_label" type="text" label="Previous Page Label" default="Sebelumnya" />
+                <field name="history_next_label" type="text" label="Next Page Label" default="Seterusnya" />
+                <field name="history_page_status_template" type="text" label="Page Status Template" description="Use {start}, {end}, and {total} placeholders." default="Memaparkan {start}–{end} daripada {total}" />
+                <field name="history_page_number_aria_template" type="text" label="Page Number Accessibility Template" description="Use {page} placeholder." default="Pergi ke halaman sejarah {page}" />
+                <field name="history_empty_label" type="text" label="Empty History Label" default="Belum ada rekod sejarah. Rekod akan disimpan selepas markah berjaya dimuatkan." />
+                <field name="history_loading_label" type="text" label="History Loading Label" default="Memuatkan sejarah..." />
+                <field name="history_load_failed_label" type="text" label="History Load Failed Label" default="Sejarah tidak dapat dimuatkan." />
+                <field name="history_connection_error_label" type="text" label="History Connection Error Label" default="Ralat sambungan semasa memuatkan sejarah." />
+            </fieldset>
+            <fieldset name="about" label="About">
+                <field name="about_product" type="note" label="Product Information" description="SPLaSK Score administrator dashboard module with managed Joomla Scheduled Task analytics." />
+                <field name="about_owner" type="text" label="Owner" default="Muhammad Azizan Hazim" readonly="true" />
+                <field name="about_organization" type="text" label="Organization" default="SPLaSK Score" readonly="true" />
+                <field name="about_repository_url" type="url" label="Repository URL" default="https://github.com/hazatmda/mod_splaskscore" readonly="true" />
+                <field name="about_issue_tracker_url" type="url" label="Issue Tracker URL" default="https://github.com/hazatmda/mod_splaskscore/issues" readonly="true" />
+                <field name="about_version" type="text" label="Version" default="1.6.1" readonly="true" />
+                <field name="about_joomla_compatibility" type="text" label="Joomla Compatibility" default="Joomla 5.x" readonly="true" />
+                <field name="about_php_compatibility" type="text" label="PHP Compatibility" default="PHP 8.1+" readonly="true" />
+                <field name="about_release_channel" type="text" label="Release Channel" default="Stable" readonly="true" />
+                <field name="about_release_target" type="text" label="Release Target" default="v1.6.1" readonly="true" />
             </fieldset>
         </fields>
     </config>

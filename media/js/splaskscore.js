@@ -6,6 +6,50 @@
   const MALAY_MONTHS = ['Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'];
   const MALAY_WEEKDAYS = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
 
+  const DEFAULT_LABELS = {
+    button_refresh_label: 'Segar Semula Analitik',
+    button_refresh_loading_label: 'Menyegar semula...',
+    button_refresh_current_label: 'Sudah Terkini',
+    button_refresh_failed_label: 'Segar Semula Gagal',
+    history_empty_label: 'Belum ada rekod sejarah. Rekod akan disimpan selepas markah berjaya dimuatkan.',
+    history_loading_label: 'Memuatkan sejarah...',
+    history_load_failed_label: 'Sejarah tidak dapat dimuatkan.',
+    history_connection_error_label: 'Ralat sambungan semasa memuatkan sejarah.',
+    history_page_status_template: 'Memaparkan {start}–{end} daripada {total}',
+    history_page_number_aria_template: 'Pergi ke halaman sejarah {page}'
+  };
+
+  function readLabels(element) {
+    const source = element && element.closest ? element.closest('[data-splask-labels]') : element;
+
+    if (source && source._splaskLabels) {
+      return source._splaskLabels;
+    }
+
+    let labels = {};
+    try {
+      labels = JSON.parse(source && source.dataset ? source.dataset.splaskLabels || '{}' : '{}');
+    } catch (error) {
+      labels = {};
+    }
+
+    const merged = Object.assign({}, DEFAULT_LABELS, labels || {});
+    if (source) {
+      source._splaskLabels = merged;
+    }
+
+    return merged;
+  }
+
+  function label(element, key) {
+    const labels = readLabels(element);
+    return labels[key] || DEFAULT_LABELS[key] || '';
+  }
+
+  function formatLabelTemplate(template, values) {
+    return Object.keys(values).reduce((text, key) => text.replace(new RegExp(`\\{${key}\\}`, 'g'), String(values[key])), template || '');
+  }
+
 
   function hasDarkAdminSignal(element) {
     if (!element) {
@@ -730,7 +774,7 @@
       const emptyCell = document.createElement('td');
       emptyCell.colSpan = 5;
       emptyCell.className = 'text-center py-4';
-      emptyCell.textContent = 'Belum ada rekod sejarah. Rekod akan disimpan selepas markah berjaya dimuatkan.';
+      emptyCell.textContent = label(shell, 'history_empty_label');
       emptyRow.appendChild(emptyCell);
       body.appendChild(emptyRow);
       return;
@@ -770,7 +814,7 @@
       button.className = 'splask-history-page-button splask-history-page-number';
       button.textContent = String(page);
       button.dataset.splaskHistoryPageNumber = String(page);
-      button.setAttribute('aria-label', `Pergi ke halaman sejarah ${page}`);
+      button.setAttribute('aria-label', formatLabelTemplate(label(shell, 'history_page_number_aria_template'), { page: page }));
 
       if (page === current) {
         button.classList.add('is-active');
@@ -856,7 +900,7 @@
     if (status) {
       const visibleStart = records.length ? start + 1 : 0;
       const visibleEnd = Math.min(end, records.length);
-      status.textContent = `Memaparkan ${visibleStart}–${visibleEnd} daripada ${records.length}`;
+      status.textContent = formatLabelTemplate(label(shell, 'history_page_status_template'), { start: visibleStart, end: visibleEnd, total: records.length });
     }
 
     if (previous) {
@@ -875,7 +919,10 @@
   function setHistoryLoading(root, message) {
     const body = root.querySelector('[data-splask-history-body]');
     if (body) {
-      body.innerHTML = `<div class="splask-history-loading">${message}</div>`;
+      const loading = document.createElement('div');
+      loading.className = 'splask-history-loading';
+      loading.textContent = message;
+      body.replaceChildren(loading);
     }
   }
 
@@ -885,7 +932,7 @@
       return;
     }
 
-    setHistoryLoading(root, 'Memuatkan sejarah...');
+    setHistoryLoading(root, label(root, 'history_loading_label'));
 
     postModuleAjax(root, 'history', {
       appearance: root.dataset.splaskAppearance || resolveAppearance(root),
@@ -903,20 +950,20 @@
           return;
         }
 
-        setHistoryLoading(root, (data && data.message) || 'Sejarah tidak dapat dimuatkan.');
+        setHistoryLoading(root, (data && data.message) || label(root, 'history_load_failed_label'));
       })
       .catch(() => {
-        setHistoryLoading(root, 'Ralat sambungan semasa memuatkan sejarah.');
+        setHistoryLoading(root, label(root, 'history_connection_error_label'));
       });
   }
 
   function setRefreshState(root, loading, message) {
-    const label = message || (loading ? 'Menyegar semula...' : 'Segar Semula Analitik');
+    const currentLabel = message || (loading ? label(root, 'button_refresh_loading_label') : label(root, 'button_refresh_label'));
     root.querySelectorAll('[data-splask-refresh-trigger]').forEach((trigger) => {
       trigger.disabled = loading;
       trigger.classList.toggle('is-loading', loading);
-      trigger.setAttribute('aria-label', label);
-      trigger.setAttribute('title', label);
+      trigger.setAttribute('aria-label', currentLabel);
+      trigger.setAttribute('title', currentLabel);
     });
   }
 
@@ -926,7 +973,7 @@
     }
 
     const body = root.querySelector('[data-splask-history-body]');
-    setRefreshState(root, true, 'Menyegar semula...');
+    setRefreshState(root, true, label(root, 'button_refresh_loading_label'));
 
     postModuleAjax(root, 'refreshAnalytics', {
       appearance: root.dataset.splaskAppearance || resolveAppearance(root),
@@ -959,11 +1006,11 @@
           scheduleHistoryChartRedraw(body);
         }
 
-        setRefreshState(root, false, (data && data.duplicate) ? 'Sudah Terkini' : 'Segar Semula Analitik');
+        setRefreshState(root, false, (data && data.duplicate) ? label(root, 'button_refresh_current_label') : label(root, 'button_refresh_label'));
         window.setTimeout(() => setRefreshState(root, false), 1800);
       })
       .catch(() => {
-        setRefreshState(root, false, 'Segar Semula Gagal');
+        setRefreshState(root, false, label(root, 'button_refresh_failed_label'));
         window.setTimeout(() => setRefreshState(root, false), 1800);
       });
   }

@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.6.0';
+    private const ENGINE_VERSION = '1.6.1';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -50,6 +50,114 @@ final class ModSplaskscoreHelper
     private const MANUAL_REFRESH_COOLDOWN_SECONDS = 60;
 
     private const API_RETRY_ATTEMPTS = 3;
+
+
+    private const DEFAULT_BRANDING = [
+        'dashboard_title' => 'Markah Penilaian SPLaSK',
+        'dashboard_subtitle' => 'Papan pemuka pemantauan operasi',
+        'analytics_title' => 'Sejarah & Analitik SPLaSK',
+        'analytics_subtitle' => 'Rekod markah terkini dan trend prestasi.',
+        'button_verification_label' => 'Lihat Pengesahan Penuh',
+        'button_history_label' => 'Sejarah & Analitik',
+        'button_refresh_label' => 'Segar Semula Analitik',
+        'button_refresh_loading_label' => 'Menyegar semula...',
+        'button_refresh_current_label' => 'Sudah Terkini',
+        'button_refresh_failed_label' => 'Segar Semula Gagal',
+        'button_close_label' => 'Tutup',
+        'kpi_mini_trend_label' => 'Trend 7 Hari',
+        'kpi_check_date_label' => 'Tarikh Semakan',
+        'kpi_next_check_label' => 'Semakan Seterusnya',
+        'kpi_score_today_label' => 'Skor Hari Ini',
+        'kpi_lowest_score_label' => 'Skor Terendah',
+        'kpi_total_records_label' => 'Jumlah Rekod',
+        'kpi_total_records_caption' => 'Semua rekod DB',
+        'kpi_rows_per_page_label' => 'Baris Setiap Halaman',
+        'graph_mini_trend_aria_label' => 'Graf garis trend operasi tujuh hari',
+        'graph_history_chart_aria_label' => 'Carta trend peratus SPLaSK',
+        'history_table_aria_label' => 'Senarai sejarah SPLaSK boleh ditatal',
+        'history_table_date_label' => 'Tarikh',
+        'history_table_time_label' => 'Masa Semakan',
+        'history_table_score_label' => 'Markah',
+        'history_table_grade_label' => 'Gred',
+        'history_table_status_label' => 'Status',
+        'score_loading_label' => 'Memuatkan...',
+        'status_waiting_label' => 'Menunggu semakan',
+        'history_pagination_aria_label' => 'Navigasi halaman sejarah',
+        'history_previous_label' => 'Sebelumnya',
+        'history_next_label' => 'Seterusnya',
+        'history_page_status_template' => 'Memaparkan {start}–{end} daripada {total}',
+        'history_page_number_aria_template' => 'Pergi ke halaman sejarah {page}',
+        'history_empty_label' => 'Belum ada rekod sejarah. Rekod akan disimpan selepas markah berjaya dimuatkan.',
+        'history_loading_label' => 'Memuatkan sejarah...',
+        'history_load_failed_label' => 'Sejarah tidak dapat dimuatkan.',
+        'history_connection_error_label' => 'Ralat sambungan semasa memuatkan sejarah.',
+    ];
+
+
+
+    /**
+     * Return administrator-configurable dashboard branding labels.
+     *
+     * @param   object|null  $params  Joomla module parameters registry.
+     *
+     * @return  array<string, string>
+     */
+    public static function getBranding($params = null): array
+    {
+        $branding = self::DEFAULT_BRANDING;
+
+        foreach ($branding as $key => $default) {
+            if ($params && method_exists($params, 'get')) {
+                $value = trim((string) $params->get($key, $default));
+                $branding[$key] = $value !== '' ? self::cleanHistoryText($value, 180) : $default;
+            }
+        }
+
+        return $branding;
+    }
+
+    /**
+     * Return branding labels for a module id, falling back to defaults.
+     *
+     * @param   int  $moduleId  Joomla module id.
+     *
+     * @return  array<string, string>
+     */
+    private static function getBrandingForModule(int $moduleId): array
+    {
+        if ($moduleId <= 0) {
+            return self::getBranding(null);
+        }
+
+        try {
+            $db = \Joomla\CMS\Factory::getDbo();
+            $query = $db->getQuery(true)
+                ->select($db->quoteName('params'))
+                ->from($db->quoteName('#__modules'))
+                ->where($db->quoteName('id') . ' = ' . (int) $moduleId)
+                ->where($db->quoteName('module') . ' = ' . $db->quote('mod_splaskscore'));
+            $db->setQuery($query);
+            $rawParams = (string) $db->loadResult();
+        } catch (\Throwable $exception) {
+            return self::getBranding(null);
+        }
+
+        $registry = new \Joomla\Registry\Registry($rawParams ?: '{}');
+
+        return self::getBranding($registry);
+    }
+
+    /**
+     * Return escaped JSON labels for safe HTML data attributes.
+     *
+     * @param   array<string, string>  $branding  Branding labels.
+     *
+     * @return  string
+     */
+    public static function getBrandingJson(array $branding): string
+    {
+        return htmlspecialchars(json_encode($branding, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}', ENT_QUOTES, 'UTF-8');
+    }
 
     /**
      * Return the layout names currently supported by the module.
@@ -473,7 +581,7 @@ final class ModSplaskscoreHelper
         $totalRecords = self::getHistoryRecordCount($moduleId, $tokenHash);
 
         return array_merge($result, [
-            'html' => self::renderHistoryModal($records, $appearance, self::getAnalyticsHealth($moduleId, $tokenHash), self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords),
+            'html' => self::renderHistoryModal($records, $appearance, self::getAnalyticsHealth($moduleId, $tokenHash), self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords, self::getBrandingForModule($moduleId)),
             'chart' => self::buildTrendSeries($chartRecords),
             'mini_trend' => self::buildMiniTrendSeriesFromChartRecords($chartRecords),
             'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
@@ -521,7 +629,7 @@ final class ModSplaskscoreHelper
 
         return [
             'success' => true,
-            'html' => self::renderHistoryModal($records, $appearance, $health, self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords),
+            'html' => self::renderHistoryModal($records, $appearance, $health, self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords, self::getBrandingForModule($moduleId)),
             'chart' => self::buildTrendSeries($chartRecords),
             'mini_trend' => self::buildMiniTrendSeriesFromChartRecords($chartRecords),
             'health' => $health,
@@ -536,7 +644,7 @@ final class ModSplaskscoreHelper
      *
      * @return  string
      */
-    public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null, ?int $rowsPerPage = null, string $preset = 'dashboard_tile', ?array $chartRecords = null, ?int $totalRecords = null): string
+    public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null, ?int $rowsPerPage = null, string $preset = 'dashboard_tile', ?array $chartRecords = null, ?int $totalRecords = null, ?array $branding = null): string
     {
         $appearance = in_array($appearance, self::getAllowedAppearanceModes(), true) ? $appearance : 'light';
         $preset = 'dashboard_tile';
@@ -553,52 +661,53 @@ final class ModSplaskscoreHelper
         $health = $health ?? self::buildHealthFromRecords($records);
         $historyCount = $totalRecords ?? count($tableRecords);
         $pageSize = self::normaliseHistoryRowsPerPage($rowsPerPage);
+        $branding = array_merge(self::DEFAULT_BRANDING, $branding ?: []);
 
         ob_start();
         ?>
         <div class="splask-history-content splask-history-<?php echo htmlspecialchars($appearance, ENT_QUOTES, 'UTF-8'); ?> splask-history-mode-<?php echo htmlspecialchars($modeClass, ENT_QUOTES, 'UTF-8'); ?>" data-splask-history-preset="<?php echo htmlspecialchars($preset, ENT_QUOTES, 'UTF-8'); ?>">
-            <section class="splask-history-ops-console" aria-label="Pusat risikan operasi SPLaSK">
-                <div class="splask-history-ops-rail" aria-label="KPI analitik operasi">
-                    <div class="splask-history-ops-primary"><span>Skor Hari Ini</span><strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : '--'; ?></strong><small><?php echo $latest ? htmlspecialchars(self::formatHistoryDateOnly((string) ($latest->source_checked_at ?: $latest->created_at)), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></small></div>
-                    <div><span>Skor Terendah</span><strong><?php echo $lowest ? htmlspecialchars(self::formatScorePercent((float) $lowest->score), ENT_QUOTES, 'UTF-8') : '--'; ?></strong><?php if ($lowest) : ?><small><?php echo htmlspecialchars(self::formatHistoryDateOnly((string) ($lowest->source_checked_at ?: $lowest->created_at)), ENT_QUOTES, 'UTF-8'); ?></small><?php endif; ?></div>
-                    <div><span>Jumlah Rekod</span><strong><?php echo $historyCount; ?></strong><small>Semua rekod DB</small></div>
+            <section class="splask-history-ops-console" aria-label="<?php echo htmlspecialchars($branding['analytics_title'], ENT_QUOTES, 'UTF-8'); ?>">
+                <div class="splask-history-ops-rail" aria-label="<?php echo htmlspecialchars($branding['analytics_title'], ENT_QUOTES, 'UTF-8'); ?>">
+                    <div class="splask-history-ops-primary"><span><?php echo htmlspecialchars($branding['kpi_score_today_label'], ENT_QUOTES, 'UTF-8'); ?></span><strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : '--'; ?></strong><small><?php echo $latest ? htmlspecialchars(self::formatHistoryDateOnly((string) ($latest->source_checked_at ?: $latest->created_at)), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></small></div>
+                    <div><span><?php echo htmlspecialchars($branding['kpi_lowest_score_label'], ENT_QUOTES, 'UTF-8'); ?></span><strong><?php echo $lowest ? htmlspecialchars(self::formatScorePercent((float) $lowest->score), ENT_QUOTES, 'UTF-8') : '--'; ?></strong><?php if ($lowest) : ?><small><?php echo htmlspecialchars(self::formatHistoryDateOnly((string) ($lowest->source_checked_at ?: $lowest->created_at)), ENT_QUOTES, 'UTF-8'); ?></small><?php endif; ?></div>
+                    <div><span><?php echo htmlspecialchars($branding['kpi_total_records_label'], ENT_QUOTES, 'UTF-8'); ?></span><strong><?php echo $historyCount; ?></strong><small><?php echo htmlspecialchars($branding['kpi_total_records_caption'], ENT_QUOTES, 'UTF-8'); ?></small></div>
                 </div>
                 <div class="splask-history-ops-main">
-                    <div class="splask-history-chart splask-history-ops-chart" data-splask-history-chart aria-label="Carta trend peratus SPLaSK">
+                    <div class="splask-history-chart splask-history-ops-chart" data-splask-history-chart aria-label="<?php echo htmlspecialchars($branding['graph_history_chart_aria_label'], ENT_QUOTES, 'UTF-8'); ?>">
                         <?php echo self::renderTrendChart($chartRecords); ?>
                     </div>
                 </div>
             </section>
 
-            <div class="splask-history-table-shell" data-splask-history-pagination data-splask-history-page-size="<?php echo $pageSize; ?>">
+            <div class="splask-history-table-shell" data-splask-history-pagination data-splask-history-page-size="<?php echo $pageSize; ?>" data-splask-labels="<?php echo self::getBrandingJson($branding); ?>">
                 <script type="application/json" data-splask-history-records><?php echo htmlspecialchars(json_encode(self::buildHistoryTableRecords($tableRecords), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></script>
                 <div class="splask-history-page-size-control">
                     <label>
-                        <span>Baris Setiap Halaman</span>
-                        <input type="number" min="1" max="50" value="<?php echo $pageSize; ?>" data-splask-history-page-size-input aria-label="Baris Setiap Halaman" />
+                        <span><?php echo htmlspecialchars($branding['kpi_rows_per_page_label'], ENT_QUOTES, 'UTF-8'); ?></span>
+                        <input type="number" min="1" max="50" value="<?php echo $pageSize; ?>" data-splask-history-page-size-input aria-label="<?php echo htmlspecialchars($branding['kpi_rows_per_page_label'], ENT_QUOTES, 'UTF-8'); ?>" />
                     </label>
                 </div>
-                <div class="table-responsive splask-history-table-wrap" tabindex="0" aria-label="Senarai sejarah SPLaSK boleh ditatal">
+                <div class="table-responsive splask-history-table-wrap" tabindex="0" aria-label="<?php echo htmlspecialchars($branding['history_table_aria_label'], ENT_QUOTES, 'UTF-8'); ?>">
                     <table class="table table-sm align-middle splask-history-table">
                     <thead>
                         <tr>
-                            <th scope="col">Tarikh</th>
-                            <th scope="col">Masa Semakan</th>
-                            <th scope="col">Markah</th>
-                            <th scope="col">Gred</th>
-                            <th scope="col">Status</th>
+                            <th scope="col"><?php echo htmlspecialchars($branding['history_table_date_label'], ENT_QUOTES, 'UTF-8'); ?></th>
+                            <th scope="col"><?php echo htmlspecialchars($branding['history_table_time_label'], ENT_QUOTES, 'UTF-8'); ?></th>
+                            <th scope="col"><?php echo htmlspecialchars($branding['history_table_score_label'], ENT_QUOTES, 'UTF-8'); ?></th>
+                            <th scope="col"><?php echo htmlspecialchars($branding['history_table_grade_label'], ENT_QUOTES, 'UTF-8'); ?></th>
+                            <th scope="col"><?php echo htmlspecialchars($branding['history_table_status_label'], ENT_QUOTES, 'UTF-8'); ?></th>
                         </tr>
                     </thead>
                     <tbody data-splask-history-page-body>
                     </tbody>
                     </table>
                 </div>
-                <div class="splask-history-pagination" aria-label="Navigasi halaman sejarah">
-                    <span data-splask-history-page-status>Memaparkan 0–0 daripada <?php echo $historyCount; ?></span>
+                <div class="splask-history-pagination" aria-label="<?php echo htmlspecialchars($branding['history_pagination_aria_label'], ENT_QUOTES, 'UTF-8'); ?>">
+                    <span data-splask-history-page-status><?php echo htmlspecialchars(str_replace(['{start}', '{end}', '{total}'], ['0', '0', (string) $historyCount], $branding['history_page_status_template']), ENT_QUOTES, 'UTF-8'); ?></span>
                     <div class="splask-history-pagination-actions" data-splask-history-page-actions>
-                        <button type="button" class="splask-history-page-button" data-splask-history-page-prev aria-label="Halaman sejarah sebelumnya">Sebelumnya</button>
+                        <button type="button" class="splask-history-page-button" data-splask-history-page-prev aria-label="<?php echo htmlspecialchars($branding['history_previous_label'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($branding['history_previous_label'], ENT_QUOTES, 'UTF-8'); ?></button>
                         <span class="splask-history-page-numbers" data-splask-history-page-numbers></span>
-                        <button type="button" class="splask-history-page-button" data-splask-history-page-next aria-label="Halaman sejarah seterusnya">Seterusnya</button>
+                        <button type="button" class="splask-history-page-button" data-splask-history-page-next aria-label="<?php echo htmlspecialchars($branding['history_next_label'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($branding['history_next_label'], ENT_QUOTES, 'UTF-8'); ?></button>
                     </div>
                 </div>
             </div>

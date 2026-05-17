@@ -39,6 +39,17 @@
   font-weight: 700;
 }
 
+.splask-heading {
+  min-width: 0;
+}
+
+.splask-subtitle {
+  margin: 0.18rem 0 0;
+  color: color-mix(in srgb, currentColor 78%, transparent);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
 .splask-grade-pill {
   display: inline-flex;
   align-items: center;

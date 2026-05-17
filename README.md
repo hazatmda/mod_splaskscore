@@ -15,7 +15,6 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 
-
 ## Automasi Analitik & Joomla Scheduled Tasks
 
 Tetapan modul ialah panel kawalan utama untuk automasi analitik. Selepas pemasangan atau simpanan modul, SPLaSK Score akan cuba memasang/mengaktifkan plugin Scheduler, mencipta tugas Joomla Scheduled Tasks yang diperlukan, dan menyelaraskan status aktif, frekuensi, masa kutipan, duplicate cooldown, retention days, serta had rekod sejarah daripada parameter modul.
@@ -33,7 +32,6 @@ Untuk mengelakkan beberapa module instance saling menulis jadual scheduler yang 
 Modul ini menyokong Joomla Update Server.
 
 Fail `mod_splaskscore_update.xml` menyediakan maklumat kemaskini dan disemak secara automatik oleh Joomla.
-
 
 ## Workflow Wajib Sebelum PR / Release
 
@@ -62,7 +60,7 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 
 ### Evolusi Release Enterprise Terkini
 
-Rangkaian release terkini disusun sebagai perkembangan produk yang berurutan: asas analitik operasi dimantapkan dahulu, paparan graf diperhalus, telemetry dashboard disatukan, konfigurasi branding enterprise dibuka kepada pentadbir, dan panel About akhirnya diperhalus sebagai metadata produk yang konsisten.
+Rangkaian release terkini disusun sebagai perkembangan produk yang berurutan: asas analitik operasi dimantapkan dahulu, paparan graf diperhalus, telemetry dashboard disatukan, konfigurasi branding enterprise dibuka kepada pentadbir, panel About diperhalus sebagai metadata produk enterprise, dan akhirnya metadata release diselaraskan untuk memastikan kronologi deployment kekal konsisten.
 
 **v1.5.7 (17 Mei 2026) — Operational analytics foundation**
 
@@ -85,13 +83,19 @@ Rangkaian release terkini disusun sebagai perkembangan produk yang berurutan: as
 **v1.6.1 (17 Mei 2026) — Enterprise branding/configuration**
 
 - Menambah tab Configuration untuk mengurus tajuk dashboard, tajuk/subtajuk analitik, label butang, label KPI, label graf, dan label jadual sejarah melalui parameter modul Joomla.
-- Menambah tab About sebagai permulaan metadata produk yang meliputi produk, owner, organisasi, repository, issue tracker, compatibility, channel, dan release target.
+- Menambah tab About sebagai permulaan metadata produk yang meliputi produk, owner, organisasi, repository, issue tracker, compatibility, dan release channel.
 - Metadata release disegerakkan untuk tag `v1.6.1` dan pakej `mod_splaskscore_v1.6.1.zip`.
 
-**v1.6.3 (17 Mei 2026) — About panel refinement**
+**v1.6.2 (17 Mei 2026) — About metadata panel refinement**
 
-- Memperhalus tab About kepada panel metadata enterprise yang lebih kemas, tanpa rupa input readonly, dengan hierarki tipografi dan jarak yang lebih konsisten.
-- Menyelaraskan maklumat organisasi rasmi, membuang seksyen Release Target yang tidak lagi diperlukan, dan mengekalkan keserasian dark mode serta rendering responsif.
+- Memperhalus tab About kepada panel metadata enterprise yang lebih kemas tanpa rupa input readonly, dengan hierarki tipografi dan jarak yang lebih konsisten.
+- Menyelaraskan maklumat organisasi rasmi serta membuang seksyen Release Target untuk pengalaman metadata yang lebih bersih dan profesional.
+- Metadata release disegerakkan untuk tag `v1.6.2` dan pakej `mod_splaskscore_v1.6.2.zip`.
+
+**v1.6.3 (17 Mei 2026) — Release metadata synchronization hotfix**
+
+- Menyelaraskan semua rujukan metadata release selepas refinement v1.6.2 bagi memastikan kronologi deployment dan package identity kekal konsisten.
+- Menyegerakkan manifest, update metadata, plugin metadata, About panel version display, dan rujukan README kepada `v1.6.3`.
 - Metadata release disegerakkan untuk tag `v1.6.3` dan pakej `mod_splaskscore_v1.6.3.zip`.
 
 ### Release Terdahulu
@@ -156,7 +160,7 @@ Rangkaian release terkini disusun sebagai perkembangan produk yang berurutan: as
 - README & versi seragam
 
 **v1.1.5**
-- Penambahbaikan logik penggredan:  
+- Penambahbaikan logik penggredan:
   - Gred A (95-100), B (91-94), C (86-90), GAGAL (85 ke bawah)
 - Fail manifest & update server dikemaskini.
 - Versi & tarikh diseragamkan.

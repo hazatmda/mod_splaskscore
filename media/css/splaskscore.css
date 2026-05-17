@@ -2072,3 +2072,160 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* v1.6.0 enterprise analytics modal refinement: unify KPI rail and chart into one telemetry surface. */
+.splask-history-mode-operations-grid .splask-history-ops-console {
+  position: relative;
+  overflow: hidden;
+  grid-template-columns: minmax(11rem, 0.31fr) minmax(0, 1fr);
+  gap: 0;
+  margin-bottom: 0.72rem;
+  border: 1px solid color-mix(in srgb, var(--splask-grade-color) 18%, var(--splask-panel-border));
+  border-radius: 1rem;
+  padding: 0.62rem;
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--splask-grade-accent) 12%, transparent), transparent 28%),
+    linear-gradient(135deg, color-mix(in srgb, var(--splask-modal-panel-strong) 92%, transparent), var(--splask-modal-panel));
+  box-shadow: 0 1rem 2.4rem rgba(2, 6, 23, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-console::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--splask-grade-color) 10%, transparent), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 38%);
+  content: '';
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-rail,
+.splask-history-mode-operations-grid .splask-history-ops-main {
+  position: relative;
+  z-index: 1;
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-rail {
+  gap: 0;
+  border-right: 1px solid color-mix(in srgb, var(--splask-grade-color) 16%, var(--splask-subtle));
+  padding-right: 0.62rem;
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-rail > div {
+  min-height: 4.2rem;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--splask-grade-color) 12%, var(--splask-subtle));
+  border-radius: 0;
+  padding: 0.54rem 0.35rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-rail > div:last-child {
+  border-bottom: 0;
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-rail > .splask-history-ops-primary {
+  min-height: 4.9rem;
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-rail span {
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-rail strong {
+  font-size: clamp(1.24rem, 2.4vw, 1.76rem);
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-rail small {
+  font-size: 0.68rem;
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-main {
+  display: flex;
+  min-width: 0;
+  padding-left: 0.62rem;
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-chart {
+  flex: 1 1 auto;
+  min-height: 15.6rem;
+  margin-bottom: 0;
+  border: 0;
+  border-radius: 0.78rem;
+  padding: 0.12rem 0.1rem 0.04rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+.splask-history-mode-operations-grid .splask-history-chart-canvas-wrap {
+  height: clamp(13.25rem, 31vw, 16.5rem);
+}
+
+.splask-history-mode-operations-grid .splask-history-line-chart {
+  min-height: 12.75rem;
+}
+
+.splask-widget[data-splask-appearance='dark'] .splask-history-mode-operations-grid .splask-history-ops-console {
+  border-color: color-mix(in srgb, var(--splask-grade-color) 24%, rgba(148, 163, 184, 0.2));
+  background:
+    radial-gradient(circle at 12% -4%, color-mix(in srgb, var(--splask-grade-color) 18%, transparent), transparent 31%),
+    linear-gradient(135deg, #101827, #0b1220 72%);
+  box-shadow: 0 1.25rem 3rem rgba(0, 0, 0, 0.44), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+@media (max-width: 767.98px) {
+  .splask-history-mode-operations-grid .splask-history-ops-console {
+    gap: 0.58rem;
+    padding: 0.58rem;
+  }
+
+  .splask-history-mode-operations-grid .splask-history-ops-rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-right: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--splask-grade-color) 16%, var(--splask-subtle));
+    padding-right: 0;
+    padding-bottom: 0.5rem;
+  }
+
+  .splask-history-mode-operations-grid .splask-history-ops-rail > div {
+    min-height: 3.9rem;
+    border-right: 1px solid color-mix(in srgb, var(--splask-grade-color) 12%, var(--splask-subtle));
+    border-bottom: 0;
+  }
+
+  .splask-history-mode-operations-grid .splask-history-ops-rail > div:last-child {
+    border-right: 0;
+  }
+
+  .splask-history-mode-operations-grid .splask-history-ops-main {
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .splask-history-mode-operations-grid .splask-history-chart-canvas-wrap {
+    height: 12.75rem;
+  }
+}
+
+@container (max-width: 420px) {
+  .splask-history-mode-operations-grid .splask-history-ops-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .splask-history-mode-operations-grid .splask-history-ops-rail > div {
+    min-height: 3.75rem;
+    border-right: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--splask-grade-color) 12%, var(--splask-subtle));
+  }
+
+  .splask-history-mode-operations-grid .splask-history-ops-rail > div:last-child {
+    border-bottom: 0;
+  }
+
+  .splask-history-mode-operations-grid .splask-history-chart-canvas-wrap {
+    height: 12rem;
+  }
+}

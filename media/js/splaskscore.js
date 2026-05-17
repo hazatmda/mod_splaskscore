@@ -358,7 +358,8 @@
     const width = dimensions.width;
     const height = dimensions.height;
     const ratio = window.devicePixelRatio || 1;
-    const padding = { top: 16, right: 14, bottom: 38, left: 44 };
+    const labelFontSize = width < 520 || points.length > 14 ? 10 : 11;
+    const labelFont = `${labelFontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
 
     if (!context || points.length < 2) {
       canvas._splaskChartCoordinates = [];
@@ -379,12 +380,19 @@
     canvas.style.height = `${height}px`;
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.clearRect(0, 0, width, height);
-    context.font = '12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    context.font = labelFont;
     context.lineCap = 'round';
     context.lineJoin = 'round';
 
-    const plotWidth = width - padding.left - padding.right;
-    const plotHeight = height - padding.top - padding.bottom;
+    const widestLabel = points.reduce((widest, point) => Math.max(widest, context.measureText(String(point.label || '')).width), 0);
+    const padding = {
+      top: 16,
+      right: Math.min(64, Math.max(18, Math.ceil(widestLabel * 0.72))),
+      bottom: Math.min(68, Math.max(46, Math.ceil(widestLabel * 0.68) + labelFontSize)),
+      left: 44
+    };
+    const plotWidth = Math.max(1, width - padding.left - padding.right);
+    const plotHeight = Math.max(1, height - padding.top - padding.bottom);
     const scale = chartScale(points);
     const scaleRange = Math.max(1, scale.max - scale.min);
     const toX = (index) => padding.left + (points.length === 1 ? 0 : (index / (points.length - 1)) * plotWidth);
@@ -402,19 +410,16 @@
       context.fillText(formatChartTick(tick), 8, y + 4);
     });
 
-    const maxLabels = width < 520 ? 3 : Math.min(points.length, 6);
-    const labelStep = Math.max(1, Math.ceil((points.length - 1) / Math.max(1, maxLabels - 1)));
+    context.font = labelFont;
+    context.textBaseline = 'middle';
     points.forEach((point, index) => {
-      if (index !== 0 && index !== points.length - 1 && index % labelStep !== 0) {
-        return;
-      }
-
       const x = toX(index);
       const label = String(point.label || '');
+
       context.save();
-      context.translate(x, height - 24);
-      context.rotate(width < 520 ? -Math.PI / 8 : 0);
-      context.textAlign = index === 0 ? 'left' : (index === points.length - 1 ? 'right' : 'center');
+      context.translate(x, height - Math.max(12, Math.floor(labelFontSize * 1.2)));
+      context.rotate(-Math.PI / 4);
+      context.textAlign = 'left';
       context.fillText(label, 0, 0);
       context.restore();
     });

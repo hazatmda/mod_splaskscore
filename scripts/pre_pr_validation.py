@@ -511,7 +511,7 @@ def validate_dashboard_consistency() -> None:
         "central PHP score formatter": "formatScorePercent" in helper,
         "dashboard JS score formatter": "function formatScore" in script and "formatScore(score)" in script,
         "Malay month-only PHP formatting": "MALAY_MONTHS" in helper and "formatHistoryDateOnly" in helper,
-        "next check derives from check timestamp": "addDaysPreservingTime(data.last_check, 1)" in script and "formatMalayOperationalTimestamp(nextCheck)" in script,
+        "next check derives from check timestamp": "addDaysPreservingTime(data.last_check, 1)" in script and "formatMalayOperationalDate(nextCheck)" in script,
         "Joomla timezone live clock": "getJoomlaClockSeed" in helper and "data-splask-clock-timezone" in layout and "startLiveClock(root)" in script,
         "analytics modal rendering": "renderHistoryModal" in helper and "data-splask-history-chart" in helper,
         "history AJAX rendering": "loadHistory" in script and "bindHistoryModal" in script,
@@ -529,8 +529,10 @@ def validate_dashboard_consistency() -> None:
     update_success = extract_function_body(script, "updateSuccess")
     if "new Date()" in update_success or "setUTCHours(12" in update_success or "setUTCDate(nextCheck.getUTCDate() + 1)" in update_success:
         raise AssertionError("Next-check regression: display logic must derive Semakan Seterusnya from Tarikh Semakan + 1 day, not a standalone scheduler-style date")
-    if "formatMalayOperationalTimestamp(data.last_check)" not in update_success or "formatMalayOperationalTimestamp(nextCheck)" not in update_success:
-        raise AssertionError("Next-check regression: Tarikh Semakan and Semakan Seterusnya must share Malay timestamp formatting with preserved time")
+    if "formatMalayOperationalTimestamp(data.last_check)" not in update_success:
+        raise AssertionError("Next-check regression: Tarikh Semakan must preserve Malay timestamp formatting with time")
+    if "formatMalayOperationalDate(nextCheck)" not in update_success or "formatMalayOperationalTimestamp(nextCheck)" in update_success:
+        raise AssertionError("Next-check regression: Semakan Seterusnya must display Malay day/date only while deriving from the preserved-time check timestamp")
 
     add_days = extract_function_body(script, "addDaysPreservingTime")
     required_next_tokens = ["parseSplaskDate(dateStr)", "new Date(parsed.getTime())", "setUTCDate(nextDate.getUTCDate() + days)"]

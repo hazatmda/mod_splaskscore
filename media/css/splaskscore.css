@@ -43,6 +43,34 @@
   min-width: 0;
 }
 
+.splask-header-telemetry {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.48rem;
+  min-width: 0;
+}
+
+.splask-live-clock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  border: 1px solid color-mix(in srgb, var(--splask-grade-accent) 26%, rgba(148, 163, 184, 0.22));
+  border-radius: 999px;
+  padding: 0.34rem 0.68rem;
+  color: color-mix(in srgb, currentColor 86%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--splask-grade-accent) 10%, transparent), rgba(15, 23, 42, 0.16));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  font-size: clamp(0.66rem, 1.8cqi, 0.76rem);
+  font-weight: 850;
+  letter-spacing: 0.045em;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .splask-subtitle {
   margin: 0.18rem 0 0;
   color: color-mix(in srgb, currentColor 78%, transparent);
@@ -2238,5 +2266,22 @@
 
   .splask-history-mode-operations-grid .splask-history-chart-canvas-wrap {
     height: 12rem;
+  }
+}
+
+@container (max-width: 520px) {
+  .splask-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .splask-header-telemetry {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .splask-live-clock {
+    min-width: 0;
+    white-space: normal;
   }
 }

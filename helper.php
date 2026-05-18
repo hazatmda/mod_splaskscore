@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.6.3';
+    private const ENGINE_VERSION = '1.6.4';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -94,6 +94,76 @@ final class ModSplaskscoreHelper
     ];
 
 
+
+
+    /**
+     * Return the current Joomla-configured clock seed for dashboard telemetry.
+     *
+     * @return  array{timezone: string, epoch: int, display: string}
+     */
+    public static function getJoomlaClockSeed(): array
+    {
+        $timezone = 'UTC';
+
+        try {
+            $config = \Joomla\CMS\Factory::getConfig();
+            $configuredTimezone = (string) $config->get('offset', 'UTC');
+            $timezone = $configuredTimezone !== '' ? $configuredTimezone : 'UTC';
+            $timezoneObject = new \DateTimeZone($timezone);
+        } catch (\Throwable $exception) {
+            $timezone = 'UTC';
+            $timezoneObject = new \DateTimeZone('UTC');
+        }
+
+        try {
+            $now = new \Joomla\CMS\Date\Date('now', new \DateTimeZone('UTC'));
+            $now->setTimezone($timezoneObject);
+        } catch (\Throwable $exception) {
+            $now = new \DateTimeImmutable('now', $timezoneObject);
+        }
+
+        return [
+            'timezone' => $timezone,
+            'epoch' => (int) $now->format('U'),
+            'display' => self::formatMalayClockDate($now),
+        ];
+    }
+
+    /**
+     * Format a Joomla Date/DateTime object using the compact Malay dashboard clock style.
+     *
+     * @param   \DateTimeInterface  $date  Date in the desired Joomla timezone.
+     *
+     * @return  string
+     */
+    private static function formatMalayClockDate(\DateTimeInterface $date): string
+    {
+        $weekdays = [
+            0 => 'Ahad',
+            1 => 'Isnin',
+            2 => 'Selasa',
+            3 => 'Rabu',
+            4 => 'Khamis',
+            5 => 'Jumaat',
+            6 => 'Sabtu',
+        ];
+
+        $hour = (int) $date->format('G');
+        $displayHour = $hour % 12 ?: 12;
+        $period = $hour >= 12 ? 'PM' : 'AM';
+        $month = self::MALAY_MONTHS[(int) $date->format('n')] ?? $date->format('M');
+
+        return sprintf(
+            '%s • %d %s %s • %d:%s %s',
+            $weekdays[(int) $date->format('w')] ?? $date->format('D'),
+            (int) $date->format('j'),
+            $month,
+            $date->format('Y'),
+            $displayHour,
+            $date->format('i'),
+            $period
+        );
+    }
 
     /**
      * Return administrator-configurable dashboard branding labels.

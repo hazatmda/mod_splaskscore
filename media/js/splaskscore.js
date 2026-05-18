@@ -133,16 +133,17 @@
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
-  function formatMalayDate(dateStr) {
+  function addDaysPreservingTime(dateStr, days) {
     const parsed = parseSplaskDate(dateStr);
 
     if (!parsed) {
-      return dateStr || 'Tiada';
+      return null;
     }
 
-    const month = MALAY_MONTHS[parsed.getUTCMonth()];
+    const nextDate = new Date(parsed.getTime());
+    nextDate.setUTCDate(nextDate.getUTCDate() + days);
 
-    return `${parsed.getUTCDate()} ${month} ${parsed.getUTCFullYear()}`;
+    return nextDate;
   }
 
 
@@ -161,6 +162,72 @@
     const displayHours = hours % 12 || 12;
 
     return `${weekday} • ${parsed.getUTCDate()} ${month} ${parsed.getUTCFullYear()} • ${displayHours}:${minutes} ${period}`;
+  }
+
+  function getDatePartsInTimeZone(date, timeZone) {
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      hour: 'numeric',
+      hour12: false,
+      minute: '2-digit',
+      month: 'numeric',
+      timeZone,
+      weekday: 'short',
+      year: 'numeric'
+    });
+    const values = {};
+
+    formatter.formatToParts(date).forEach((part) => {
+      values[part.type] = part.value;
+    });
+
+    return {
+      day: Number(values.day),
+      hour: Number(values.hour === '24' ? '0' : values.hour),
+      minute: String(values.minute || '00').padStart(2, '0'),
+      month: Number(values.month) - 1,
+      weekday: date.getUTCDay(),
+      year: Number(values.year)
+    };
+  }
+
+  function formatMalayClockTimestamp(date, timeZone) {
+    let parts;
+
+    try {
+      parts = getDatePartsInTimeZone(date, timeZone || 'UTC');
+    } catch (error) {
+      parts = getDatePartsInTimeZone(date, 'UTC');
+    }
+
+    const probe = new Date(Date.UTC(parts.year, parts.month, parts.day));
+    const weekday = MALAY_WEEKDAYS[probe.getUTCDay()];
+    const month = MALAY_MONTHS[parts.month];
+    const period = parts.hour >= 12 ? 'PM' : 'AM';
+    const displayHours = parts.hour % 12 || 12;
+
+    return `${weekday} • ${parts.day} ${month} ${parts.year} • ${displayHours}:${parts.minute} ${period}`;
+  }
+
+  function startLiveClock(root) {
+    const clock = root.querySelector('[data-splask-live-clock]');
+    const serverEpoch = Number(root.dataset.splaskClockEpoch || 0);
+
+    if (!clock || !Number.isFinite(serverEpoch) || serverEpoch <= 0) {
+      return;
+    }
+
+    const timeZone = root.dataset.splaskClockTimezone || 'UTC';
+    const browserStart = Date.now();
+    const serverStart = serverEpoch * 1000;
+
+    const render = () => {
+      const current = new Date(serverStart + (Date.now() - browserStart));
+      clock.textContent = formatMalayClockTimestamp(current, timeZone);
+    };
+
+    render();
+    window.setInterval(render, 1000);
   }
 
   function setText(root, name, value) {
@@ -1038,11 +1105,9 @@
   function updateSuccess(root, data, rules) {
     const score = Number(data.final_score) || 0;
     const grade = resolveGrade(score, rules);
-    const nextCheck = new Date();
+    const nextCheck = addDaysPreservingTime(data.last_check, 1);
     const link = root.querySelector('[data-splask-link]');
 
-    nextCheck.setUTCHours(12, 0, 0, 0);
-    nextCheck.setUTCDate(nextCheck.getUTCDate() + 1);
     applyGradeStyles(root, grade, score);
 
     setText(root, 'score', formatScore(score));
@@ -1050,7 +1115,7 @@
     setText(root, 'grade-short', grade.shortLabel);
     setText(root, 'status', grade.status);
     setText(root, 'date', formatMalayOperationalTimestamp(data.last_check));
-    setText(root, 'next', formatMalayDate(nextCheck));
+    setText(root, 'next', nextCheck ? formatMalayOperationalTimestamp(nextCheck) : 'Tiada');
     updateMiniTrendCharts(root);
 
     if (link && data.verification_url) {
@@ -1074,6 +1139,7 @@
 
     root.dataset.splaskInitialized = 'true';
     applyAppearance(root);
+    startLiveClock(root);
     applyHealth(root);
     bindHistoryModal(root);
     initHistoryCharts(root);

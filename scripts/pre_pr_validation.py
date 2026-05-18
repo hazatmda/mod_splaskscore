@@ -505,12 +505,14 @@ def validate_dashboard_consistency() -> None:
     helper = (ROOT / "helper.php").read_text()
     script = (ROOT / "media" / "js" / "splaskscore.js").read_text()
     styles = (ROOT / "media" / "css" / "splaskscore.css").read_text()
+    layout = (ROOT / "tmpl" / "_score_card.php").read_text()
 
     checks = {
         "central PHP score formatter": "formatScorePercent" in helper,
         "dashboard JS score formatter": "function formatScore" in script and "formatScore(score)" in script,
         "Malay month-only PHP formatting": "MALAY_MONTHS" in helper and "formatHistoryDateOnly" in helper,
-        "Malay month-only JS formatting": "const MALAY_MONTHS" in script and "formatMalayDate(nextCheck)" in script,
+        "next check derives from check timestamp": "addDaysPreservingTime(data.last_check, 1)" in script and "formatMalayOperationalTimestamp(nextCheck)" in script,
+        "Joomla timezone live clock": "getJoomlaClockSeed" in helper and "data-splask-clock-timezone" in layout and "startLiveClock(root)" in script,
         "analytics modal rendering": "renderHistoryModal" in helper and "data-splask-history-chart" in helper,
         "history AJAX rendering": "loadHistory" in script and "bindHistoryModal" in script,
         "dark appearance behavior": "resolveAppearance" in script and ("data-splask-appearance=\"dark\"" in styles or "data-splask-appearance='dark'" in styles),
@@ -524,11 +526,23 @@ def validate_dashboard_consistency() -> None:
     if re.search(r"number_format\([^\n]+score[^\n]+,\s*0\)", helper, re.IGNORECASE):
         raise AssertionError("Precision consistency failed: score displays must not round to whole percentages")
 
-    format_malay_date = extract_function_body(script, "formatMalayDate")
-    forbidden_date_tokens = ["MALAY_WEEKDAYS", "toLocaleDateString", "getUTCHours", "getUTCMinutes", " • ", "AM", "PM"]
-    leaked_date_tokens = [token for token in forbidden_date_tokens if token in format_malay_date or (token == "toLocaleDateString" and token in script)]
-    if leaked_date_tokens:
-        raise AssertionError("Date formatting regression: operational dates must be month-only BM dates without weekday, time, slash locale, or bullets: " + ", ".join(leaked_date_tokens))
+    update_success = extract_function_body(script, "updateSuccess")
+    if "new Date()" in update_success or "setUTCHours(12" in update_success or "setUTCDate(nextCheck.getUTCDate() + 1)" in update_success:
+        raise AssertionError("Next-check regression: display logic must derive Semakan Seterusnya from Tarikh Semakan + 1 day, not a standalone scheduler-style date")
+    if "formatMalayOperationalTimestamp(data.last_check)" not in update_success or "formatMalayOperationalTimestamp(nextCheck)" not in update_success:
+        raise AssertionError("Next-check regression: Tarikh Semakan and Semakan Seterusnya must share Malay timestamp formatting with preserved time")
+
+    add_days = extract_function_body(script, "addDaysPreservingTime")
+    required_next_tokens = ["parseSplaskDate(dateStr)", "new Date(parsed.getTime())", "setUTCDate(nextDate.getUTCDate() + days)"]
+    missing_next_tokens = [token for token in required_next_tokens if token not in add_days]
+    if missing_next_tokens:
+        raise AssertionError("Next-check regression: +1 day helper must preserve the original time component: " + ", ".join(missing_next_tokens))
+
+    live_clock = extract_function_body(script, "startLiveClock")
+    required_clock_tokens = ["dataset.splaskClockEpoch", "dataset.splaskClockTimezone", "serverEpoch * 1000", "Date.now() - browserStart", "formatMalayClockTimestamp(current, timeZone)", "setInterval(render, 1000)"]
+    missing_clock_tokens = [token for token in required_clock_tokens if token not in live_clock]
+    if missing_clock_tokens:
+        raise AssertionError("Live clock regression: clock must use Joomla timezone seed and update in place: " + ", ".join(missing_clock_tokens))
 
     required_kpi_alignment = ["place-items: center", "justify-content: center", "text-align: center", "letter-spacing: -0.035em"]
     missing_kpi_alignment = [token for token in required_kpi_alignment if token not in styles]

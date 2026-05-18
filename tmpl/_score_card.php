@@ -40,6 +40,7 @@ $miniTrendSeries = $token !== '' ? ModSplaskscoreHelper::getDashboardMiniTrendSe
 $miniTrendJson = htmlspecialchars(json_encode($miniTrendSeries, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_QUOTES, 'UTF-8');
 $branding = ModSplaskscoreHelper::getBranding($params);
 $brandingJson = ModSplaskscoreHelper::getBrandingJson($branding);
+$clockSeed = ModSplaskscoreHelper::getJoomlaClockSeed();
 ?>
 
 <div
@@ -61,6 +62,8 @@ $brandingJson = ModSplaskscoreHelper::getBrandingJson($branding);
   data-splask-health-status="<?php echo htmlspecialchars((string) ($initialHealth['status'] ?? 'UNKNOWN'), ENT_QUOTES, 'UTF-8'); ?>"
   data-splask-missing-today="<?php echo !empty($initialHealth['missing_today']) ? 'true' : 'false'; ?>"
   data-splask-labels="<?php echo $brandingJson; ?>"
+  data-splask-clock-timezone="<?php echo htmlspecialchars($clockSeed['timezone'], ENT_QUOTES, 'UTF-8'); ?>"
+  data-splask-clock-epoch="<?php echo (int) $clockSeed['epoch']; ?>"
 >
   <section class="splask-card" aria-labelledby="<?php echo htmlspecialchars($rootId, ENT_QUOTES, 'UTF-8'); ?>-title">
     <header class="splask-header">
@@ -72,7 +75,10 @@ $brandingJson = ModSplaskscoreHelper::getBrandingJson($branding);
           <p class="splask-subtitle"><?php echo htmlspecialchars($branding['dashboard_subtitle'], ENT_QUOTES, 'UTF-8'); ?></p>
         <?php endif; ?>
       </div>
-      <span class="splask-grade-pill" data-splask-grade-short aria-label="Gred semasa">…</span>
+      <div class="splask-header-telemetry" aria-label="Masa semasa Joomla">
+        <span class="splask-live-clock" data-splask-live-clock><?php echo htmlspecialchars($clockSeed['display'], ENT_QUOTES, 'UTF-8'); ?></span>
+        <span class="splask-grade-pill" data-splask-grade-short aria-label="Gred semasa">…</span>
+      </div>
     </header>
 
     <div class="splask-body">

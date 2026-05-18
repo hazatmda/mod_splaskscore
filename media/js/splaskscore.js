@@ -147,7 +147,7 @@
   }
 
 
-  function formatMalayOperationalTimestamp(dateStr) {
+  function formatMalayOperationalDate(dateStr) {
     const parsed = parseSplaskDate(dateStr);
 
     if (!parsed) {
@@ -156,12 +156,23 @@
 
     const weekday = MALAY_WEEKDAYS[parsed.getUTCDay()];
     const month = MALAY_MONTHS[parsed.getUTCMonth()];
+
+    return `${weekday} • ${parsed.getUTCDate()} ${month} ${parsed.getUTCFullYear()}`;
+  }
+
+  function formatMalayOperationalTimestamp(dateStr) {
+    const parsed = parseSplaskDate(dateStr);
+
+    if (!parsed) {
+      return dateStr || 'Tiada';
+    }
+
     const hours = parsed.getUTCHours();
     const minutes = String(parsed.getUTCMinutes()).padStart(2, '0');
     const period = hours >= 12 ? 'PM' : 'AM';
     const displayHours = hours % 12 || 12;
 
-    return `${weekday} • ${parsed.getUTCDate()} ${month} ${parsed.getUTCFullYear()} • ${displayHours}:${minutes} ${period}`;
+    return `${formatMalayOperationalDate(parsed)} • ${displayHours}:${minutes} ${period}`;
   }
 
   function getDatePartsInTimeZone(date, timeZone) {
@@ -1115,7 +1126,7 @@
     setText(root, 'grade-short', grade.shortLabel);
     setText(root, 'status', grade.status);
     setText(root, 'date', formatMalayOperationalTimestamp(data.last_check));
-    setText(root, 'next', nextCheck ? formatMalayOperationalTimestamp(nextCheck) : 'Tiada');
+    setText(root, 'next', nextCheck ? formatMalayOperationalDate(nextCheck) : 'Tiada');
     updateMiniTrendCharts(root);
 
     if (link && data.verification_url) {

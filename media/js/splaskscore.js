@@ -886,8 +886,13 @@
       saveBtn.className = 'btn btn-sm btn-primary mt-1';
       saveBtn.textContent = 'Simpan';
       saveBtn.addEventListener('click', () => {
+        const widget = shell.closest('[data-splask-widget]');
+        if (!widget) {
+          return;
+        }
+
         saveBtn.disabled = true;
-        postModuleAjax(document.querySelector('[data-splask-widget]'), 'saveCatatan', { id: record.id, catatan: noteInput.value })
+        postModuleAjax(widget, 'saveCatatan', { id: record.id, catatan: noteInput.value })
           .then(unwrapAjaxResponse)
           .then((res) => {
             saveBtn.disabled = false;

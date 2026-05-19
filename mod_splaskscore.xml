@@ -2,8 +2,8 @@
 <extension type="module" client="administrator" method="upgrade">
     <name>mod_splaskscore</name>
     <author>Muhammad Azizan Hazim</author>
-    <version>1.6.14</version>
-    <description>Modul papan pemuka operasi SPLaSK dengan sistem analitik premium bersatu versi 1.6.14</description>
+    <version>1.6.15</version>
+    <description>Modul papan pemuka operasi SPLaSK dengan sistem analitik premium bersatu versi 1.6.15</description>
     <scriptfile>script.php</scriptfile>
     <files>
         <filename module="mod_splaskscore">mod_splaskscore.php</filename>

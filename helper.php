@@ -614,7 +614,8 @@ final class ModSplaskscoreHelper
         }
 
         $user = \Joomla\CMS\Factory::getUser();
-        if (!$user || $user->guest || (!$user->authorise('core.manage', 'com_modules') && !$user->authorise('core.admin'))) {
+
+        if (!self::canEditCatatan($user, $input->getInt('module_id', 0))) {
             return ['success' => false, 'message' => 'Anda tidak dibenarkan mengemaskini catatan.'];
         }
 
@@ -646,6 +647,25 @@ final class ModSplaskscoreHelper
      *
      * @return  array<string, mixed>
      */
+
+    /**
+     * Determines whether the user may edit Catatan records.
+     */
+    private static function canEditCatatan(?\Joomla\CMS\User\User $user, int $moduleId): bool
+    {
+        if (!$user || $user->guest) {
+            return false;
+        }
+
+        $moduleAsset = $moduleId > 0 ? 'com_modules.module.' . $moduleId : 'com_modules';
+
+        if ($user->authorise('core.edit.catatan', $moduleAsset) || $user->authorise('core.edit.catatan', 'com_modules')) {
+            return true;
+        }
+
+        return $user->authorise('core.manage', 'com_modules') || $user->authorise('core.admin');
+    }
+
     public static function refreshAnalyticsAjax(): array
     {
         $app = \Joomla\CMS\Factory::getApplication();

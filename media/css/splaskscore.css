@@ -2335,7 +2335,7 @@
   color: #6c757d;
 }
 
-/* v1.6.16 analytics modal viewport optimization for 1366x768 and 1920x1080. */
+/* v1.6.18 analytics modal proportional rebalance for 1366x768 and 1920x1080. */
 
 .splask-history-modal .modal-content {
   display: flex;
@@ -2425,8 +2425,21 @@
   gap: 0.56rem;
 }
 
+
+.splask-history-summary > div {
+  padding: 0.48rem 0.62rem 0.5rem 0.68rem;
+}
+
+.splask-history-summary strong {
+  font-size: clamp(0.94rem, 0.88rem + 0.34vw, 1.14rem);
+}
+
+.splask-history-summary small {
+  font-size: clamp(0.62rem, 0.58rem + 0.22vw, 0.7rem);
+}
+
 .splask-history-chart-canvas-wrap {
-  min-height: clamp(180px, 26vh, 320px);
+  min-height: clamp(210px, 29vh, 340px);
 }
 
 .splask-history-table-wrap {
@@ -2518,7 +2531,7 @@
   }
 
   .splask-history-chart-canvas-wrap {
-    min-height: clamp(170px, 24vh, 260px);
+    min-height: clamp(190px, 27vh, 285px);
   }
 
   .splask-history-line-chart {

@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.6.7';
+    private const ENGINE_VERSION = '1.6.8';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 

@@ -996,6 +996,15 @@
       editor.addEventListener('change', () => {
         const widget = shell.closest('[data-splask-widget]');
         scheduleCatatanSave(widget, record, editor.value, editor, status);
+      });
+
+      editor.addEventListener('blur', () => {
+        if (!editable) {
+          return;
+        }
+
+        const widget = shell.closest('[data-splask-widget]');
+        scheduleCatatanSave(widget, record, editor.value, editor, status);
         window.setTimeout(closeEditor, 120);
       });
 

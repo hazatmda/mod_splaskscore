@@ -973,6 +973,7 @@
 
         displayButton.hidden = true;
         editor.hidden = false;
+        editor.select();
       };
 
       const closeEditor = () => {
@@ -998,14 +999,33 @@
         scheduleCatatanSave(widget, record, editor.value, editor, status);
       });
 
-      editor.addEventListener('blur', () => {
-        if (!editable) {
+      const persistAndCloseEditor = () => {
+        if (!editable || editor.hidden) {
           return;
         }
 
         const widget = shell.closest('[data-splask-widget]');
         scheduleCatatanSave(widget, record, editor.value, editor, status);
         window.setTimeout(closeEditor, 120);
+      };
+
+      editor.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          persistAndCloseEditor();
+        }
+      });
+
+      document.addEventListener('mousedown', (event) => {
+        if (!editable || editor.hidden) {
+          return;
+        }
+
+        if (editor.contains(event.target) || displayButton.contains(event.target)) {
+          return;
+        }
+
+        persistAndCloseEditor();
       });
 
       if (!editable) {

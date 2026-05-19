@@ -62,7 +62,7 @@ def build_package(version: str, plugin_zip: Path | None = None, system_plugin_zi
         zip_path.unlink()
     staging.mkdir(parents=True)
 
-    for name in ["mod_splaskscore.php", "helper.php", "script.php", "mod_splaskscore.xml", "access.xml", "LICENSE", "LICENSE.txt"]:
+    for name in ["mod_splaskscore.php", "helper.php", "script.php", "mod_splaskscore.xml", "LICENSE", "LICENSE.txt"]:
         source = ROOT / name
         if source.exists():
             shutil.copy2(source, staging / name)
@@ -150,7 +150,8 @@ def inspect_package(zip_path: Path, version: str) -> None:
         for name in sorted(names):
             print(f"- {name}")
 
-        required_files = {"mod_splaskscore.php", "helper.php", "script.php", "mod_splaskscore.xml", "access.xml", "packages/plg_task_splaskscoreanalytics.zip", "packages/plg_system_splaskscoreautomation.zip"}
+        required_files = required_module_zip_entries(module_root)
+        required_files.update({"packages/plg_task_splaskscoreanalytics.zip", "packages/plg_system_splaskscoreautomation.zip"})
         missing_files = sorted(required_files - names)
         if missing_files:
             raise AssertionError(f"ZIP is missing required files: {', '.join(missing_files)}")
@@ -197,6 +198,40 @@ def inspect_package(zip_path: Path, version: str) -> None:
         forbidden = [name for name in names if name.startswith((".git/", ".github/", "scripts/", "build/", "dist/"))]
         if forbidden:
             raise AssertionError(f"ZIP includes non-installable development paths: {', '.join(sorted(forbidden))}")
+
+
+def required_module_zip_entries(module_root: ET.Element) -> set[str]:
+    required: set[str] = {"mod_splaskscore.xml"}
+
+    files_node = module_root.find("files")
+    if files_node is None:
+        raise AssertionError("Module manifest is missing <files>")
+
+    for filename in files_node.findall("filename"):
+        if filename.text and filename.text.strip():
+            required.add(filename.text.strip())
+
+    for folder in files_node.findall("folder"):
+        if folder.text and folder.text.strip():
+            required.add(folder.text.strip().strip("/") + "/")
+
+    scriptfile = module_root.find("scriptfile")
+    if scriptfile is not None and scriptfile.text and scriptfile.text.strip():
+        required.add(scriptfile.text.strip())
+
+    media = module_root.find("media")
+    if media is not None:
+        media_root = media.attrib.get("folder", "").strip()
+        if media_root:
+            required.add(media_root.strip("/") + "/")
+            for folder in media.findall("folder"):
+                if folder.text and folder.text.strip():
+                    required.add(f"{media_root.strip('/')}/{folder.text.strip().strip('/')}/")
+            for filename in media.findall("filename"):
+                if filename.text and filename.text.strip():
+                    required.add(f"{media_root.strip('/')}/{filename.text.strip()}")
+
+    return required
 
 
 def validate_scheduler_plugin_packaging(plugin_zip: Path, version: str) -> None:

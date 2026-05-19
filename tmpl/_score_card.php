@@ -130,9 +130,6 @@ $clockSeed = ModSplaskscoreHelper::getJoomlaClockSeed();
         <div class="modal-body" data-splask-history-body>
           <div class="splask-history-loading"><?php echo htmlspecialchars($branding['history_loading_label'], ENT_QUOTES, 'UTF-8'); ?></div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo htmlspecialchars($branding['button_close_label'], ENT_QUOTES, 'UTF-8'); ?></button>
-        </div>
       </div>
     </div>
   </div>

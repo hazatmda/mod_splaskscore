@@ -839,6 +839,79 @@
     row.appendChild(cell);
   }
 
+  function createCatatanDisplayButton(record) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'splask-catatan-display';
+    button.dataset.splaskCatatanDisplay = '1';
+
+    const text = document.createElement('span');
+    text.className = 'splask-catatan-text';
+    const hasText = String(record.catatan || '').trim() !== '';
+    text.textContent = hasText ? record.catatan : 'Tambah catatan';
+    button.appendChild(text);
+
+    const icon = document.createElement('span');
+    icon.className = 'splask-catatan-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '✎';
+    button.appendChild(icon);
+
+    if (!hasText) {
+      button.classList.add('is-empty');
+      text.classList.add('visually-hidden');
+    }
+
+    button.setAttribute('aria-label', hasText ? 'Edit catatan' : 'Tambah catatan');
+
+    return button;
+  }
+
+  function scheduleCatatanSave(widget, record, value, input, status) {
+    if (!widget || !record || !record.id) {
+      return;
+    }
+
+    if (input._splaskSaveTimer) {
+      window.clearTimeout(input._splaskSaveTimer);
+    }
+
+    input._splaskSaveTimer = window.setTimeout(() => {
+      input._splaskSaveTimer = null;
+      if (input.dataset.splaskSaving === '1') {
+        return;
+      }
+
+      if (String(value) === String(record.catatan || '')) {
+        return;
+      }
+
+      input.dataset.splaskSaving = '1';
+      status.textContent = 'Menyimpan…';
+
+      postModuleAjax(widget, 'saveCatatan', { id: record.id, catatan: value })
+        .then(unwrapAjaxResponse)
+        .then((res) => {
+          input.dataset.splaskSaving = '0';
+          if (res && res.success) {
+            record.catatan = value;
+            status.textContent = 'Disimpan';
+            window.setTimeout(() => {
+              if (status.textContent === 'Disimpan') {
+                status.textContent = '';
+              }
+            }, 1000);
+          } else {
+            status.textContent = 'Tidak disimpan';
+          }
+        })
+        .catch(() => {
+          input.dataset.splaskSaving = '0';
+          status.textContent = 'Tidak disimpan';
+        });
+    }, 400);
+  }
+
   function renderHistoryRows(shell, records) {
     const body = shell.querySelector('[data-splask-history-page-body]');
     if (!body) {
@@ -876,35 +949,47 @@
       renderHistoryCell(row, record.status, false);
 
       const noteCell = document.createElement('td');
-      const noteInput = document.createElement('textarea');
-      noteInput.className = 'form-control form-control-sm';
-      noteInput.rows = 2;
-      noteInput.value = record.catatan || '';
-      noteCell.appendChild(noteInput);
-      const saveBtn = document.createElement('button');
-      saveBtn.type = 'button';
-      saveBtn.className = 'btn btn-sm btn-primary mt-1';
-      saveBtn.textContent = 'Simpan';
-      saveBtn.addEventListener('click', () => {
-        const widget = shell.closest('[data-splask-widget]');
-        if (!widget) {
-          return;
-        }
+      noteCell.className = 'splask-catatan-cell';
+      let displayButton = createCatatanDisplayButton(record);
+      const editor = document.createElement('textarea');
+      editor.className = 'form-control form-control-sm splask-catatan-editor';
+      editor.rows = 2;
+      editor.value = record.catatan || '';
+      editor.hidden = true;
 
-        saveBtn.disabled = true;
-        postModuleAjax(widget, 'saveCatatan', { id: record.id, catatan: noteInput.value })
-          .then(unwrapAjaxResponse)
-          .then((res) => {
-            saveBtn.disabled = false;
-            if (res && res.success) {
-              const allRecords = getHistoryRecords(shell);
-              const target = allRecords.find((item) => Number(item.id) === Number(record.id));
-              if (target) target.catatan = noteInput.value;
-            }
-          })
-          .catch(() => { saveBtn.disabled = false; });
+      const status = document.createElement('small');
+      status.className = 'splask-catatan-status';
+
+      const openEditor = () => {
+        displayButton.hidden = true;
+        editor.hidden = false;
+      };
+
+      const closeEditor = () => {
+        editor.hidden = true;
+        const refreshed = createCatatanDisplayButton(record);
+        displayButton.replaceWith(refreshed);
+        displayButton = refreshed;
+        displayButton.hidden = false;
+        displayButton.addEventListener('click', openEditor);
+      };
+
+      displayButton.addEventListener('click', openEditor);
+
+      editor.addEventListener('input', () => {
+        const widget = shell.closest('[data-splask-widget]');
+        scheduleCatatanSave(widget, record, editor.value, editor, status);
       });
-      noteCell.appendChild(saveBtn);
+
+      editor.addEventListener('change', () => {
+        const widget = shell.closest('[data-splask-widget]');
+        scheduleCatatanSave(widget, record, editor.value, editor, status);
+        window.setTimeout(closeEditor, 120);
+      });
+
+      noteCell.appendChild(displayButton);
+      noteCell.appendChild(editor);
+      noteCell.appendChild(status);
       row.appendChild(noteCell);
       body.appendChild(row);
     });

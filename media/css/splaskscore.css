@@ -2285,3 +2285,39 @@
     white-space: normal;
   }
 }
+
+.splask-catatan-cell {
+  min-width: 14rem;
+}
+
+.splask-catatan-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.splask-catatan-display.is-empty {
+  color: #6c757d;
+}
+
+.splask-catatan-icon {
+  opacity: 0.7;
+  font-size: 0.85rem;
+}
+
+.splask-catatan-editor {
+  margin-top: 0.1rem;
+}
+
+.splask-catatan-status {
+  display: block;
+  min-height: 1rem;
+  margin-top: 0.2rem;
+  color: #6c757d;
+}

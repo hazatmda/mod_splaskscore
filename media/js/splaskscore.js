@@ -1290,7 +1290,7 @@
     setText(root, 'grade', grade.label.toUpperCase());
     setText(root, 'grade-short', grade.shortLabel);
     setText(root, 'status', grade.status);
-    setText(root, 'date', formatMalayOperationalTimestamp(data.last_check));
+    setText(root, 'date', formatMalayOperationalDate(data.last_check));
     setText(root, 'next', nextCheck ? formatMalayOperationalDate(nextCheck) : 'Tiada');
     updateMiniTrendCharts(root);
 

@@ -564,8 +564,8 @@ def validate_dashboard_consistency() -> None:
     update_success = extract_function_body(script, "updateSuccess")
     if "new Date()" in update_success or "setUTCHours(12" in update_success or "setUTCDate(nextCheck.getUTCDate() + 1)" in update_success:
         raise AssertionError("Next-check regression: display logic must derive Semakan Seterusnya from Tarikh Semakan + 1 day, not a standalone scheduler-style date")
-    if "formatMalayOperationalTimestamp(data.last_check)" not in update_success:
-        raise AssertionError("Next-check regression: Tarikh Semakan must preserve Malay timestamp formatting with time")
+    if "formatMalayOperationalDate(data.last_check)" not in update_success:
+        raise AssertionError("Next-check regression: Tarikh Semakan must display Malay day/date only (no time)")
     if "formatMalayOperationalDate(nextCheck)" not in update_success or "formatMalayOperationalTimestamp(nextCheck)" in update_success:
         raise AssertionError("Next-check regression: Semakan Seterusnya must display Malay day/date only while deriving from the preserved-time check timestamp")
 

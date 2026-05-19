@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<access component="com_modules" section="module">
+    <section name="module">
+        <action name="core.edit.catatan" title="MOD_SPLASKSCORE_ACL_EDIT_CATATAN" description="MOD_SPLASKSCORE_ACL_EDIT_CATATAN_DESC" />
+    </section>
+</access>

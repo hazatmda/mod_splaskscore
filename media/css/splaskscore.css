@@ -1333,8 +1333,9 @@
 }
 
 .splask-history-table-wrap {
-  overflow: auto;
-  max-height: 22rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 26.25rem;
   border: 1px solid var(--splask-panel-border);
   border-radius: 0.95rem;
   background: var(--splask-modal-panel);
@@ -1342,6 +1343,8 @@
 
 .splask-history-table {
   margin-bottom: 0;
+  width: 100%;
+  table-layout: fixed;
   color: inherit;
   --bs-table-bg: transparent;
   --bs-table-color: var(--splask-text);
@@ -1380,7 +1383,17 @@
   padding-top: 0.58rem;
   padding-bottom: 0.58rem;
   color: var(--splask-text);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
+
+.splask-history-col-date { width: 110px; }
+.splask-history-col-time { width: 100px; }
+.splask-history-col-score { width: 90px; }
+.splask-history-col-grade { width: 90px; }
+.splask-history-col-status { width: 120px; }
+.splask-history-col-catatan { width: auto; }
 
 .splask-history-pagination {
   display: flex;

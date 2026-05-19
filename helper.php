@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.6.9';
+    private const ENGINE_VERSION = '1.6.10';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -817,6 +817,14 @@ final class ModSplaskscoreHelper
                 </div>
                 <div class="table-responsive splask-history-table-wrap" tabindex="0" aria-label="<?php echo htmlspecialchars($branding['history_table_aria_label'], ENT_QUOTES, 'UTF-8'); ?>">
                     <table class="table table-sm align-middle splask-history-table">
+                    <colgroup>
+                        <col class="splask-history-col-date" />
+                        <col class="splask-history-col-time" />
+                        <col class="splask-history-col-score" />
+                        <col class="splask-history-col-grade" />
+                        <col class="splask-history-col-status" />
+                        <col class="splask-history-col-catatan" />
+                    </colgroup>
                     <thead>
                         <tr>
                             <th scope="col"><?php echo htmlspecialchars($branding['history_table_date_label'], ENT_QUOTES, 'UTF-8'); ?></th>

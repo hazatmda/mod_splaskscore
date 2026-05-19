@@ -2335,7 +2335,60 @@
   color: #6c757d;
 }
 
-/* v1.6.15 operational responsive density optimization for 1366x768 and 1920x1080. */
+/* v1.6.16 analytics modal viewport optimization for 1366x768 and 1920x1080. */
+
+.splask-history-modal .modal-content {
+  display: flex;
+  height: min(92vh, 56rem);
+  max-height: min(92vh, 56rem);
+}
+
+.splask-history-modal .modal-body {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  padding: 0.68rem 0.82rem 0.72rem;
+}
+
+.splask-history-content {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.42rem;
+}
+
+.splask-history-table-shell {
+  min-height: 0;
+  flex: 1 1 auto;
+  gap: 0.36rem;
+}
+
+.splask-history-table-wrap {
+  max-height: none;
+  flex: 1 1 auto;
+}
+
+.splask-history-pagination {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 0.4rem 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--splask-modal-panel) 14%, transparent), var(--splask-modal-panel));
+}
+
+.splask-history-mode-operations-grid .splask-history-ops-chart {
+  min-height: 12.2rem;
+}
+
+.splask-history-mode-operations-grid .splask-history-chart-canvas-wrap {
+  height: clamp(10.2rem, 22vh, 12.4rem);
+}
+
+.splask-history-mode-operations-grid .splask-history-line-chart {
+  min-height: 10.2rem;
+}
 .splask-preset-dashboard_tile .splask-body {
   padding: clamp(0.75rem, 1.5vh, 1rem);
 }
@@ -2482,7 +2535,33 @@
 
 @media (max-height: 800px) {
   .splask-history-modal .modal-content {
-    max-height: 94vh;
+    height: 95vh;
+    max-height: 95vh;
+  }
+
+  .splask-history-modal .modal-body {
+    padding: 0.56rem 0.7rem 0.6rem;
+  }
+
+  .splask-history-content {
+    gap: 0.34rem;
+  }
+
+  .splask-history-page-size-control {
+    font-size: 0.72rem;
+  }
+
+  .splask-history-mode-operations-grid .splask-history-ops-console {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .splask-history-mode-operations-grid .splask-history-ops-chart {
+    min-height: 10.7rem;
+  }
+
+  .splask-history-mode-operations-grid .splask-history-chart-canvas-wrap {
+    height: clamp(9.2rem, 20vh, 10.9rem);
   }
 
   .splask-history-table-wrap {

@@ -850,7 +850,7 @@
     if (!records.length) {
       const emptyRow = document.createElement('tr');
       const emptyCell = document.createElement('td');
-      emptyCell.colSpan = 5;
+      emptyCell.colSpan = 6;
       emptyCell.className = 'text-center py-4';
       emptyCell.textContent = label(shell, 'history_empty_label');
       emptyRow.appendChild(emptyCell);
@@ -874,6 +874,33 @@
       row.appendChild(gradeCell);
 
       renderHistoryCell(row, record.status, false);
+
+      const noteCell = document.createElement('td');
+      const noteInput = document.createElement('textarea');
+      noteInput.className = 'form-control form-control-sm';
+      noteInput.rows = 2;
+      noteInput.value = record.catatan || '';
+      noteCell.appendChild(noteInput);
+      const saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.className = 'btn btn-sm btn-primary mt-1';
+      saveBtn.textContent = 'Simpan';
+      saveBtn.addEventListener('click', () => {
+        saveBtn.disabled = true;
+        postModuleAjax(document.querySelector('[data-splask-widget]'), 'saveCatatan', { id: record.id, catatan: noteInput.value })
+          .then(unwrapAjaxResponse)
+          .then((res) => {
+            saveBtn.disabled = false;
+            if (res && res.success) {
+              const allRecords = getHistoryRecords(shell);
+              const target = allRecords.find((item) => Number(item.id) === Number(record.id));
+              if (target) target.catatan = noteInput.value;
+            }
+          })
+          .catch(() => { saveBtn.disabled = false; });
+      });
+      noteCell.appendChild(saveBtn);
+      row.appendChild(noteCell);
       body.appendChild(row);
     });
   }

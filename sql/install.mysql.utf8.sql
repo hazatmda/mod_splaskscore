@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS `#__splaskscore_history` (
   `grade_key` varchar(32) NOT NULL,
   `grade_label` varchar(64) NOT NULL,
   `status_label` varchar(64) NOT NULL,
+  `catatan` text NULL DEFAULT NULL,
   `verification_url` varchar(2048) NOT NULL DEFAULT '',
   `source_checked_at` datetime NULL DEFAULT NULL,
   `source` varchar(32) NOT NULL DEFAULT 'dashboard',

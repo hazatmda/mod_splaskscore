@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.6.5';
+    private const ENGINE_VERSION = '1.6.6';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -80,6 +80,7 @@ final class ModSplaskscoreHelper
         'history_table_score_label' => 'Markah',
         'history_table_grade_label' => 'Gred',
         'history_table_status_label' => 'Status',
+        'history_table_catatan_label' => 'Catatan',
         'score_loading_label' => 'Memuatkan...',
         'status_waiting_label' => 'Menunggu semakan',
         'history_pagination_aria_label' => 'Navigasi halaman sejarah',
@@ -603,6 +604,43 @@ final class ModSplaskscoreHelper
         ]);
     }
 
+    public static function saveCatatanAjax(): array
+    {
+        $app = \Joomla\CMS\Factory::getApplication();
+        $input = $app->input;
+
+        if (!\Joomla\CMS\Session\Session::checkToken('request')) {
+            return ['success' => false, 'message' => 'Token keselamatan tidak sah.'];
+        }
+
+        $user = \Joomla\CMS\Factory::getUser();
+        if (!$user || $user->guest || (!$user->authorise('core.manage', 'com_modules') && !$user->authorise('core.admin'))) {
+            return ['success' => false, 'message' => 'Anda tidak dibenarkan mengemaskini catatan.'];
+        }
+
+        $id = $input->getInt('id', 0);
+        $moduleId = $input->getInt('module_id', 0);
+        $token = $input->getString('token', '');
+        $catatan = trim($input->getString('catatan', ''));
+
+        if ($id <= 0 || $moduleId <= 0 || $token === '') {
+            return ['success' => false, 'message' => 'Data catatan tidak lengkap.'];
+        }
+
+        self::ensureHistoryTable();
+        $db = \Joomla\CMS\Factory::getDbo();
+        $tokenHash = hash('sha256', $token);
+        $query = $db->getQuery(true)
+            ->update($db->quoteName(self::getHistoryTableName()))
+            ->set($db->quoteName('catatan') . ' = ' . $db->quote(self::cleanHistoryText($catatan, 2000)))
+            ->where($db->quoteName('id') . ' = ' . (int) $id)
+            ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
+            ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash));
+        $db->setQuery($query)->execute();
+
+        return ['success' => true, 'message' => 'Catatan berjaya disimpan.', 'id' => $id, 'catatan' => $catatan];
+    }
+
     /**
      * AJAX endpoint used by com_ajax to force an immediate server-side analytics refresh.
      *
@@ -766,6 +804,7 @@ final class ModSplaskscoreHelper
                             <th scope="col"><?php echo htmlspecialchars($branding['history_table_score_label'], ENT_QUOTES, 'UTF-8'); ?></th>
                             <th scope="col"><?php echo htmlspecialchars($branding['history_table_grade_label'], ENT_QUOTES, 'UTF-8'); ?></th>
                             <th scope="col"><?php echo htmlspecialchars($branding['history_table_status_label'], ENT_QUOTES, 'UTF-8'); ?></th>
+                            <th scope="col"><?php echo htmlspecialchars($branding['history_table_catatan_label'], ENT_QUOTES, 'UTF-8'); ?></th>
                         </tr>
                     </thead>
                     <tbody data-splask-history-page-body>
@@ -806,6 +845,8 @@ final class ModSplaskscoreHelper
                 'gradeKey' => (string) $record->grade_key,
                 'gradeLabel' => (string) $record->grade_label,
                 'status' => (string) $record->status_label,
+                'catatan' => (string) ($record->catatan ?? ''),
+                'id' => (int) ($record->id ?? 0),
             ];
         }
 
@@ -1723,6 +1764,7 @@ final class ModSplaskscoreHelper
             'engine_version' => "ALTER TABLE `#__splaskscore_history` ADD `engine_version` varchar(32) NOT NULL DEFAULT '' AFTER `recorded_at`",
             'signature' => "ALTER TABLE `#__splaskscore_history` ADD `signature` char(64) NOT NULL DEFAULT '' AFTER `engine_version`",
             'triggered_by' => "ALTER TABLE `#__splaskscore_history` ADD `triggered_by` varchar(128) NOT NULL DEFAULT '' AFTER `signature`",
+            'catatan' => "ALTER TABLE `#__splaskscore_history` ADD `catatan` text NULL DEFAULT NULL AFTER `status_label`",
         ];
 
         foreach ($definitions as $column => $sql) {

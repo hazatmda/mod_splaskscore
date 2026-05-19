@@ -90,8 +90,8 @@ $clockSeed = ModSplaskscoreHelper::getJoomlaClockSeed();
         </div>
         <div class="splask-ops-grid" aria-label="Grid KPI operasi">
           <div class="splask-ops-cell splask-ops-mini-chart"><span><?php echo htmlspecialchars($branding['kpi_mini_trend_label'], ENT_QUOTES, 'UTF-8'); ?></span><div class="splask-ops-trend-wrap"><canvas data-splask-mini-trend data-splask-mini-trend-points="<?php echo $miniTrendJson; ?>" width="320" height="96" aria-label="<?php echo htmlspecialchars($branding['graph_mini_trend_aria_label'], ENT_QUOTES, 'UTF-8'); ?>" role="img"></canvas></div></div>
-          <div class="splask-ops-cell"><span><?php echo htmlspecialchars($branding['kpi_check_date_label'], ENT_QUOTES, 'UTF-8'); ?></span><strong data-splask-date><?php echo htmlspecialchars($branding['score_loading_label'], ENT_QUOTES, 'UTF-8'); ?></strong></div>
-          <div class="splask-ops-cell"><span><?php echo htmlspecialchars($branding['kpi_next_check_label'], ENT_QUOTES, 'UTF-8'); ?></span><strong data-splask-next><?php echo htmlspecialchars($branding['score_loading_label'], ENT_QUOTES, 'UTF-8'); ?></strong></div>
+          <div class="splask-ops-cell splask-ops-date-cell"><span><?php echo htmlspecialchars($branding['kpi_check_date_label'], ENT_QUOTES, 'UTF-8'); ?></span><strong data-splask-date><?php echo htmlspecialchars($branding['score_loading_label'], ENT_QUOTES, 'UTF-8'); ?></strong></div>
+          <div class="splask-ops-cell splask-ops-next-cell"><span><?php echo htmlspecialchars($branding['kpi_next_check_label'], ENT_QUOTES, 'UTF-8'); ?></span><strong data-splask-next><?php echo htmlspecialchars($branding['score_loading_label'], ENT_QUOTES, 'UTF-8'); ?></strong></div>
         </div>
       </div>
 

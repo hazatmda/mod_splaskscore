@@ -136,6 +136,7 @@ jobs:
           install -m 0644 helper.php "$STAGING_DIR/helper.php"
           install -m 0644 script.php "$STAGING_DIR/script.php"
           install -m 0644 mod_splaskscore.xml "$STAGING_DIR/mod_splaskscore.xml"
+          install -m 0644 access.xml "$STAGING_DIR/access.xml"
           install -m 0644 "$TASK_PLUGIN_ZIP" "$PACKAGE_DIR/plg_task_splaskscoreanalytics.zip"
           install -m 0644 "$SYSTEM_PLUGIN_ZIP" "$PACKAGE_DIR/plg_system_splaskscoreautomation.zip"
 
@@ -180,9 +181,12 @@ jobs:
           grep -Eq '<folder>packages</folder>' packaged-manifest.xml
           grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+mod_splaskscore\.xml$' package-contents.txt
           grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+script\.php$' package-contents.txt
+          grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+access\.xml$' package-contents.txt
           grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+packages/$' package-contents.txt
           grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+packages/plg_task_splaskscoreanalytics\.zip$' package-contents.txt
           grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+packages/plg_system_splaskscoreautomation\.zip$' package-contents.txt
+          unzip -p "$zip_path" access.xml > packaged-access.xml
+          grep -Eq '<access[[:space:]>]' packaged-access.xml
           unzip -p "$zip_path" script.php > packaged-script.php
           grep -Eq "resolvePackagesPath|/packages" packaged-script.php
           grep -Eq "plg_task_splaskscoreanalytics\.zip" packaged-script.php

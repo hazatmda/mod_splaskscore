@@ -62,7 +62,7 @@ def build_package(version: str, plugin_zip: Path | None = None, system_plugin_zi
         zip_path.unlink()
     staging.mkdir(parents=True)
 
-    for name in ["mod_splaskscore.php", "helper.php", "script.php", "mod_splaskscore.xml", "LICENSE", "LICENSE.txt"]:
+    for name in ["mod_splaskscore.php", "helper.php", "script.php", "mod_splaskscore.xml", "access.xml", "LICENSE", "LICENSE.txt"]:
         source = ROOT / name
         if source.exists():
             shutil.copy2(source, staging / name)
@@ -150,7 +150,7 @@ def inspect_package(zip_path: Path, version: str) -> None:
         for name in sorted(names):
             print(f"- {name}")
 
-        required_files = {"mod_splaskscore.php", "helper.php", "script.php", "mod_splaskscore.xml", "packages/plg_task_splaskscoreanalytics.zip", "packages/plg_system_splaskscoreautomation.zip"}
+        required_files = {"mod_splaskscore.php", "helper.php", "script.php", "mod_splaskscore.xml", "access.xml", "packages/plg_task_splaskscoreanalytics.zip", "packages/plg_system_splaskscoreautomation.zip"}
         missing_files = sorted(required_files - names)
         if missing_files:
             raise AssertionError(f"ZIP is missing required files: {', '.join(missing_files)}")

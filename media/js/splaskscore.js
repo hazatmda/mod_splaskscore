@@ -839,6 +839,11 @@
     row.appendChild(cell);
   }
 
+
+  function canEditCatatan(shell) {
+    return !!(shell && shell.dataset && shell.dataset.splaskCanEditCatatan === '1');
+  }
+
   function createCatatanDisplayButton(record) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -950,6 +955,7 @@
 
       const noteCell = document.createElement('td');
       noteCell.className = 'splask-catatan-cell';
+      const editable = canEditCatatan(shell);
       let displayButton = createCatatanDisplayButton(record);
       const editor = document.createElement('textarea');
       editor.className = 'form-control form-control-sm splask-catatan-editor';
@@ -961,6 +967,10 @@
       status.className = 'splask-catatan-status';
 
       const openEditor = () => {
+        if (!editable) {
+          return;
+        }
+
         displayButton.hidden = true;
         editor.hidden = false;
       };
@@ -974,7 +984,9 @@
         displayButton.addEventListener('click', openEditor);
       };
 
-      displayButton.addEventListener('click', openEditor);
+      if (editable) {
+        displayButton.addEventListener('click', openEditor);
+      }
 
       editor.addEventListener('input', () => {
         const widget = shell.closest('[data-splask-widget]');
@@ -984,12 +996,28 @@
       editor.addEventListener('change', () => {
         const widget = shell.closest('[data-splask-widget]');
         scheduleCatatanSave(widget, record, editor.value, editor, status);
+      });
+
+      editor.addEventListener('blur', () => {
+        if (!editable) {
+          return;
+        }
+
+        const widget = shell.closest('[data-splask-widget]');
+        scheduleCatatanSave(widget, record, editor.value, editor, status);
         window.setTimeout(closeEditor, 120);
       });
 
-      noteCell.appendChild(displayButton);
-      noteCell.appendChild(editor);
-      noteCell.appendChild(status);
+      if (!editable) {
+        const plainText = document.createElement('span');
+        plainText.className = 'splask-catatan-text';
+        plainText.textContent = String(record.catatan || '').trim() !== '' ? record.catatan : '-';
+        noteCell.appendChild(plainText);
+      } else {
+        noteCell.appendChild(displayButton);
+        noteCell.appendChild(editor);
+        noteCell.appendChild(status);
+      }
       row.appendChild(noteCell);
       body.appendChild(row);
     });

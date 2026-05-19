@@ -1197,7 +1197,7 @@
 
 .splask-history-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.5rem;
   margin-bottom: 0.6rem;
 }
@@ -1225,7 +1225,7 @@
 .splask-history-summary span {
   display: block;
   color: var(--splask-muted);
-  font-size: 0.7rem;
+  font-size: clamp(0.62rem, 1.6vw, 0.7rem);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1244,7 +1244,7 @@
   display: block;
   margin-top: 0.08rem;
   color: var(--splask-muted);
-  font-size: 0.74rem;
+  font-size: clamp(0.66rem, 1.65vw, 0.74rem);
   font-weight: 700;
 }
 

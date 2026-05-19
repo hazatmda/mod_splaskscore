@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.6.13';
+    private const ENGINE_VERSION = '1.6.14';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -657,9 +657,13 @@ final class ModSplaskscoreHelper
             return false;
         }
 
-        $moduleAsset = $moduleId > 0 ? 'com_modules.module.' . $moduleId : 'com_modules';
+        if ($moduleId <= 0) {
+            return false;
+        }
 
-        return $user->authorise('core.edit', $moduleAsset) || $user->authorise('core.edit', 'com_modules');
+        $moduleAsset = 'com_modules.module.' . (int) $moduleId;
+
+        return $user->authorise('core.edit', $moduleAsset);
     }
 
     public static function refreshAnalyticsAjax(): array

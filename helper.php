@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.6.10';
+    private const ENGINE_VERSION = '1.6.11';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -659,11 +659,7 @@ final class ModSplaskscoreHelper
 
         $moduleAsset = $moduleId > 0 ? 'com_modules.module.' . $moduleId : 'com_modules';
 
-        if ($user->authorise('core.edit.catatan', $moduleAsset) || $user->authorise('core.edit.catatan', 'com_modules')) {
-            return true;
-        }
-
-        return $user->authorise('core.manage', 'com_modules') || $user->authorise('core.admin');
+        return $user->authorise('core.edit', $moduleAsset) || $user->authorise('core.edit', 'com_modules');
     }
 
     public static function refreshAnalyticsAjax(): array
@@ -709,7 +705,7 @@ final class ModSplaskscoreHelper
         $totalRecords = self::getHistoryRecordCount($moduleId, $tokenHash);
 
         return array_merge($result, [
-            'html' => self::renderHistoryModal($records, $appearance, self::getAnalyticsHealth($moduleId, $tokenHash), self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords, self::getBrandingForModule($moduleId)),
+            'html' => self::renderHistoryModal($records, $appearance, self::getAnalyticsHealth($moduleId, $tokenHash), self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords, self::getBrandingForModule($moduleId), self::canEditCatatan($user, $moduleId)),
             'chart' => self::buildTrendSeries($chartRecords),
             'mini_trend' => self::buildMiniTrendSeriesFromChartRecords($chartRecords),
             'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
@@ -757,7 +753,7 @@ final class ModSplaskscoreHelper
 
         return [
             'success' => true,
-            'html' => self::renderHistoryModal($records, $appearance, $health, self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords, self::getBrandingForModule($moduleId)),
+            'html' => self::renderHistoryModal($records, $appearance, $health, self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords, self::getBrandingForModule($moduleId), self::canEditCatatan(\Joomla\CMS\Factory::getUser(), $moduleId)),
             'chart' => self::buildTrendSeries($chartRecords),
             'mini_trend' => self::buildMiniTrendSeriesFromChartRecords($chartRecords),
             'health' => $health,
@@ -772,7 +768,7 @@ final class ModSplaskscoreHelper
      *
      * @return  string
      */
-    public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null, ?int $rowsPerPage = null, string $preset = 'dashboard_tile', ?array $chartRecords = null, ?int $totalRecords = null, ?array $branding = null): string
+    public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null, ?int $rowsPerPage = null, string $preset = 'dashboard_tile', ?array $chartRecords = null, ?int $totalRecords = null, ?array $branding = null, bool $canEditCatatan = false): string
     {
         $appearance = in_array($appearance, self::getAllowedAppearanceModes(), true) ? $appearance : 'light';
         $preset = 'dashboard_tile';
@@ -807,7 +803,7 @@ final class ModSplaskscoreHelper
                 </div>
             </section>
 
-            <div class="splask-history-table-shell" data-splask-history-pagination data-splask-history-page-size="<?php echo $pageSize; ?>" data-splask-labels="<?php echo self::getBrandingJson($branding); ?>">
+            <div class="splask-history-table-shell" data-splask-history-pagination data-splask-history-page-size="<?php echo $pageSize; ?>" data-splask-labels="<?php echo self::getBrandingJson($branding); ?>" data-splask-can-edit-catatan="<?php echo $canEditCatatan ? '1' : '0'; ?>">
                 <script type="application/json" data-splask-history-records><?php echo htmlspecialchars(json_encode(self::buildHistoryTableRecords($tableRecords), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></script>
                 <div class="splask-history-page-size-control">
                     <label>

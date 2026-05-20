@@ -1,215 +1,221 @@
-# mod_splaskscore
+# SPLaSK Score (`mod_splaskscore`)
 
-Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dari sistem SPLaSK (Sistem Pemantauan Laman Web dan Perkhidmatan Dalam Talian).
+Administrator Joomla module for displaying SPLaSK assessment scores, operational review dates, analytics history, and dashboard monitoring for SPLaSK operations.
 
-## Fungsi Utama
+Latest stable release: **v1.6.25**
 
-- Paparan markah penilaian SPLaSK melalui API rasmi.
-- Paparan `Tarikh Semakan` dengan timestamp penuh untuk audit operasi.
-- Paparan `Semakan Seterusnya` sebagai hari dan tarikh sahaja, dikira daripada `Tarikh Semakan + 1 hari`.
-- Jam telemetry masa nyata berasaskan timezone Joomla pada dashboard pentadbir.
-- Tiada tracking pelawat – hanya integrasi API dan sejarah analitik operasi pentadbir.
-- Menyokong semakan kemaskini automatik melalui GitHub (update server).
+## Main Features
 
-## Cara Pasang
+- Displays SPLaSK assessment score from the official SPLaSK API.
+- Displays `Tarikh Semakan` with full operational timestamp.
+- Displays `Semakan Seterusnya` as date-only operational cadence based on `Tarikh Semakan + 1 hari`.
+- Provides a Joomla administrator dashboard card with score, grade, trend, review metadata, and analytics access.
+- Provides analytics modal with KPI summary, trend chart, history table, pagination, and notes.
+- Supports Catatan editing with ACL-aware permission behavior.
+- Supports ACL-aware CSV export for analytics records.
+- Exports all analytics records, not only the current page.
+- CSV export includes UTF-8 BOM for Excel compatibility.
+- CSV export escapes commas, quotes, multiline content, and protects against spreadsheet formula injection.
+- Supports Joomla Scheduled Tasks for automated analytics collection.
+- Supports Joomla Update Server metadata through GitHub releases.
+- Includes About tab metadata for product, owner, repository, compatibility, and current version.
 
-1. Muat turun `mod_splaskscore_v1.6.5.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
-2. Pasang di Joomla: **Extensions > Manage > Install**.
-3. Masukkan token SPLaSK anda dalam konfigurasi modul.
-4. Semak tetapan automasi analitik jika mahu kutipan sejarah berjalan melalui Joomla Scheduled Tasks.
+## Installation
 
-## Automasi Analitik & Joomla Scheduled Tasks
+1. Download `mod_splaskscore_v1.6.25.zip` from [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+2. In Joomla administrator, go to **System > Install > Extensions**.
+3. Upload and install the ZIP package.
+4. Open the administrator module configuration.
+5. Enter the SPLaSK API token.
+6. Configure analytics automation if scheduled collection is required.
 
-Tetapan modul ialah panel kawalan utama untuk automasi analitik. Selepas pemasangan atau simpanan modul, SPLaSK Score akan cuba memasang/mengaktifkan plugin Scheduler, mencipta tugas Joomla Scheduled Tasks yang diperlukan, dan menyelaraskan status aktif, frekuensi, masa kutipan, duplicate cooldown, retention days, serta had rekod sejarah daripada parameter modul.
+## Automatic Updates
 
-**Nota operasi penting:** Kutipan analitik automatik bergantung pada Joomla Scheduled Tasks yang aktif dalam persekitaran hosting. Pastikan infrastruktur Joomla Scheduled Tasks/cron di hosting anda berjalan untuk jaminan kutipan automatik; tanpa runner Scheduled Tasks yang aktif, tugas boleh wujud dan aktif tetapi tidak akan dilaksanakan sehingga scheduler Joomla diproses.
+This module supports Joomla Update Server metadata.
 
-## Tingkah Laku Multi-Modul
+The update metadata files are:
 
-SPLaSK Score menggunakan satu tugas Joomla Scheduled Tasks yang dikongsi untuk rutin `splaskscore.analytics.collect`. Semasa tugas dijalankan, collector memproses semua instance modul administrator yang published, mempunyai token, dan mengaktifkan **Kutipan Analitik Automatik**.
+- `updates.xml`
+- `mod_splaskscore_update.xml`
 
-Untuk mengelakkan beberapa module instance saling menulis jadual scheduler yang sama semasa install/upgrade, bootstrap installer hanya menyelaraskan instance modul published pertama/terkini yang ditemui. Selepas itu, apabila mana-mana instance modul disimpan, instance terakhir yang disimpan akan menjadi sumber tetapan jadual bagi tugas scheduler yang dikongsi. Jika anda memasang beberapa instance modul, gunakan satu instance utama sebagai sumber tetapan automation bagi masa/frekuensi scheduler, sementara semua instance published yang enabled masih akan dikutip ketika scheduler berjalan.
+Current release metadata points to:
 
-## Kemaskini Automatik
+- Tag: `v1.6.25`
+- Module package: `mod_splaskscore_v1.6.25.zip`
+- Package installer: `pkg_splaskscore_v1.6.25.zip`
 
-Modul ini menyokong Joomla Update Server.
+## Analytics Automation and Joomla Scheduled Tasks
 
-Fail `updates.xml` dan `mod_splaskscore_update.xml` menyediakan metadata kemaskini, versi, dan URL muat turun pakej release yang disemak oleh Joomla.
+The module configuration is the main control surface for analytics automation.
 
-Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.6.5` dan pakej `mod_splaskscore_v1.6.5.zip`.
+After installation or module save, SPLaSK Score can synchronize the related Joomla Scheduled Task configuration for analytics collection.
 
-## Workflow Wajib Sebelum PR / Release
+Operational note:
 
-Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
+> Automatic analytics collection depends on the Joomla Scheduled Tasks runner/cron being active in the hosting environment. If the scheduler runner is not active, the task can exist and be enabled but will not execute until Joomla Scheduled Tasks are processed.
 
-```bash
-python3 scripts/pre_pr_validation.py --release-tag v1.6.5
+## Multi-Module Behavior
+
+SPLaSK Score uses a shared Joomla Scheduled Task routine:
+
+```text
+splaskscore.analytics.collect
 ```
 
-Semakan ini adalah disiplin wajib projek dan merangkumi:
+When the task runs, it processes published administrator module instances that:
 
-- Simulasi pembinaan ZIP installer Joomla di `dist/mod_splaskscore_v<version>.zip`.
-- Simulasi pembinaan pakej Joomla di `dist/pkg_splaskscore_v<version>.zip`.
-- Pemeriksaan kandungan ZIP yang dijana.
-- Pengesahan pembungkusan direktori `sql` apabila dideklarasikan dalam manifest.
-- Pengesahan fail SQL install/uninstall wujud dan tidak kosong dalam ZIP.
-- Sinkronisasi versi manifest modul, package manifest, plugin manifest, helper engine constant, dan update-server metadata.
-- Penjajaran tag release `v<version>` dengan metadata manifest/update-server.
-- Pengesahan URL muat turun dan nama pakej `mod_splaskscore_v<version>.zip`.
-- Lint PHP untuk semua fail PHP modul dan plugin.
-- Semakan sanity CSS untuk struktur, selector dashboard/analytics, dan mod gelap.
-- Validasi sintaks JS apabila fail JS wujud.
-- Semakan konsistensi rendering analytics/dashboard, format ketepatan markah, tingkah laku dark/light appearance, `Semakan Seterusnya` date-only, `Tarikh Semakan` timestamp, jam Joomla live, dan timestamp analitik.
+- have a configured token
+- enable automatic analytics collection
+- are eligible for collection based on module parameters
 
-Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
+For environments with multiple module instances, use one primary module instance as the operational source for automation timing/frequency settings.
 
-## Changelog
+## CSV Export
 
-### Evolusi Release Enterprise Terkini
+The analytics modal includes an ACL-aware `Export CSV` action.
 
-Rangkaian release terkini disusun sebagai perkembangan produk yang berurutan: asas analitik operasi dimantapkan dahulu, paparan graf diperhalus, telemetry dashboard disatukan, konfigurasi branding enterprise dibuka kepada pentadbir, panel About diperhalus sebagai metadata produk enterprise, kronologi release disegerakkan, cadence operasi dashboard dipermudah dengan jam timezone Joomla, dan akhirnya paparan `Semakan Seterusnya` diperhalus tanpa mengubah timestamp audit lain.
+Export behavior:
 
-**v1.6.5 (18 Mei 2026) — Semakan Seterusnya date-only display refinement**
+- exports all analytics records
+- not limited to the current page
+- uses CSV format only
+- includes UTF-8 BOM for Excel compatibility
+- escapes commas, quotes, and multiline values
+- protects against formula-leading values beginning with `=`, `+`, `-`, or `@`
 
-- Memperhalus paparan kad `Semakan Seterusnya` supaya hanya hari dan tarikh dipaparkan, contohnya `Selasa • 19 Mei 2026`, tanpa masa.
-- Mengekalkan `Tarikh Semakan` dengan timestamp penuh, jam live dashboard berasaskan timezone Joomla, dan timestamp analitik/audit tanpa perubahan runtime.
-- Menyelaraskan manifest, package manifest, plugin manifest, helper engine constant, update-server metadata, URL muat turun, About panel, dan README kepada `v1.6.5`.
-- Metadata release disegerakkan untuk tag `v1.6.5` dan pakej `mod_splaskscore_v1.6.5.zip`.
+Exported columns:
 
-**v1.6.4 (18 Mei 2026) — Operational cadence simplification and Joomla-timezone live clock**
+- Tarikh
+- Masa
+- Skor
+- Gred
+- Status
+- Catatan
 
-- Memastikan `Semakan Seterusnya` dikira secara konsisten daripada `Tarikh Semakan + 1 hari` sebagai cadence operasi dashboard.
-- Menambah jam telemetry masa nyata pada dashboard pentadbir berdasarkan timezone Joomla supaya konteks masa semasa jelas tanpa bergantung pada timezone browser semata-mata.
-- Mengekalkan timestamp `Tarikh Semakan` dan timestamp analitik/audit sebagai rekod masa operasi yang lengkap.
-- Metadata release disegerakkan untuk tag `v1.6.4` dan pakej `mod_splaskscore_v1.6.4.zip`.
+Access behavior:
 
-**v1.6.3 (17 Mei 2026) — Release metadata synchronization hotfix**
+- users who can edit Catatan can export CSV
+- users without Catatan edit permission cannot use the export action
 
-- Menyelaraskan semua rujukan metadata release selepas refinement v1.6.2 bagi memastikan kronologi deployment dan package identity kekal konsisten.
-- Menyegerakkan manifest, update metadata, plugin metadata, About panel version display, dan rujukan README kepada `v1.6.3`.
-- Metadata release disegerakkan untuk tag `v1.6.3` dan pakej `mod_splaskscore_v1.6.3.zip`.
+## ACL Behavior
 
-**v1.6.2 (17 Mei 2026) — About metadata panel refinement**
+Current ACL behavior:
 
-- Memperhalus tab About kepada panel metadata enterprise yang lebih kemas tanpa rupa input readonly, dengan hierarki tipografi dan jarak yang lebih konsisten.
-- Menyelaraskan maklumat organisasi rasmi serta membuang seksyen Release Target untuk pengalaman metadata yang lebih bersih dan profesional.
-- Metadata release disegerakkan untuk tag `v1.6.2` dan pakej `mod_splaskscore_v1.6.2.zip`.
+- Catatan editing uses the existing edit permission logic.
+- CSV export temporarily reuses the same permission rule as Catatan editing.
 
-**v1.6.1 (17 Mei 2026) — Enterprise branding/configuration**
+Future component architecture may introduce a dedicated export permission, but current behavior intentionally keeps ACL simple and consistent.
 
-- Menambah tab Configuration untuk mengurus tajuk dashboard, tajuk/subtajuk analitik, label butang, label KPI, label graf, dan label jadual sejarah melalui parameter modul Joomla.
-- Menambah tab About sebagai permulaan metadata produk yang meliputi produk, owner, organisasi, repository, issue tracker, compatibility, dan release channel.
-- Metadata release disegerakkan untuk tag `v1.6.1` dan pakej `mod_splaskscore_v1.6.1.zip`.
+## Release and Validation Workflow
 
-**v1.6.0 (17 Mei 2026) — Unified telemetry dashboard**
+Before opening a PR or publishing a release, run the pre-release validation workflow:
 
-- Menyatukan modal `Sejarah & Analitik SPLaSK` sebagai permukaan telemetry enterprise dengan rail KPI dan carta dalam satu komposisi visual yang konsisten.
-- Mengoptimumkan nisbah KPI/carta, irama jarak dalaman, dan ruang menegak carta tanpa mengubah sumber dataset analitik atau label tarikh paksi-x.
-- Metadata release disegerakkan untuk tag `v1.6.0` dan pakej `mod_splaskscore_v1.6.0.zip`.
+```bash
+python3 scripts/pre_pr_validation.py --release-tag v1.6.25
+```
 
-**v1.5.8 (17 Mei 2026) — Graph visual balance refinement**
+The validation workflow checks:
 
-- Memperhalus keseimbangan visual graf melalui ruang paksi-x, anchoring tick, alignment tepi, dan jarak bawah yang lebih terkawal.
-- Mengurangkan keagresifan label condong supaya tarikh operasi kekal lengkap tetapi lebih bersih dalam susun atur enterprise yang padat.
-- Metadata release disegerakkan untuk tag `v1.5.8` dan pakej `mod_splaskscore_v1.5.8.zip`.
+- module ZIP generation
+- package ZIP generation
+- generated ZIP contents
+- manifest metadata synchronization
+- update XML metadata synchronization
+- release URL alignment
+- package filename alignment
+- `fields/` packaging integrity
+- SQL install/uninstall file integrity
+- PHP syntax validation
+- JavaScript syntax validation
+- CSS/dashboard sanity checks
+- install/upgrade package integrity
 
-**v1.5.7 (17 Mei 2026) — Operational analytics foundation**
+Release metadata must remain synchronized across:
 
-- Memantapkan kebolehbacaan graf analitik dengan paparan semua tarikh paksi-x untuk setiap titik data operasi.
-- Mengekalkan normalisasi satu rekod sehari, dataset analitik bersatu, pagination frontend, dan struktur dashboard operasi sebagai asas kesinambungan audit.
-- Metadata release disegerakkan untuk tag `v1.5.7` dan pakej `mod_splaskscore_v1.5.7.zip`.
+- `helper.php` engine version
+- `mod_splaskscore.xml`
+- `pkg_splaskscore.xml`
+- `updates.xml`
+- `mod_splaskscore_update.xml`
+- plugin manifests
+- About tab displayed version
+- release tag
+- package filenames
+- download URLs
 
-### Release Terdahulu
+## Current Version
 
-**v1.5.6 (16 Mei 2026)**
+- Version: **1.6.25**
+- Release tag: **v1.6.25**
+- Module package: **mod_splaskscore_v1.6.25.zip**
+- Package installer: **pkg_splaskscore_v1.6.25.zip**
+- Joomla compatibility: **Joomla 5.x**
+- PHP compatibility: **PHP 8.1+**
 
-- Menjadikan graf mini `Trend 7 Hari` dashboard berpunca daripada dataset sejarah analitik sebenar yang sama dengan graf modal, dipotong kepada tujuh titik terkini tanpa gelombang sintetik.
-- Menambah kolum `Masa Semakan` di sebelah `Tarikh` dalam jadual analitik untuk audit masa operasi tanpa menggabungkan tarikh dan masa.
-- Metadata release disegerakkan untuk tag `v1.5.6` dan pakej `mod_splaskscore_v1.5.6.zip`.
+## Recent Changelog
 
-**v1.5.4 (16 Mei 2026)**
+### v1.6.25 — About Tab Rendering Stabilization Hotfix
 
-- Memisahkan dataset carta 30 hari daripada jadual sejarah analitik penuh supaya pagination memaparkan semua rekod DB.
-- Menukar KPI `Jumlah Rekod` kepada kiraan `COUNT(*)` sebenar dan mematikan pangkasan sejarah automatik secara lalai untuk kesinambungan audit enterprise.
-- Metadata release disegerakkan untuk tag `v1.5.4` dan pakej `mod_splaskscore_v1.5.4.zip`.
+- Replaced fragile custom Joomla FormField About implementation with stable Joomla `note` field rendering.
+- Fixed About tab metadata card rendering regression.
+- Restored full About metadata card display.
+- Preserved centralized ENGINE_VERSION usage for dynamic version rendering.
+- Synchronized release metadata to `1.6.25`.
+- Validated package/build workflow and ZIP integrity.
 
-**v1.5.3 (16 Mei 2026)**
+### v1.6.24 — Analytics Control Alignment and About Field Hotfix
 
-- Menukar tarikh operasi dashboard kepada format Bahasa Melayu boleh baca seperti `17 Mei 2026` tanpa slash, label hari, masa, atau pemisah bullet.
-- Memusatkan rail KPI analitik operasi untuk `Skor Hari Ini`, `Skor Terendah`, dan `Jumlah Rekod` supaya komposisi lebih padat dan seimbang.
-- Metadata release disegerakkan untuk tag `v1.5.3` dan pakej `mod_splaskscore_v1.5.3.zip`.
+- Fixed Export CSV button alignment in analytics modal.
+- Ensured Export CSV and `Baris Setiap Halaman` controls share the same row.
+- Improved responsive behavior for 1366x768 and 1920x1080.
+- Corrected AboutMetadata field type resolution attempt.
+- Synchronized release metadata to `1.6.24`.
 
-**v1.5.2 (16 Mei 2026)**
+### v1.6.23 — Release Metadata Synchronization
 
-- Mengkonsolidasi paparan kepada satu sistem analitik operasi Grid Operasi tanpa pilihan preset dashboard lain.
-- Memusatkan hierarki KPI utama kepada struktur `100% / GRED A / Cemerlang`, membuang kad Status Pematuhan dan Penjadual, serta menukar label kepada Semakan Seterusnya.
-- Menyamakan graf mini dashboard dengan bahasa visual graf analitik melalui garis bercahaya minimal tanpa paksi, label, atau tooltip.
-- Memadatkan modal analitik dengan KPI `Skor Hari Ini`, tarikh di bawah skor, dan `Skor Terendah`.
-- Metadata release disegerakkan untuk tag `v1.5.2` dan pakej `mod_splaskscore_v1.5.2.zip`.
+- Synchronized all release metadata after post-release UI fixes.
+- Updated helper version, manifests, update XML, package names, plugin manifests, and release URLs.
+- Confirmed generated ZIP artifacts include required files.
 
-**v1.5.1 (16 Mei 2026)**
+### v1.6.22 — Analytics CSV Export
 
-- Memperkemas irama papan pemuka eksekutif, operasi, dan keselamatan digital dengan susun atur KPI lebih padat serta rasa enterprise premium.
-- Menambah graf mikro 7 hari yang berbeza bagi setiap preset: sparkline eksekutif, bar operasi, dan gelombang isyarat keselamatan digital.
-- Menukar teks dashboard dan analitik kepada Bahasa Melayu yang lebih konsisten serta membuang nama preset daripada paparan awam.
-- Metadata release disegerakkan untuk tag `v1.5.1` dan pakej `mod_splaskscore_v1.5.1.zip`.
+- Added ACL-aware Export CSV button to analytics modal.
+- Export all analytics records in UTF-8 CSV format.
+- Added proper CSV escaping and formula injection protection.
+- Added dynamic About tab version handling groundwork.
+- Added `fields/` packaging support for release artifacts.
 
-**v1.5.0 (16 Mei 2026)**
+### v1.6.5 — Semakan Seterusnya Date-Only Display Refinement
 
-- Mengkonsolidasi preset dashboard kepada hanya 3 mod premium dalaman untuk laporan eksekutif, grid operasi, dan konsol keselamatan digital.
-- Menyelaraskan widget dashboard dan modal Sejarah & Analitik supaya setiap mod mempunyai struktur DOM, hierarki KPI, rawatan graf, dan personaliti visual tersendiri.
-- Mengekalkan pagination sejarah, carta analitik 30 hari, tooltip carta yang mudah dibaca, asas scheduler, dan metadata release `v1.5.0`.
+- Refined `Semakan Seterusnya` display to show date-only cadence.
+- Preserved full timestamp for `Tarikh Semakan` and analytics audit records.
+- Synchronized release metadata to `v1.6.5`.
 
-**v1.3.0 (12 Mei 2026)**
+### v1.6.0 — Unified Telemetry Dashboard
 
-- Menstabilkan sejarah analitik dengan pencegahan snapshot pendua, trend berdasarkan rekod bermakna yang distinct, dan rendering carta yang mengabaikan salinan identik.
-- Memindahkan tindakan refresh hanya ke modal Sejarah & Analitik serta menyatukan gaya butang refresh/tutup modal.
-- Metadata release disegerakkan untuk versi manifest/update server, URL muat turun, tag `v1.3.0`, dan pakej `mod_splaskscore_v1.3.0.zip`.
+- Introduced unified analytics modal with KPI rail and chart composition.
+- Improved enterprise dashboard visual structure and analytics presentation.
 
-**v1.2.9 (12 Mei 2026)**
+### v1.5.7 — Operational Analytics Foundation
 
-- Memperkemas UI dashboard dan sejarah analitik dengan refresh icon-only yang ringan, membuang metadata operasi daripada paparan, dan menyelaraskan metadata release `v1.2.9`.
+- Stabilized analytics chart readability.
+- Preserved daily operational history and frontend pagination foundation.
 
-**v1.2.8 (11 Mei 2026)**
+## Project Information
 
-- Metadata release disegerakkan untuk versi manifest/update server, URL muat turun, tag `v1.2.8`, dan pakej `mod_splaskscore_v1.2.8.zip`.
+- Owner: **Muhammad Azizan Hazim**
+- Organization: **Unit Infrastruktur dan Keselamatan Digital, Bahagian Digital dan Teknologi Maklumat (BDTM)**
+- Repository: <https://github.com/hazatmda/mod_splaskscore>
+- Issue tracker: <https://github.com/hazatmda/mod_splaskscore/issues>
 
-**v1.2.5 (11 Mei 2026)**
+## License
 
-- Menambah nota operasi bahawa kutipan analitik automatik memerlukan infrastruktur Joomla Scheduled Tasks/cron hosting aktif, serta mendokumentasikan tingkah laku scheduler multi-modul yang menggunakan satu tugas scheduler dikongsi.
-- Workflow release disegerakkan untuk versi manifest/update server, URL muat turun, tag `v1.2.5`, dan pakej `mod_splaskscore_v1.2.5.zip`.
-- Validasi ZIP kini mengesan kandungan direktori melalui prefix fail, bukan entri folder eksplisit.
-- Format markah membuang sifar perpuluhan yang tidak perlu dan tarikh PHP/JS menggunakan pemprosesan UTC deterministik.
+This project is licensed under the [GNU General Public License v3.0](LICENSE.txt).
 
-**v1.1.6 (22 Julai 2025)**
+You may use, modify, and redistribute this code provided that:
 
-- Logik penggredan baharu:
-  - Gred A (100 sahaja), B (95-99), C (91-94), D (86-90), GAGAL (85 ke bawah)
-- Semua label paparan gred kini "Gred ..."
-- Fail manifest & update server dikemaskini
-- README & versi seragam
+- original copyright notices are preserved
+- the GPL license is included
+- redistributed modified versions remain available under the same license
 
-**v1.1.5**
-
-- Penambahbaikan logik penggredan:
-  - Gred A (95-100), B (91-94), C (86-90), GAGAL (85 ke bawah)
-- Fail manifest & update server dikemaskini.
-- Versi & tarikh diseragamkan.
-
-## Maklumat Tambahan
-
-- Dibangunkan oleh: **Muhammad Azizan Hazim**
-- Versi: **1.6.5**
-- Tarikh: **18 Mei 2026**
-
-## Lesen
-
-Kod ini dilesenkan di bawah [GNU General Public License v3.0](LICENSE.txt).
-
-Anda bebas menggunakan, mengubah suai, dan mengedarkan kod ini, dengan syarat:
-
-- Menyertakan notis hak cipta asal.
-- Menyertakan lesen GPL.
-- Jika anda edarkan semula versi ubah suai, anda mesti membuka kod tersebut kepada umum di bawah lesen yang sama.
-
-Lesen ini direka untuk memastikan kebebasan penggunaan dan pengubahsuaian dalam komuniti sumber terbuka.
+The license is intended to preserve software freedom for the open-source community.

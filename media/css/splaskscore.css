@@ -2335,7 +2335,7 @@
   color: #6c757d;
 }
 
-/* v1.6.19 analytics modal refinement for 1366x768 operational viewport. */
+/* v1.6.20 analytics modal refinement for 1366x768 operational viewport. */
 
 .splask-history-modal .modal-content {
   display: flex;
@@ -2443,7 +2443,7 @@
 }
 
 .splask-history-table-wrap {
-  max-height: 48vh;
+  max-height: 35vh;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -2539,7 +2539,7 @@
   }
 
   .splask-history-table-wrap {
-    max-height: 46vh;
+    max-height: 34vh;
   }
 
   .splask-history-table thead th {
@@ -2585,7 +2585,7 @@
   }
 
   .splask-history-table-wrap {
-    max-height: 48vh;
+    max-height: 35vh;
   }
 
   .splask-history-table tbody td {

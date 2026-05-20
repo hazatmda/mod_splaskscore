@@ -846,7 +846,8 @@
 
   function escapeCsvValue(value) {
     const text = String(value == null ? '' : value);
-    return `"${text.replace(/"/g, '""')}"`;
+    const safeText = /^[=+\-@]/.test(text) ? `'${text}` : text;
+    return `"${safeText.replace(/"/g, '""')}"`;
   }
 
   function buildHistoryCsv(records) {

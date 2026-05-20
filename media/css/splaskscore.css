@@ -1336,6 +1336,8 @@
 }
 
 .splask-history-export-button {
+  margin-left: auto;
+  flex-shrink: 0;
   border: 1px solid var(--splask-panel-border);
   background: color-mix(in srgb, var(--splask-modal-panel) 74%, var(--splask-grade-surface));
   color: var(--splask-text);

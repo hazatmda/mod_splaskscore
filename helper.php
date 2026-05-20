@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.6.18';
+    private const ENGINE_VERSION = '1.6.19';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -76,7 +76,7 @@ final class ModSplaskscoreHelper
         'graph_history_chart_aria_label' => 'Carta trend peratus SPLaSK',
         'history_table_aria_label' => 'Senarai sejarah SPLaSK boleh ditatal',
         'history_table_date_label' => 'Tarikh',
-        'history_table_time_label' => 'Masa Semakan',
+        'history_table_time_label' => 'Masa',
         'history_table_score_label' => 'Markah',
         'history_table_grade_label' => 'Gred',
         'history_table_status_label' => 'Status',

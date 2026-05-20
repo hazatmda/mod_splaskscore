@@ -857,7 +857,7 @@
 .splask-ops-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.42rem;
+  gap: 0.34rem;
 }
 
 .splask-ops-cell {
@@ -1053,7 +1053,7 @@
 
 .splask-glass-hero-card {
   display: grid;
-  gap: 0.42rem;
+  gap: 0.34rem;
   border-radius: 1.4rem;
   padding: 1.1rem;
 }
@@ -1847,7 +1847,7 @@
 }
 
 .splask-ops-score-stream {
-  min-height: 10.2rem;
+  min-height: 9.6rem;
   padding: 0.58rem;
 }
 
@@ -1858,7 +1858,7 @@
 
 .splask-ops-console .splask-ops-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.42rem;
+  gap: 0.34rem;
 }
 
 .splask-ops-console .splask-ops-cell {
@@ -2066,7 +2066,7 @@
 
 .splask-history-ops-rail {
   align-content: stretch;
-  gap: 0.42rem;
+  gap: 0.34rem;
 }
 
 .splask-history-ops-rail > div {
@@ -2335,7 +2335,7 @@
   color: #6c757d;
 }
 
-/* v1.6.18 analytics modal proportional rebalance for 1366x768 and 1920x1080. */
+/* v1.6.19 analytics modal refinement for 1366x768 operational viewport. */
 
 .splask-history-modal .modal-content {
   display: flex;
@@ -2348,7 +2348,7 @@
   min-height: 0;
   flex: 1 1 auto;
   overflow: hidden;
-  padding: 0.68rem 0.82rem 0.72rem;
+  padding: 0.62rem 0.82rem 0.56rem;
 }
 
 .splask-history-content {
@@ -2356,13 +2356,13 @@
   min-height: 0;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 0.42rem;
+  gap: 0.34rem;
 }
 
 .splask-history-table-shell {
   min-height: 0;
   flex: 1 1 auto;
-  gap: 0.36rem;
+  gap: 0.28rem;
 }
 
 .splask-history-table-wrap {
@@ -2374,20 +2374,20 @@
   position: sticky;
   bottom: 0;
   z-index: 2;
-  padding: 0.4rem 0;
+  padding: 0.28rem 0 0;
   background: linear-gradient(180deg, color-mix(in srgb, var(--splask-modal-panel) 14%, transparent), var(--splask-modal-panel));
 }
 
 .splask-history-mode-operations-grid .splask-history-ops-chart {
-  min-height: 12.2rem;
+  min-height: 11.4rem;
 }
 
 .splask-history-mode-operations-grid .splask-history-chart-canvas-wrap {
-  height: clamp(10.2rem, 22vh, 12.4rem);
+  height: clamp(9.6rem, 20vh, 11.2rem);
 }
 
 .splask-history-mode-operations-grid .splask-history-line-chart {
-  min-height: 10.2rem;
+  min-height: 9.6rem;
 }
 .splask-preset-dashboard_tile .splask-body {
   padding: clamp(0.75rem, 1.5vh, 1rem);
@@ -2467,11 +2467,11 @@
 }
 
 .splask-history-col-date { width: 92px; }
-.splask-history-col-time { width: 78px; }
+.splask-history-col-time { width: 64px; }
 .splask-history-col-score { width: 72px; }
 .splask-history-col-grade { width: 76px; }
 .splask-history-col-status { width: 108px; }
-.splask-history-col-catatan { width: auto; min-width: 220px; }
+.splask-history-col-catatan { width: 24%; min-width: 160px; }
 
 @media (max-width: 1400px), (max-height: 800px) {
   .splask-preset-dashboard_tile .splask-header {
@@ -2560,7 +2560,7 @@
   }
 
   .splask-history-modal .modal-body {
-    padding: 0.56rem 0.7rem 0.6rem;
+    padding: 0.5rem 0.66rem 0.5rem;
   }
 
   .splask-history-content {
@@ -2572,16 +2572,16 @@
   }
 
   .splask-history-mode-operations-grid .splask-history-ops-console {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.42rem;
     padding: 0.5rem;
   }
 
   .splask-history-mode-operations-grid .splask-history-ops-chart {
-    min-height: 10.7rem;
+    min-height: 9.9rem;
   }
 
   .splask-history-mode-operations-grid .splask-history-chart-canvas-wrap {
-    height: clamp(9.2rem, 20vh, 10.9rem);
+    height: clamp(8.8rem, 18vh, 10rem);
   }
 
   .splask-history-table-wrap {

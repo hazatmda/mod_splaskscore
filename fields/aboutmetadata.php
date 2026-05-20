@@ -12,7 +12,7 @@ require_once dirname(__DIR__) . '/helper.php';
 
 final class JFormFieldAboutMetadata extends FormField
 {
-    protected $type = 'AboutMetadata';
+    protected $type = 'aboutmetadata';
 
     protected function getLabel(): string
     {

@@ -1307,24 +1307,29 @@
 }
 
 .splask-history-page-size-control {
+  display: block;
+}
+
+.splask-history-page-size-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.6rem;
   color: var(--splask-muted);
   font-size: 0.78rem;
   font-weight: 850;
+  width: 100%;
 }
 
-.splask-history-page-size-control label {
+.splask-history-page-size-row label {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   margin: 0;
 }
 
-.splask-history-page-size-control input {
+.splask-history-page-size-row input {
   width: 4.5rem;
   border: 1px solid color-mix(in srgb, var(--splask-grade-color) 28%, var(--splask-panel-border));
   border-radius: 999px;
@@ -1336,7 +1341,7 @@
 }
 
 .splask-history-export-button {
-  margin-left: auto;
+  margin-left: 0;
   flex-shrink: 0;
   border: 1px solid var(--splask-panel-border);
   background: color-mix(in srgb, var(--splask-modal-panel) 74%, var(--splask-grade-surface));
@@ -1345,6 +1350,12 @@
   padding: 0.38rem 0.7rem;
   font-size: 0.78rem;
   font-weight: 800;
+}
+
+@media (max-width: 640px) {
+  .splask-history-page-size-row {
+    flex-wrap: wrap;
+  }
 }
 
 .splask-history-export-button:hover,

@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.6.21';
+    private const ENGINE_VERSION = '1.6.22';
 
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
@@ -814,6 +814,9 @@ final class ModSplaskscoreHelper
                         <span><?php echo htmlspecialchars($branding['kpi_rows_per_page_label'], ENT_QUOTES, 'UTF-8'); ?></span>
                         <input type="number" min="1" max="50" value="<?php echo $pageSize; ?>" data-splask-history-page-size-input aria-label="<?php echo htmlspecialchars($branding['kpi_rows_per_page_label'], ENT_QUOTES, 'UTF-8'); ?>" />
                     </label>
+                    <?php if ($canEditCatatan) : ?>
+                    <button type="button" class="splask-history-export-button" data-splask-history-export-csv>Export CSV</button>
+                    <?php endif; ?>
                 </div>
                 <div class="table-responsive splask-history-table-wrap" tabindex="0" aria-label="<?php echo htmlspecialchars($branding['history_table_aria_label'], ENT_QUOTES, 'UTF-8'); ?>">
                     <table class="table table-sm align-middle splask-history-table">

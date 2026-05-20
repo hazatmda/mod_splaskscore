@@ -1308,7 +1308,10 @@
 
 .splask-history-page-size-control {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
   color: var(--splask-muted);
   font-size: 0.78rem;
   font-weight: 850;
@@ -1330,6 +1333,21 @@
   background: var(--splask-modal-panel-strong);
   font-size: 0.78rem;
   font-weight: 850;
+}
+
+.splask-history-export-button {
+  border: 1px solid var(--splask-panel-border);
+  background: color-mix(in srgb, var(--splask-modal-panel) 74%, var(--splask-grade-surface));
+  color: var(--splask-text);
+  border-radius: 0.6rem;
+  padding: 0.38rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.splask-history-export-button:hover,
+.splask-history-export-button:focus {
+  background: color-mix(in srgb, var(--splask-grade-surface) 78%, #ffffff);
 }
 
 .splask-history-table-wrap {

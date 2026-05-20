@@ -4,7 +4,7 @@
     <packagename>splaskscore</packagename>
     <author>Muhammad Azizan Hazim</author>
     <creationDate>2026-05-11</creationDate>
-    <version>1.6.21</version>
+    <version>1.6.22</version>
     <description>Pakej SPLaSK Score dengan modul papan pemuka pentadbir dan tugas analitik Joomla Scheduler yang diurus daripada tetapan modul; kutipan automatik masih bergantung pada infrastruktur Joomla Scheduled Tasks yang aktif.</description>
     <files folder="packages">
         <file type="module" client="administrator" id="mod_splaskscore">mod_splaskscore.zip</file>

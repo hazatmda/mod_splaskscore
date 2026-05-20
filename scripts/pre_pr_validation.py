@@ -75,7 +75,7 @@ def build_package(version: str, plugin_zip: Path | None = None, system_plugin_zi
         package_dir.mkdir(exist_ok=True)
         shutil.copy2(system_plugin_zip, package_dir / "plg_system_splaskscoreautomation.zip")
 
-    for name in ["tmpl", "media", "language", "sql"]:
+    for name in ["tmpl", "media", "language", "sql", "fields"]:
         source = ROOT / name
         if source.is_dir():
             shutil.copytree(source, staging / name)

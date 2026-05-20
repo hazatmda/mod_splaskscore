@@ -844,6 +844,43 @@
     return !!(shell && shell.dataset && shell.dataset.splaskCanEditCatatan === '1');
   }
 
+  function escapeCsvValue(value) {
+    const text = String(value == null ? '' : value);
+    const safeText = /^[=+\-@]/.test(text) ? `'${text}` : text;
+    return `"${safeText.replace(/"/g, '""')}"`;
+  }
+
+  function buildHistoryCsv(records) {
+    const header = ['Tarikh', 'Masa', 'Skor', 'Gred', 'Status', 'Catatan'];
+    const rows = records.map((record) => ([
+      record.date || '',
+      record.time || '',
+      record.score || '',
+      record.gradeLabel || '',
+      record.status || '',
+      record.catatan || ''
+    ].map(escapeCsvValue).join(',')));
+    return `\uFEFF${header.map(escapeCsvValue).join(',')}\r\n${rows.join('\r\n')}`;
+  }
+
+  function exportHistoryCsv(shell) {
+    const records = getHistoryRecords(shell);
+    if (!records.length) {
+      return;
+    }
+
+    const csvContent = buildHistoryCsv(records);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `splask_analytics_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }
+
   function createCatatanDisplayButton(record) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -1088,6 +1125,7 @@
       const previous = shell.querySelector('[data-splask-history-page-prev]');
       const next = shell.querySelector('[data-splask-history-page-next]');
       const pageSizeInput = shell.querySelector('[data-splask-history-page-size-input]');
+      const exportButton = shell.querySelector('[data-splask-history-export-csv]');
 
       if (pageSizeInput) {
         pageSizeInput.value = shell.dataset.splaskHistoryPageSize;
@@ -1115,6 +1153,12 @@
           const current = Number(shell.dataset.splaskHistoryPage || '1');
           shell.dataset.splaskHistoryPage = String(Math.min(pageCount, current + 1));
           updateHistoryPage(shell);
+        });
+      }
+
+      if (exportButton && canEditCatatan(shell)) {
+        exportButton.addEventListener('click', () => {
+          exportHistoryCsv(shell);
         });
       }
 

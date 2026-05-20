@@ -145,7 +145,7 @@ jobs:
             fi
           done
 
-          for optional_dir in tmpl media language sql; do
+          for optional_dir in tmpl media language sql fields; do
             if [ -d "$optional_dir" ]; then
               mkdir -p "$STAGING_DIR/$optional_dir"
               cp -R "$optional_dir/." "$STAGING_DIR/$optional_dir/"

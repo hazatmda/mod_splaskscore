@@ -101,7 +101,7 @@
                 <field name="history_connection_error_label" type="text" label="History Connection Error Label" default="Ralat sambungan semasa memuatkan sejarah." />
             </fieldset>
             <fieldset name="about" label="About">
-                                <field name="about_metadata_panel" type="aboutmetadata" label="SPLaSK Score Metadata" class="p-0 border-0 bg-transparent shadow-none" />
+                <field name="about_metadata_panel" type="aboutmetadata" label="SPLaSK Score Metadata" class="p-0 border-0 bg-transparent shadow-none" />
             </fieldset>
         </fields>
     </config>

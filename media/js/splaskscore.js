@@ -844,6 +844,41 @@
     return !!(shell && shell.dataset && shell.dataset.splaskCanEditCatatan === '1');
   }
 
+  function escapeCsvCell(value) {
+    const text = String(value == null ? '' : value);
+    const escaped = text.replace(/"/g, '""');
+    return /[",\r\n]/.test(escaped) ? `"${escaped}"` : escaped;
+  }
+
+  function exportHistoryCsv(shell) {
+    const records = getHistoryRecords(shell);
+    const headers = ['Tarikh', 'Masa', 'Skor', 'Gred', 'Status', 'Catatan'];
+    const rows = [headers];
+
+    records.forEach((record) => {
+      rows.push([
+        record.date || '',
+        record.time || '',
+        record.score || '',
+        record.gradeLabel || '',
+        record.status || '',
+        record.catatan || ''
+      ]);
+    });
+
+    const csv = rows.map((row) => row.map(escapeCsvCell).join(',')).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const today = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `splask-analytics-${today}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  }
+
   function createCatatanDisplayButton(record) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -1088,6 +1123,7 @@
       const previous = shell.querySelector('[data-splask-history-page-prev]');
       const next = shell.querySelector('[data-splask-history-page-next]');
       const pageSizeInput = shell.querySelector('[data-splask-history-page-size-input]');
+      const exportButton = shell.querySelector('[data-splask-history-export-csv]');
 
       if (pageSizeInput) {
         pageSizeInput.value = shell.dataset.splaskHistoryPageSize;
@@ -1116,6 +1152,10 @@
           shell.dataset.splaskHistoryPage = String(Math.min(pageCount, current + 1));
           updateHistoryPage(shell);
         });
+      }
+
+      if (exportButton && canEditCatatan(shell)) {
+        exportButton.addEventListener('click', () => exportHistoryCsv(shell));
       }
 
       updateHistoryPage(shell);

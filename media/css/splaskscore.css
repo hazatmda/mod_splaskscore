@@ -1306,12 +1306,27 @@
   gap: 0.5rem;
 }
 
+.splask-history-table-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .splask-history-page-size-control {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   color: var(--splask-muted);
   font-size: 0.78rem;
   font-weight: 850;
+}
+
+.splask-history-export-button {
+  margin-left: auto;
+  font-size: 0.76rem;
+  line-height: 1.2;
+  padding: 0.24rem 0.62rem;
+  border-radius: 999px;
 }
 
 .splask-history-page-size-control label {
@@ -2569,6 +2584,15 @@
 
   .splask-history-page-size-control {
     font-size: 0.72rem;
+  }
+
+  .splask-history-table-actions {
+    gap: 0.35rem;
+  }
+
+  .splask-history-export-button {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.55rem;
   }
 
   .splask-history-mode-operations-grid .splask-history-ops-console {

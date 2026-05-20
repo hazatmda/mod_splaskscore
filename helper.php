@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.6.24';
+    private const ENGINE_VERSION = '1.6.25';
 
     public static function getEngineVersion(): string
     {

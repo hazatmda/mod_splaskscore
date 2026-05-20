@@ -6,20 +6,20 @@
 
 defined('_JEXEC') or die;
 
-use Joomla\CMS\Form\Field\NoteField;
+use Joomla\CMS\Form\FormField;
 
 require_once dirname(__DIR__) . '/helper.php';
 
-final class JFormFieldAboutMetadata extends NoteField
+final class JFormFieldAboutMetadata extends FormField
 {
     protected $type = 'AboutMetadata';
 
-    protected function getLabel()
+    protected function getLabel(): string
     {
         return '';
     }
 
-    protected function getInput()
+    protected function getInput(): string
     {
         $version = ModSplaskscoreHelper::getEngineVersion();
 

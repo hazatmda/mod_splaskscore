@@ -31,6 +31,11 @@ final class ModSplaskscoreHelper
 
     private const ENGINE_VERSION = '1.6.22';
 
+    public static function getEngineVersion(): string
+    {
+        return self::ENGINE_VERSION;
+    }
+
     private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
 
     private const DEFAULT_RETENTION_ENABLED = false;

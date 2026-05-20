@@ -1581,6 +1581,16 @@
   background: color-mix(in srgb, var(--splask-modal-panel) 72%, var(--splask-grade-surface));
 }
 
+.splask-history-header-actions .splask-export-button {
+  width: auto;
+  min-height: 2.35rem;
+  padding: 0.38rem 0.72rem;
+  line-height: 1.1;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
 .splask-history-header-actions .splask-modal-action-button:hover,
 .splask-history-header-actions .splask-modal-action-button:focus {
   color: #fff;

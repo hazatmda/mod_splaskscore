@@ -115,6 +115,9 @@ $clockSeed = ModSplaskscoreHelper::getJoomlaClockSeed();
             <p class="splask-history-subtitle"><?php echo htmlspecialchars($branding['analytics_subtitle'], ENT_QUOTES, 'UTF-8'); ?></p>
           </div>
           <div class="splask-history-header-actions">
+            <button type="button" class="btn btn-sm splask-modal-action-button splask-export-button" data-splask-export-csv-trigger>
+              Export CSV
+            </button>
             <button class="splask-icon-button splask-modal-action-button splask-refresh-button" type="button" data-splask-refresh-trigger title="<?php echo htmlspecialchars($branding['button_refresh_label'], ENT_QUOTES, 'UTF-8'); ?>" aria-label="<?php echo htmlspecialchars($branding['button_refresh_label'], ENT_QUOTES, 'UTF-8'); ?>">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M17.7 6.3A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.45 10.93 1 1 0 0 0-1.86-.74A6 6 0 1 1 16.2 7.8L14 10h6V4l-2.3 2.3Z" />

@@ -1210,6 +1210,43 @@
     });
   }
 
+  function toCsvValue(value) {
+    const text = String(value == null ? '' : value);
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  function exportHistoryCsv(root) {
+    const shell = root.querySelector('[data-splask-history-pagination]');
+    if (!shell) {
+      return;
+    }
+
+    const records = parseHistoryRecords(shell);
+    if (!records.length) {
+      return;
+    }
+
+    const header = ['Tarikh', 'Masa', 'Skor', 'Gred', 'Status', 'Catatan'];
+    const rows = records.map((record) => [
+      record.date || '',
+      record.time || '',
+      record.score_text || record.score || '',
+      record.grade || '',
+      record.status || '',
+      record.catatan || ''
+    ]);
+    const csv = [header, ...rows].map((row) => row.map(toCsvValue).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `splask-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
   function refreshAnalytics(root) {
     if (!root.dataset.splaskAjaxUrl) {
       return;
@@ -1262,6 +1299,7 @@
     const modal = root.querySelector('[data-splask-history-modal-shell]');
     const trigger = root.querySelector('[data-splask-history-trigger]');
     const refreshTrigger = root.querySelector('[data-splask-refresh-trigger]');
+    const exportTrigger = root.querySelector('[data-splask-export-csv-trigger]');
 
     if (modal) {
       modal.addEventListener('show.bs.modal', () => loadHistory(root));
@@ -1275,6 +1313,10 @@
 
     if (refreshTrigger) {
       refreshTrigger.addEventListener('click', () => refreshAnalytics(root));
+    }
+
+    if (exportTrigger) {
+      exportTrigger.addEventListener('click', () => exportHistoryCsv(root));
     }
   }
 

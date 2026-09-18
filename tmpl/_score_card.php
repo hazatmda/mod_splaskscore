@@ -18,6 +18,7 @@ $presetLabel = $splaskPresetLabel ?? '';
 $moduleId = isset($module) ? (int) $module->id : 0;
 $rootId = 'mod-splaskscore-' . $moduleId . '-' . preg_replace('/[^a-z0-9_-]/i', '-', $preset);
 $assetBase = Uri::root(true) . '/media/mod_splaskscore';
+$engineVersion = ModSplaskscoreHelper::getEngineVersion();
 $appearanceMode = ModSplaskscoreHelper::getAppearanceMode($params);
 
 $document = Factory::getApplication()->getDocument();
@@ -25,8 +26,8 @@ $wa = method_exists($document, 'getWebAssetManager') ? $document->getWebAssetMan
 if ($wa && method_exists($wa, 'useScript')) {
     $wa->useScript('bootstrap.modal');
 }
-$document->addStyleSheet($assetBase . '/css/splaskscore.css');
-$document->addScript($assetBase . '/js/splaskscore.js', ['defer' => true]);
+$document->addStyleSheet($assetBase . '/css/splaskscore.css?v=' . $engineVersion);
+$document->addScript($assetBase . '/js/splaskscore.js?v=' . $engineVersion, ['defer' => true]);
 $ajaxUrl = Uri::base(true) . '/index.php?option=com_ajax&module=splaskscore&format=json';
 $historyModalId = $rootId . '-history-modal';
 $csrfToken = Session::getFormToken();

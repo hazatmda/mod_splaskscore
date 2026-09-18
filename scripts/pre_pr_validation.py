@@ -337,6 +337,15 @@ def validate_schema_and_workflows() -> None:
     if "getAnalyticsScopeKey" not in (helper + template):
         raise AssertionError("Analytics scope key helper validation missing: getAnalyticsScopeKey")
 
+    asset_cache_tokens = [
+        "$engineVersion = ModSplaskscoreHelper::getEngineVersion();",
+        "$assetBase . '/css/splaskscore.css?v=' . $engineVersion",
+        "$assetBase . '/js/splaskscore.js?v=' . $engineVersion",
+    ]
+    missing_asset_cache_tokens = [token for token in asset_cache_tokens if token not in template]
+    if missing_asset_cache_tokens:
+        raise AssertionError("Versioned dashboard asset URLs missing: " + ", ".join(missing_asset_cache_tokens))
+
     persisted_snapshot_tokens = ["data-splask-snapshot", "updateEmptyState", "getDashboardSnapshot"]
     missing_snapshot = [token for token in persisted_snapshot_tokens if token not in (script + template + helper)]
     if missing_snapshot:

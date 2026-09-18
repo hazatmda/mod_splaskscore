@@ -13,7 +13,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.8.5.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.8.6.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 4. Semak tetapan automasi analitik jika mahu kutipan sejarah berjalan melalui Joomla Scheduled Tasks.
@@ -42,7 +42,7 @@ Modul ini menyokong Joomla Update Server.
 
 Fail `updates.xml` dan `mod_splaskscore_update.xml` menyediakan metadata kemaskini, versi, dan URL muat turun pakej release yang disemak oleh Joomla.
 
-Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.5` dan pakej `mod_splaskscore_v1.8.5.zip`.
+Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.6` dan pakej `mod_splaskscore_v1.8.6.zip`.
 
 ## Skop Analitik Kekal (analytics_scope)
 
@@ -71,7 +71,7 @@ php scripts/test_scheduler_timezone.php /path/to/joomla
 Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
 
 ```bash
-python3 scripts/pre_pr_validation.py --release-tag v1.8.5
+python3 scripts/pre_pr_validation.py --release-tag v1.8.6
 ```
 
 Semakan ini adalah disiplin wajib projek dan merangkumi:
@@ -95,6 +95,13 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
 ## Changelog
+
+### v1.8.6 (18 September 2026) — Cache buster aset dashboard
+
+- Menambah versi enjin pada URL CSS dan JavaScript dashboard, contohnya `splaskscore.js?v=1.8.6`, supaya pelayar memuatkan aset baharu selepas naik taraf.
+- Menggunakan versi release yang stabil sebagai cache buster agar cache pelayar masih berfungsi sepanjang versi yang sama.
+- Menambah pengawal validasi yang memastikan kedua-dua aset dashboard kekal menggunakan versi enjin.
+- Menyelaraskan metadata modul, plugin, pakej dan pelayan kemaskini kepada `1.8.6`.
 
 ### v1.8.5 (18 September 2026) — Kekalkan markah terakhir dan paparkan kod ralat HTTP
 

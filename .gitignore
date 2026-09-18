@@ -1,0 +1,7 @@
+# Local build and release output produced by scripts/pre_pr_validation.py
+/build/
+/dist/
+
+# Python bytecode caches
+__pycache__/
+*.py[cod]

@@ -208,7 +208,7 @@ jobs:
           fi
 
           ! grep -Eq '(^|/)(\.git|\.github|tests?)(/|$)' package-contents.txt
-          ! grep -Eq '(^|/)(AUDIT_AND_REFACTOR_PLAN\.md|README\.md|updates\.xml|mod_splaskscore_update\.xml|scripts)(/|$)' package-contents.txt
+          ! grep -Eq '(^|/)(AUDIT_AND_REFACTOR_PLAN\.md|README\.md|updates\.xml|mod_splaskscore_update\.xml|scripts|\.gitignore)(/|$)' package-contents.txt
 
       - name: Persist release metadata to default branch
         run: |

@@ -195,7 +195,7 @@ def inspect_package(zip_path: Path, version: str) -> None:
             if not archive.read(sql_path).strip():
                 raise AssertionError(f"SQL file in ZIP is empty: {sql_path}")
 
-        forbidden = [name for name in names if name.startswith((".git/", ".github/", "scripts/", "build/", "dist/"))]
+        forbidden = [name for name in names if name.startswith((".git/", ".github/", "scripts/", "build/", "dist/", ".gitignore"))]
         if forbidden:
             raise AssertionError(f"ZIP includes non-installable development paths: {', '.join(sorted(forbidden))}")
 

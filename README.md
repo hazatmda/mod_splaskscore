@@ -22,6 +22,12 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 Tetapan modul ialah panel kawalan utama untuk automasi analitik. Selepas pemasangan atau simpanan modul, SPLaSK Score akan cuba memasang/mengaktifkan plugin Scheduler, mencipta tugas Joomla Scheduled Tasks yang diperlukan, dan menyelaraskan status aktif, frekuensi, masa kutipan, duplicate cooldown, retention days, serta had rekod sejarah daripada parameter modul.
 
+Pada Joomla 5.2 dan lebih baharu, kutipan **Harian** menggunakan peraturan cron Joomla yang mengikuti zon masa laman dalam Global Configuration. Contohnya, `Masa Kutipan = 06:00` dengan zon masa `Asia/Kuala_Lumpur` bermaksud 6:00 pagi waktu Malaysia. Joomla menyimpan masa pelaksanaan seterusnya dalam UTC dan mengira jadual berikutnya menggunakan zon masa laman. Kutipan **Setiap Jam** kekal pada sela satu jam.
+
+Selepas memasang pembetulan zon masa ini, simpan semula modul untuk menukar tugas harian sedia ada kepada peraturan baharu. Simpan semula modul juga selepas menukar zon masa Joomla supaya masa pelaksanaan seterusnya dikira semula dengan segera. Joomla 5.0/5.1 mentafsir peraturan cron dalam UTC; naik taraf kepada Joomla 5.2 atau lebih baharu diperlukan untuk tingkah laku zon masa ini.
+
+**Had pustaka Joomla:** Ujian dengan Joomla 5.4.0 dan `cron-expression` 3.4.0 mendapati jadual boleh melangkau hari peralihan daylight saving musim bunga (contoh `Europe/Berlin`). Zon masa Malaysia tidak menggunakan daylight saving. Pengendalian peralihan ini bergantung pada pustaka cron Joomla.
+
 **Nota operasi penting:** Kutipan analitik automatik bergantung pada Joomla Scheduled Tasks yang aktif dalam persekitaran hosting. Pastikan infrastruktur Joomla Scheduled Tasks/cron di hosting anda berjalan untuk jaminan kutipan automatik; tanpa runner Scheduled Tasks yang aktif, tugas boleh wujud dan aktif tetapi tidak akan dilaksanakan sehingga scheduler Joomla diproses.
 
 ## Tingkah Laku Multi-Modul
@@ -39,6 +45,12 @@ Fail `updates.xml` dan `mod_splaskscore_update.xml` menyediakan metadata kemaski
 Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.6.5` dan pakej `mod_splaskscore_v1.6.5.zip`.
 
 ## Workflow Wajib Sebelum PR / Release
+
+Ujian integrasi zon masa boleh dijalankan terhadap direktori sumber Joomla 5.2+ yang mempunyai dependensi Composer. Ujian ini menggunakan kelas Scheduler dan pustaka cron sebenar dengan perkhidmatan aplikasi/pangkalan data diasingkan, tanpa mengakses konfigurasi atau pangkalan data laman:
+
+```bash
+php scripts/test_scheduler_timezone.php /path/to/joomla
+```
 
 Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
 

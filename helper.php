@@ -1543,8 +1543,22 @@ final class ModSplaskscoreHelper
 
         [$hour, $minute] = array_map('intval', explode(':', $time));
 
+        // Joomla 5.2+ evaluates cron rules in the configured site timezone and
+        // stores next_execution in UTC. A daily interval interprets exec-time
+        // in UTC, so it cannot preserve the selected local collection time.
         return [
-            'execution_rules' => ['rule-type' => 'interval-days', 'interval-days' => 1, 'exec-day' => $execDay, 'exec-time' => sprintf('%02d:%02d', $hour, $minute)],
+            'execution_rules' => [
+                'rule-type' => 'cron-expression',
+                'cron-expression' => [
+                    'minutes' => [$minute],
+                    'hours' => [$hour],
+                    'days_month' => range(1, 31),
+                    'months' => range(1, 12),
+                    'days_week' => range(0, 6),
+                ],
+                'exec-day' => $execDay,
+                'exec-time' => sprintf('%02d:%02d', $hour, $minute),
+            ],
         ];
     }
 

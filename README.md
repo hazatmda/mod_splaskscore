@@ -13,7 +13,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.8.3.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.8.5.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 4. Semak tetapan automasi analitik jika mahu kutipan sejarah berjalan melalui Joomla Scheduled Tasks.
@@ -42,7 +42,7 @@ Modul ini menyokong Joomla Update Server.
 
 Fail `updates.xml` dan `mod_splaskscore_update.xml` menyediakan metadata kemaskini, versi, dan URL muat turun pakej release yang disemak oleh Joomla.
 
-Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.3` dan pakej `mod_splaskscore_v1.8.3.zip`.
+Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.5` dan pakej `mod_splaskscore_v1.8.5.zip`.
 
 ## Skop Analitik Kekal (analytics_scope)
 
@@ -71,7 +71,7 @@ php scripts/test_scheduler_timezone.php /path/to/joomla
 Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
 
 ```bash
-python3 scripts/pre_pr_validation.py --release-tag v1.8.3
+python3 scripts/pre_pr_validation.py --release-tag v1.8.5
 ```
 
 Semakan ini adalah disiplin wajib projek dan merangkumi:
@@ -88,12 +88,29 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 - Semakan sanity CSS untuk struktur, selector dashboard/analytics, dan mod gelap.
 - Validasi sintaks JS apabila fail JS wujud.
 - Ujian regresi skop sejarah/token (`scripts/test_history_scope.php`) yang mengunci tingkah laku normalisasi token dan format kunci skop.
+- Ujian regresi kod status HTTP API (`scripts/test_api_http_errors.php`) untuk respons berjaya, status tidak diketahui, ralat 403/404/503, dan JSON tidak sah.
 - Ujian integrasi zon masa scheduler dijalankan apabila `JOOMLA_SOURCE_ROOT` ditetapkan kepada direktori sumber Joomla 5.2+ (dilangkau jika tidak ditetapkan).
 - Semakan konsistensi rendering analytics/dashboard, format ketepatan markah, tingkah laku dark/light appearance, `Semakan Seterusnya` date-only, `Tarikh Semakan` timestamp, jam Joomla live, dan timestamp analitik.
 
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
 ## Changelog
+
+### v1.8.5 (18 September 2026) — Kekalkan markah terakhir dan paparkan kod ralat HTTP
+
+- Dashboard terus memaparkan snapshot terakhir yang sah apabila cubaan API terkini gagal; cap masa kegagalan masih direkodkan untuk audit.
+- Status sebenar Joomla Scheduled Task dikekalkan: kutipan yang gagal masih dipulangkan sebagai kegagalan kepada scheduler.
+- Klien HTTP Joomla dan cURL kini menangkap kod status HTTP dan melaporkan 403, 404, 503 serta ralat bukan-200 lain dalam mesej kegagalan.
+- Butang Segar Semula memaparkan mesej kegagalan pelayan melalui sistem mesej Joomla, dengan dialog pelayar sebagai sandaran.
+- Menambah ujian regresi kod status HTTP dan menghubungkannya kepada validasi sebelum release.
+- Menyelaraskan metadata modul, plugin, pakej dan pelayan kemaskini kepada `1.8.5`.
+
+### v1.8.4 (18 September 2026) — Penyelenggaraan repositori
+
+- Menambah `.gitignore` untuk output binaan tempatan.
+- Membuang rujukan mati kepada folder `fields/` daripada workflow release dan validator.
+- Menambah pengawal supaya `.gitignore` tidak termasuk dalam ZIP pemasangan.
+- Tiada perubahan tingkah laku runtime berbanding v1.8.3.
 
 ### v1.8.3 (18 September 2026) — Buang kod mati fields/ yang bertembung huruf besar/kecil  - Membuang folder `fields/` yang tidak pernah dimuatkan oleh Joomla: `ModuleModel::getForm()` hanya mendaftar `.../modules/<module>/field` (tunggal), jadi `fields` (jamak) tidak boleh dirujuk. - Ini menghapuskan pertembungan `fields/AboutMetadata.php` lawan `fields/aboutmetadata.php` yang membuat Git sentiasa menunjukkan fail itu sebagai berubah pada Windows, dan berisiko menghasilkan pengisytiharan kelas berganda pada pemasangan Linux. - Panel About **tidak terjejas**: ia dirender oleh field `note` dalam manifest, bukan oleh field tersuai yang dibuang itu. - Membuang `<folder>fields</folder>` daripada manifest supaya pemasang tidak mencari folder yang sudah tiada. - Menyelaraskan metadata modul, plugin, pakej dan pelayan kemaskini kepada `1.8.3`.
 

@@ -360,14 +360,33 @@ def validate_schema_and_workflows() -> None:
     if missing_token_authority:
         raise AssertionError("Stored SPLaSK token authority validation missing: " + ", ".join(missing_token_authority))
 
-    health_failure_tokens = [
-        "strcmp($lastFailed, $effectiveSuccess) > 0",
-        "must not be masked by an older successful collection",
+    health_status = extract_function_body(helper, "getAnalyticsHealth")
+    health_snapshot_tokens = [
+        "$status = ($latest || $effectiveSuccess !== '') ? 'SUCCESS' : 'UNKNOWN'",
+        "'last_failed' => $lastFailed",
         "'status' => $status",
     ]
-    missing_health_tokens = [token for token in health_failure_tokens if token not in helper]
-    if missing_health_tokens:
-        raise AssertionError("Health failure precedence validation missing: " + ", ".join(missing_health_tokens))
+    missing_health_tokens = [token for token in health_snapshot_tokens if token not in health_status]
+    if missing_health_tokens or "$status = 'FAILED'" in health_status:
+        raise AssertionError(
+            "Dashboard health must preserve the latest valid snapshot without returning FAILED: "
+            + ", ".join(missing_health_tokens)
+        )
+
+    http_status_tokens = [
+        "$response->code",
+        "curl_getinfo($ch, CURLINFO_HTTP_CODE)",
+        "$httpCode !== 0 && $httpCode !== 200",
+        "Kod Ralat HTTP:",
+    ]
+    missing_http_tokens = [token for token in http_status_tokens if token not in helper]
+    if missing_http_tokens:
+        raise AssertionError("SPLaSK API HTTP status validation missing: " + ", ".join(missing_http_tokens))
+
+    refresh_error_tokens = ["showRefreshError", "Joomla.renderMessages", "data.message", "!data.success"]
+    missing_refresh_tokens = [token for token in refresh_error_tokens if token not in script]
+    if missing_refresh_tokens:
+        raise AssertionError("Refresh error popup validation missing: " + ", ".join(missing_refresh_tokens))
 
     release_workflow_tokens = [
         "install -m 0644 script.php",
@@ -648,6 +667,13 @@ def validate_history_scope_regression() -> None:
     run(["php", "scripts/test_history_scope.php"])
 
 
+def validate_api_http_error_regression() -> None:
+    """Verify that API HTTP failures retain their response status in the UI message."""
+    if shutil.which("php") is None:
+        raise AssertionError("PHP CLI is required for the API HTTP error regression test")
+    run(["php", "scripts/test_api_http_errors.php"])
+
+
 def validate_scheduler_timezone_regression() -> None:
     """Run the Joomla scheduler timezone test when an extracted Joomla tree is provided."""
     tree = os.environ.get("JOOMLA_SOURCE_ROOT", "").strip()
@@ -685,6 +711,7 @@ def main() -> int:
         validate_schema_and_workflows()
         validate_php()
         validate_history_scope_regression()
+        validate_api_http_error_regression()
         validate_scheduler_timezone_regression()
         validate_css()
         validate_js()

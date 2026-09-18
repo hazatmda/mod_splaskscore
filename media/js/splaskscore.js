@@ -1224,6 +1224,19 @@
     });
   }
 
+  function showRefreshError(root, message) {
+    const text = String(message || label(root, 'button_refresh_failed_label'));
+
+    if (window.Joomla && typeof window.Joomla.renderMessages === 'function') {
+      window.Joomla.renderMessages({ error: [text] });
+      return;
+    }
+
+    if (typeof window.alert === 'function') {
+      window.alert(text);
+    }
+  }
+
   function refreshAnalytics(root) {
     if (!root.dataset.splaskAjaxUrl) {
       return;
@@ -1242,7 +1255,15 @@
           applyHealth(root, data.health);
         }
 
-        if (data && data.success && data.payload) {
+        if (!data || !data.success) {
+          const message = (data && data.message) || label(root, 'button_refresh_failed_label');
+          showRefreshError(root, message);
+          setRefreshState(root, false, label(root, 'button_refresh_failed_label'));
+          window.setTimeout(() => setRefreshState(root, false), 1800);
+          return;
+        }
+
+        if (data.payload) {
           const payload = data.payload;
           updateSuccess(root, {
             status: true,
@@ -1250,7 +1271,7 @@
             verification_url: payload.verification_url,
             last_check: payload.last_check
           }, JSON.parse(root.dataset.splaskGradeRules || '[]'));
-        } else if (data && data.snapshot && data.snapshot.has_record) {
+        } else if (data.snapshot && data.snapshot.has_record) {
           updateSuccess(root, {
             final_score: data.snapshot.score,
             verification_url: data.snapshot.verification_url,
@@ -1272,7 +1293,8 @@
         setRefreshState(root, false, (data && data.duplicate) ? label(root, 'button_refresh_current_label') : label(root, 'button_refresh_label'));
         window.setTimeout(() => setRefreshState(root, false), 1800);
       })
-      .catch(() => {
+      .catch((error) => {
+        showRefreshError(root, error && error.message ? error.message : label(root, 'button_refresh_failed_label'));
         setRefreshState(root, false, label(root, 'button_refresh_failed_label'));
         window.setTimeout(() => setRefreshState(root, false), 1800);
       });

@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.8.4';
+    private const ENGINE_VERSION = '1.8.5';
 
     public static function getEngineVersion(): string
     {
@@ -1374,10 +1374,12 @@ final class ModSplaskscoreHelper
     {
         $url = 'https://splask-api.jdn.gov.my/api/get_my_score';
         $body = json_encode(['_token' => $token]);
+        $httpCode = 0;
 
         if (class_exists('\\Joomla\\CMS\\Http\\HttpFactory')) {
             $http = \Joomla\CMS\Http\HttpFactory::getHttp();
             $response = $http->post($url, $body, ['Content-Type' => 'application/json']);
+            $httpCode = (int) ($response->code ?? 0);
             $content = (string) ($response->body ?? '');
         } elseif (function_exists('curl_init')) {
             $ch = curl_init($url);
@@ -1390,12 +1392,17 @@ final class ModSplaskscoreHelper
             ]);
             $content = (string) curl_exec($ch);
             $error = curl_error($ch);
+            $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             if ($error !== '') {
                 throw new \RuntimeException($error);
             }
         } else {
             throw new \RuntimeException('Joomla HTTP client atau cURL tidak tersedia.');
+        }
+
+        if ($httpCode !== 0 && $httpCode !== 200) {
+            throw new \RuntimeException('Gagal menyambung ke API. (Kod Ralat HTTP: ' . $httpCode . ')');
         }
 
         $data = json_decode($content, true);
@@ -2472,15 +2479,10 @@ final class ModSplaskscoreHelper
             $effectiveSuccess = $fallbackSuccess;
         }
 
-        // The dashboard must reflect the newest operational event: a failure
-        // after the latest success/history snapshot is release-blocking and
-        // must not be masked by an older successful collection.
-        $status = 'UNKNOWN';
-        if ($lastFailed !== '' && ($effectiveSuccess === '' || strcmp($lastFailed, $effectiveSuccess) > 0)) {
-            $status = 'FAILED';
-        } elseif ($effectiveSuccess !== '') {
-            $status = 'SUCCESS';
-        }
+        // Keep the last valid score visible even when a later API refresh fails.
+        // The failure timestamp remains available in last_failed and the scheduler
+        // still returns its real execution result independently of this UI status.
+        $status = ($latest || $effectiveSuccess !== '') ? 'SUCCESS' : 'UNKNOWN';
 
         return [
             'last_success' => $effectiveSuccess,

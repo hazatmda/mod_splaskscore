@@ -13,7 +13,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.7.1.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.8.0.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 4. Semak tetapan automasi analitik jika mahu kutipan sejarah berjalan melalui Joomla Scheduled Tasks.
@@ -42,7 +42,7 @@ Modul ini menyokong Joomla Update Server.
 
 Fail `updates.xml` dan `mod_splaskscore_update.xml` menyediakan metadata kemaskini, versi, dan URL muat turun pakej release yang disemak oleh Joomla.
 
-Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.7.1` dan pakej `mod_splaskscore_v1.7.1.zip`.
+Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.0` dan pakej `mod_splaskscore_v1.8.0.zip`.
 
 ## Skop Analitik Kekal (analytics_scope)
 
@@ -55,6 +55,7 @@ Setiap instance modul menyimpan satu kunci skop analitik (`analytics_scope`, UUI
 - Modal Sejarah & Analitik membaca data daripada jadual `#__splaskscore_history` dan `#__splaskscore_health` sahaja. Kedua-duanya ditapis pada `module_id` bersama kunci skop, jadi tukar token tidak lagi menghasilkan dashboard kosong.
 - **Semakan kebenaran (ACL):** membaca modal Sejarah & Analitik dan menyimpan snapshot dari dashboard tidak lagi bergantung pada pengetahuan token; ia memerlukan **Super User**, **`core.manage` pada `com_modules`**, atau **`core.edit` pada instance modul itu**. Pengguna tanpa kebenaran ini akan menerima mesej penafian dan bukan data.
 - **Token SPLaSK dibaca daripada parameter modul (pangkalan data)** untuk semua tindakan pelayan — kutipan cron, butang Refresh, penulisan sejarah, dan penyimpanan catatan. Token yang dihantar oleh browser hanya diterima sebagai sandaran lama jika modul belum mempunyai token tersimpan, jadi tindakan pelayan tidak lagi bergantung pada halaman yang sudah lapuk.
+- **Dashboard adalah pembaca sahaja:** ia memaparkan snapshot terakhir yang disimpan dalam pangkalan data (oleh cron atau butang Refresh). Tiada panggilan API dari browser, dan atribut `data-splask-token` tidak lagi wujud dalam HTML — token kekal di pihak pelayan sahaja. SPLaSK menerbitkan markah sekali sehari, jadi paparan ini sentiasa sepadan dengan jejak audit.
 - **Jaminan tiada pendua di peringkat pangkalan data:** jadual sejarah mempunyai kolum terjana `history_day` bersama kunci unik `uniq_splaskscore_history_day` (`module_id`, `token_hash`, `history_day`). Pangkalan data sendiri akan menolak snapshot kedua bagi skop dan hari yang sama — perlindungan tidak lagi bergantung pada kod PHP sahaja.
 - Log kesihatan dipangkas secara automatik (lalai 90 hari; boleh ubah melalui `Pengekalan Log Kesihatan`). Snapshot sejarah tidak terjejas.
 - Nota `Rekod pendua diabaikan.` direkod sekali sahaja bagi setiap skop dan hari supaya log operasi kekal bersih.
@@ -70,7 +71,7 @@ php scripts/test_scheduler_timezone.php /path/to/joomla
 Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
 
 ```bash
-python3 scripts/pre_pr_validation.py --release-tag v1.7.1
+python3 scripts/pre_pr_validation.py --release-tag v1.8.0
 ```
 
 Semakan ini adalah disiplin wajib projek dan merangkumi:
@@ -93,6 +94,16 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
 ## Changelog
+
+### v1.8.0 (18 September 2026) — Dashboard menjadi pembaca sahaja
+
+- Dashboard **tidak lagi memanggil API SPLaSK dari browser**. Ia memaparkan snapshot terakhir yang sudah disimpan oleh cron atau butang Segar Semula Analitik.
+- Atribut `data-splask-token` **dibuang sepenuhnya** daripada HTML, jadi token tidak lagi terdedah dalam kod sumber halaman pentadbir.
+- Skor, gred, status, `Tarikh Semakan`, `Semakan Seterusnya`, dan pautan pengesahan dirender oleh pelayan daripada pangkalan data; JavaScript hanya menyegarkan paparan selepas butang Segar Semula berjaya.
+- Menambah keadaan kosong yang jelas: apabila tiada snapshot lagi, dashboard memaparkan *"Tiada rekod lagi"* dan mengarahkan pentadbir menekan Segar Semula atau menyemak Joomla Scheduled Tasks.
+- Menambah label *"Setakat &lt;tarikh&gt;"* supaya jelas markah yang dipaparkan ialah kutipan terakhir (SPLaSK menerbitkan markah sekali sehari).
+- Menambah semakan gate supaya panggilan API browser tidak boleh masuk semula ke dashboard.
+- Menyelaraskan metadata modul, plugin, pakej dan pelayan kemaskini kepada `1.8.0`.
 
 ### v1.7.2 (18 September 2026) — Token SPLaSK daripada pangkalan data untuk semua tindakan
 

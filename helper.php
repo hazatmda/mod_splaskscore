@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.7.2';
+    private const ENGINE_VERSION = '1.8.0';
 
     public static function getEngineVersion(): string
     {
@@ -88,6 +88,9 @@ final class ModSplaskscoreHelper
         'kpi_total_records_label' => 'Jumlah Rekod',
         'kpi_total_records_caption' => 'Semua rekod DB',
         'kpi_rows_per_page_label' => 'Baris Setiap Halaman',
+        'captured_at_label' => 'Setakat',
+        'empty_state_label' => 'Tiada rekod lagi',
+        'empty_state_hint_label' => 'Tekan Segar Semula Analitik, atau pastikan Joomla Scheduled Tasks aktif.',
         'graph_mini_trend_aria_label' => 'Graf garis trend operasi tujuh hari',
         'graph_history_chart_aria_label' => 'Carta trend peratus SPLaSK',
         'history_table_aria_label' => 'Senarai sejarah SPLaSK boleh ditatal',
@@ -778,6 +781,7 @@ final class ModSplaskscoreHelper
             'chart' => self::buildTrendSeries($chartRecords),
             'mini_trend' => self::buildMiniTrendSeriesFromChartRecords($chartRecords),
             'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
+            'snapshot' => self::getDashboardSnapshot($moduleId, $token),
             'scope' => $scope,
         ]);
     }
@@ -2329,6 +2333,77 @@ final class ModSplaskscoreHelper
         $db->setQuery($query);
 
         return (int) $db->loadResult() > 0;
+    }
+
+    /**
+     * Return the latest persisted snapshot for the dashboard tile.
+     *
+     * The dashboard is a reader: it displays what cron or the Refresh button already
+     * stored, so the browser never needs the SPLaSK token or a live API call.
+     *
+     * @param   int     $moduleId  Joomla module id.
+     * @param   string  $token     Optional token used only to resolve the history scope.
+     *
+     * @return  array<string, mixed>
+     */
+    public static function getDashboardSnapshot(int $moduleId, string $token = ''): array
+    {
+        $empty = [
+            'has_record' => false,
+            'score' => 0.0,
+            'score_display' => '--',
+            'grade_key' => '',
+            'grade_label' => '',
+            'grade_short_display' => '—',
+            'status_label' => '',
+            'verification_url' => '',
+            'checked_at' => '',
+            'checked_at_display' => '',
+            'next_check_display' => '',
+            'captured_at_display' => '',
+        ];
+
+        if ($moduleId <= 0) {
+            return $empty;
+        }
+
+        try {
+            $scope = self::resolveHistoryScope($moduleId, hash('sha256', self::normaliseToken($token)));
+            $records = self::getHistoryRecords($moduleId, $scope['hash'], 1);
+            $latest = $records[0] ?? null;
+
+            if (!$latest) {
+                return $empty;
+            }
+
+            $checkedAt = (string) (($latest->source_checked_at ?? '') ?: ($latest->recorded_at ?? $latest->created_at ?? ''));
+            $checkedDisplay = self::formatHistoryDateOnly($checkedAt);
+            $nextDisplay = '';
+            $nextTimestamp = strtotime($checkedAt . ' +1 day');
+
+            if ($nextTimestamp !== false) {
+                $nextDisplay = self::formatHistoryDateOnly(gmdate('Y-m-d 00:00:00', $nextTimestamp));
+            }
+
+            return [
+                'has_record' => true,
+                'score' => (float) $latest->score,
+                'score_display' => self::formatScorePercent((float) $latest->score),
+                'grade_key' => (string) $latest->grade_key,
+                'grade_label' => (string) $latest->grade_label,
+                'grade_short_display' => strtoupper((string) $latest->grade_key),
+                'status_label' => (string) $latest->status_label,
+                'verification_url' => (string) $latest->verification_url,
+                'checked_at' => $checkedAt,
+                'checked_at_display' => $checkedDisplay,
+                'next_check_display' => $nextDisplay !== '' ? $nextDisplay : 'Tiada',
+                'captured_at_display' => $checkedDisplay,
+            ];
+        } catch (\Throwable $exception) {
+            self::logAnalyticsEvent('warning', 'Dashboard snapshot unavailable.', ['module_id' => $moduleId, 'error' => $exception->getMessage()]);
+
+            return $empty;
+        }
     }
 
     public static function getAnalyticsHealth(int $moduleId, string $tokenHash): array

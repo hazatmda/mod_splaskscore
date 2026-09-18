@@ -41,6 +41,8 @@ $miniTrendJson = htmlspecialchars(json_encode($miniTrendSeries, JSON_UNESCAPED_U
 $branding = ModSplaskscoreHelper::getBranding($params);
 $brandingJson = ModSplaskscoreHelper::getBrandingJson($branding);
 $clockSeed = ModSplaskscoreHelper::getJoomlaClockSeed();
+$snapshot = ModSplaskscoreHelper::getDashboardSnapshot($moduleId, $token);
+$snapshotJson = htmlspecialchars(json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}', ENT_QUOTES, 'UTF-8');
 ?>
 
 <div
@@ -48,7 +50,7 @@ $clockSeed = ModSplaskscoreHelper::getJoomlaClockSeed();
   class="splask-widget splask-preset-<?php echo htmlspecialchars($preset, ENT_QUOTES, 'UTF-8'); ?> splask-appearance-<?php echo htmlspecialchars($appearanceMode, ENT_QUOTES, 'UTF-8'); ?> mt-3"
   style="<?php echo ModSplaskscoreHelper::getGradeThemeStyle(); ?>"
   data-splask-widget
-  data-splask-token="<?php echo $token_escaped; ?>"
+  data-splask-snapshot="<?php echo $snapshotJson; ?>"
   data-splask-grade-rules="<?php echo ModSplaskscoreHelper::getGradeRulesJson(); ?>"
   data-splask-appearance-mode="<?php echo htmlspecialchars($appearanceMode, ENT_QUOTES, 'UTF-8'); ?>"
   data-splask-appearance="<?php echo $appearanceMode === 'auto' ? 'auto' : htmlspecialchars($appearanceMode, ENT_QUOTES, 'UTF-8'); ?>"
@@ -77,21 +79,24 @@ $clockSeed = ModSplaskscoreHelper::getJoomlaClockSeed();
       </div>
       <div class="splask-header-telemetry" aria-label="Masa semasa Joomla">
         <span class="splask-live-clock" data-splask-live-clock><?php echo htmlspecialchars($clockSeed['display'], ENT_QUOTES, 'UTF-8'); ?></span>
-        <span class="splask-grade-pill" data-splask-grade-short aria-label="Gred semasa">…</span>
+        <span class="splask-grade-pill" data-splask-grade-short aria-label="Gred semasa"><?php echo htmlspecialchars($snapshot['has_record'] ? (string) $snapshot['grade_short_display'] : '—', ENT_QUOTES, 'UTF-8'); ?></span>
       </div>
     </header>
 
     <div class="splask-body">
       <div class="splask-ops-console" aria-label="<?php echo htmlspecialchars($branding['dashboard_subtitle'], ENT_QUOTES, 'UTF-8'); ?>">
         <div class="splask-ops-score-stream" aria-label="Hierarki skor utama">
-          <strong data-splask-score>0%</strong>
-          <span data-splask-grade><?php echo htmlspecialchars($branding['score_loading_label'], ENT_QUOTES, 'UTF-8'); ?></span>
-          <em data-splask-status><?php echo htmlspecialchars($branding['status_waiting_label'], ENT_QUOTES, 'UTF-8'); ?></em>
+          <strong data-splask-score><?php echo htmlspecialchars($snapshot['has_record'] ? (string) $snapshot['score_display'] : '--', ENT_QUOTES, 'UTF-8'); ?></strong>
+          <span data-splask-grade><?php echo htmlspecialchars($snapshot['has_record'] ? strtoupper((string) $snapshot['grade_label']) : $branding['empty_state_label'], ENT_QUOTES, 'UTF-8'); ?></span>
+          <em data-splask-status><?php echo htmlspecialchars($snapshot['has_record'] ? (string) $snapshot['status_label'] : $branding['empty_state_hint_label'], ENT_QUOTES, 'UTF-8'); ?></em>
+          <?php if ($snapshot['has_record'] && $snapshot['captured_at_display'] !== '') : ?>
+          <small class="splask-ops-captured"><?php echo htmlspecialchars($branding['captured_at_label'] . ' ' . $snapshot['captured_at_display'], ENT_QUOTES, 'UTF-8'); ?></small>
+          <?php endif; ?>
         </div>
         <div class="splask-ops-grid" aria-label="Grid KPI operasi">
           <div class="splask-ops-cell splask-ops-mini-chart"><span><?php echo htmlspecialchars($branding['kpi_mini_trend_label'], ENT_QUOTES, 'UTF-8'); ?></span><div class="splask-ops-trend-wrap"><canvas data-splask-mini-trend data-splask-mini-trend-points="<?php echo $miniTrendJson; ?>" width="320" height="96" aria-label="<?php echo htmlspecialchars($branding['graph_mini_trend_aria_label'], ENT_QUOTES, 'UTF-8'); ?>" role="img"></canvas></div></div>
-          <div class="splask-ops-cell splask-ops-date-cell"><span><?php echo htmlspecialchars($branding['kpi_check_date_label'], ENT_QUOTES, 'UTF-8'); ?></span><strong data-splask-date><?php echo htmlspecialchars($branding['score_loading_label'], ENT_QUOTES, 'UTF-8'); ?></strong></div>
-          <div class="splask-ops-cell splask-ops-next-cell"><span><?php echo htmlspecialchars($branding['kpi_next_check_label'], ENT_QUOTES, 'UTF-8'); ?></span><strong data-splask-next><?php echo htmlspecialchars($branding['score_loading_label'], ENT_QUOTES, 'UTF-8'); ?></strong></div>
+          <div class="splask-ops-cell splask-ops-date-cell"><span><?php echo htmlspecialchars($branding['kpi_check_date_label'], ENT_QUOTES, 'UTF-8'); ?></span><strong data-splask-date><?php echo htmlspecialchars($snapshot['has_record'] ? (string) $snapshot['checked_at_display'] : '--', ENT_QUOTES, 'UTF-8'); ?></strong></div>
+          <div class="splask-ops-cell splask-ops-next-cell"><span><?php echo htmlspecialchars($branding['kpi_next_check_label'], ENT_QUOTES, 'UTF-8'); ?></span><strong data-splask-next><?php echo htmlspecialchars($snapshot['has_record'] ? (string) $snapshot['next_check_display'] : '--', ENT_QUOTES, 'UTF-8'); ?></strong></div>
         </div>
       </div>
 

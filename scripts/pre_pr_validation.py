@@ -316,6 +316,19 @@ def validate_schema_and_workflows() -> None:
     if missing_guard_helper:
         raise AssertionError("Daily snapshot uniqueness guard missing from helper: " + ", ".join(missing_guard_helper))
 
+    browser_snapshot_tokens = ["data-splask-token", "get_my_score", "splask-api.jdn.gov.my"]
+    leaked_browser_tokens = [token for token in browser_snapshot_tokens if token in (script + template)]
+    if leaked_browser_tokens:
+        raise AssertionError(
+            "Dashboard must read the persisted snapshot instead of calling the SPLaSK API: "
+            + ", ".join(leaked_browser_tokens)
+        )
+
+    persisted_snapshot_tokens = ["data-splask-snapshot", "updateEmptyState", "getDashboardSnapshot"]
+    missing_snapshot = [token for token in persisted_snapshot_tokens if token not in (script + template + helper)]
+    if missing_snapshot:
+        raise AssertionError("Persisted dashboard snapshot validation missing: " + ", ".join(missing_snapshot))
+
     analytics_acl_tokens = [
         "canViewAnalytics",
         "Anda tidak dibenarkan melihat sejarah analitik modul ini.",

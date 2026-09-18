@@ -278,7 +278,6 @@
     const params = new URLSearchParams(values || {});
     params.set('method', task);
     params.set('module_id', root.dataset.splaskModuleId || '0');
-    params.set('token', root.dataset.splaskToken || '');
     params.set(root.dataset.splaskCsrfToken || '', '1');
 
     return params;
@@ -302,35 +301,6 @@
     return response && response.data ? response.data : response;
   }
 
-  function saveHistory(root, data, grade, score) {
-    if (!root.dataset.splaskAjaxUrl || root.dataset.splaskHistorySaved === 'true') {
-      return;
-    }
-
-    root.dataset.splaskHistorySaved = 'true';
-
-    postModuleAjax(root, 'saveHistory', {
-      score: score,
-      grade_key: grade.key,
-      grade_label: grade.label,
-      status_label: grade.status,
-      verification_url: data.verification_url || '',
-      source_checked_at: data.last_check || ''
-    })
-      .then(unwrapAjaxResponse)
-      .then((response) => {
-        if (response && response.health) {
-          applyHealth(root, response.health);
-        }
-
-        if (response && response.mini_trend) {
-          applyMiniTrendDataset(root, response.mini_trend);
-        }
-      })
-      .catch(() => {
-        root.dataset.splaskHistorySaved = 'false';
-      });
-  }
 
 
   function initHistoryCharts(scope) {
@@ -1280,6 +1250,12 @@
             verification_url: payload.verification_url,
             last_check: payload.last_check
           }, JSON.parse(root.dataset.splaskGradeRules || '[]'));
+        } else if (data && data.snapshot && data.snapshot.has_record) {
+          updateSuccess(root, {
+            final_score: data.snapshot.score,
+            verification_url: data.snapshot.verification_url,
+            last_check: data.snapshot.checked_at
+          }, JSON.parse(root.dataset.splaskGradeRules || '[]'));
         }
 
         if (data && (data.mini_trend || data.chart)) {
@@ -1342,14 +1318,20 @@
       link.href = data.verification_url;
       link.removeAttribute('aria-disabled');
     }
-
-    saveHistory(root, data, grade, score);
   }
 
   function updateError(root, message) {
     root.dataset.splaskState = 'error';
     setText(root, 'grade', message);
     setText(root, 'status', 'Sila semak token atau sambungan API.');
+  }
+
+  function updateEmptyState(root) {
+    root.dataset.splaskState = 'empty';
+    setText(root, 'score', '--');
+    setText(root, 'grade-short', '—');
+    setText(root, 'grade', label(root, 'empty_state_label'));
+    setText(root, 'status', label(root, 'empty_state_hint_label'));
   }
 
   function initWidget(root) {
@@ -1378,25 +1360,24 @@
       return;
     }
 
-    fetch('https://splask-api.jdn.gov.my/api/get_my_score', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ _token: root.dataset.splaskToken || '' })
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.status) {
-          updateSuccess(root, data, rules);
-          return;
-        }
+    let snapshot = null;
 
-        updateError(root, 'MARKAH TIDAK DIJUMPAI');
-      })
-      .catch(() => {
-        updateError(root, 'RALAT SAMBUNGAN API');
-      });
+    try {
+      snapshot = JSON.parse(root.dataset.splaskSnapshot || 'null');
+    } catch (error) {
+      snapshot = null;
+    }
+
+    if (!snapshot || !snapshot.has_record) {
+      updateEmptyState(root);
+      return;
+    }
+
+    updateSuccess(root, {
+      final_score: snapshot.score,
+      verification_url: snapshot.verification_url,
+      last_check: snapshot.checked_at
+    }, rules);
   }
 
   function initAll() {

@@ -397,6 +397,27 @@ def validate_schema_and_workflows() -> None:
     if missing_refresh_tokens:
         raise AssertionError("Refresh error popup validation missing: " + ", ".join(missing_refresh_tokens))
 
+    post_ajax = extract_function_body(script, "postModuleAjax")
+    ajax_response_tokens = [
+        "if (!response.ok)",
+        "System Server Error: ",
+        "response.status",
+        "response.statusText",
+        "response.text()",
+        "JSON.parse(text)",
+        "Non-JSON response received (possibly interrupted by Firewall or Server Error).",
+    ]
+    missing_ajax_response_tokens = [token for token in ajax_response_tokens if token not in post_ajax]
+    if missing_ajax_response_tokens or "response.json()" in post_ajax:
+        raise AssertionError(
+            "AJAX HTTP/non-JSON response handling missing: " + ", ".join(missing_ajax_response_tokens)
+        )
+
+    refresh_analytics = extract_function_body(script, "refreshAnalytics")
+    success_popup = "window.alert('Berjaya kemaskini markah SPLaSK pada tarikh: ' + payload.last_check);"
+    if success_popup not in refresh_analytics:
+        raise AssertionError("Manual refresh success popup validation missing")
+
     release_workflow_tokens = [
         "install -m 0644 script.php",
         "packages/plg_task_splaskscoreanalytics.zip",
@@ -534,6 +555,13 @@ def validate_js() -> None:
         raise AssertionError("Node.js is required for JS syntax validation")
     for path in js_files:
         run(["node", "--check", rel(path)])
+
+
+def validate_ajax_response_regression() -> None:
+    """Exercise HTTP and non-JSON response handling in the dashboard AJAX helper."""
+    if shutil.which("node") is None:
+        raise AssertionError("Node.js is required for the AJAX response regression test")
+    run(["node", "scripts/test_ajax_response_handling.js"])
 
 
 def extract_function_body(source: str, function_name: str) -> str:
@@ -724,6 +752,7 @@ def main() -> int:
         validate_scheduler_timezone_regression()
         validate_css()
         validate_js()
+        validate_ajax_response_regression()
         validate_dashboard_consistency()
         validate_analytics_refinement()
     except (AssertionError, subprocess.CalledProcessError, ET.ParseError, zipfile.BadZipFile) as exc:

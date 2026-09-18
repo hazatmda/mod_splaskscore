@@ -290,7 +290,19 @@
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
       },
       body: buildAjaxParams(root, task, values).toString()
-    }).then((response) => response.json());
+    }).then((response) => {
+      if (!response.ok) {
+        throw new Error('System Server Error: ' + response.status + ' ' + response.statusText);
+      }
+
+      return response.text().then((text) => {
+        try {
+          return JSON.parse(text);
+        } catch (error) {
+          throw new Error('Non-JSON response received (possibly interrupted by Firewall or Server Error).');
+        }
+      });
+    });
   }
 
   function unwrapAjaxResponse(response) {
@@ -1271,6 +1283,8 @@
             verification_url: payload.verification_url,
             last_check: payload.last_check
           }, JSON.parse(root.dataset.splaskGradeRules || '[]'));
+
+          window.alert('Berjaya kemaskini markah SPLaSK pada tarikh: ' + payload.last_check);
         } else if (data.snapshot && data.snapshot.has_record) {
           updateSuccess(root, {
             final_score: data.snapshot.score,

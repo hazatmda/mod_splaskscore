@@ -13,7 +13,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.8.6.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.8.7.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 4. Semak tetapan automasi analitik jika mahu kutipan sejarah berjalan melalui Joomla Scheduled Tasks.
@@ -42,7 +42,7 @@ Modul ini menyokong Joomla Update Server.
 
 Fail `updates.xml` dan `mod_splaskscore_update.xml` menyediakan metadata kemaskini, versi, dan URL muat turun pakej release yang disemak oleh Joomla.
 
-Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.6` dan pakej `mod_splaskscore_v1.8.6.zip`.
+Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.7` dan pakej `mod_splaskscore_v1.8.7.zip`.
 
 ## Skop Analitik Kekal (analytics_scope)
 
@@ -71,7 +71,7 @@ php scripts/test_scheduler_timezone.php /path/to/joomla
 Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
 
 ```bash
-python3 scripts/pre_pr_validation.py --release-tag v1.8.6
+python3 scripts/pre_pr_validation.py --release-tag v1.8.7
 ```
 
 Semakan ini adalah disiplin wajib projek dan merangkumi:
@@ -89,12 +89,21 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 - Validasi sintaks JS apabila fail JS wujud.
 - Ujian regresi skop sejarah/token (`scripts/test_history_scope.php`) yang mengunci tingkah laku normalisasi token dan format kunci skop.
 - Ujian regresi kod status HTTP API (`scripts/test_api_http_errors.php`) untuk respons berjaya, status tidak diketahui, ralat 403/404/503, dan JSON tidak sah.
+- Ujian regresi respons AJAX browser (`scripts/test_ajax_response_handling.js`) untuk JSON sah, HTML daripada HTTP 503, dan respons bukan JSON.
 - Ujian integrasi zon masa scheduler dijalankan apabila `JOOMLA_SOURCE_ROOT` ditetapkan kepada direktori sumber Joomla 5.2+ (dilangkau jika tidak ditetapkan).
 - Semakan konsistensi rendering analytics/dashboard, format ketepatan markah, tingkah laku dark/light appearance, `Semakan Seterusnya` date-only, `Tarikh Semakan` timestamp, jam Joomla live, dan timestamp analitik.
 
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
 ## Changelog
+
+### v1.8.7 (18 September 2026) — Ralat AJAX yang jelas dan popup kejayaan
+
+- Menghentikan respons HTTP bukan-2xx sebelum badan HTML pelayan cuba diparse sebagai JSON, termasuk ralat 403, 404, 500 dan 503.
+- Menukar respons HTML atau respons bukan JSON berstatus 200 kepada mesej yang jelas mengenai kemungkinan gangguan firewall atau pelayan.
+- Menambah popup kejayaan selepas Segar Semula menerima payload markah SPLaSK yang sah.
+- Menambah ujian regresi JavaScript bagi respons JSON sah, HTTP 503 dengan HTML, dan HTML bukan JSON.
+- Menyelaraskan metadata modul, plugin, pakej dan pelayan kemaskini kepada `1.8.7`.
 
 ### v1.8.6 (18 September 2026) — Cache buster aset dashboard
 

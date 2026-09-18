@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.6.26';
+    private const ENGINE_VERSION = '1.7.0';
 
     public static function getEngineVersion(): string
     {
@@ -441,7 +441,7 @@ final class ModSplaskscoreHelper
         }
 
         $moduleId = max(0, (int) ($payload['module_id'] ?? $input->getInt('module_id', 0)));
-        $plainToken = (string) ($payload['token'] ?? '');
+        $plainToken = self::normaliseToken((string) ($payload['token'] ?? ''));
         $tokenHash = hash('sha256', $plainToken);
         $score = max(0, min(100, (float) ($payload['score'] ?? 0)));
         $gradeKey = self::cleanHistoryText((string) ($payload['grade_key'] ?? ''), 32);
@@ -464,6 +464,9 @@ final class ModSplaskscoreHelper
         }
 
         self::ensureHistoryTable();
+
+        $scope = self::resolveHistoryScope($moduleId, $tokenHash);
+        $tokenHash = $scope['hash'];
 
         self::normalizeDailyHistoryDuplicates($moduleId, $tokenHash);
 
@@ -626,7 +629,7 @@ final class ModSplaskscoreHelper
 
         $id = $input->getInt('id', 0);
         $moduleId = $input->getInt('module_id', 0);
-        $token = $input->getString('token', '');
+        $token = self::normaliseToken($input->getString('token', ''));
         $catatan = trim($input->getString('catatan', ''));
 
         if ($id <= 0 || $moduleId <= 0 || $token === '') {
@@ -635,7 +638,7 @@ final class ModSplaskscoreHelper
 
         self::ensureHistoryTable();
         $db = \Joomla\CMS\Factory::getDbo();
-        $tokenHash = hash('sha256', $token);
+        $tokenHash = self::resolveHistoryScope($moduleId, hash('sha256', $token))['hash'];
         $query = $db->getQuery(true)
             ->update($db->quoteName(self::getHistoryTableName()))
             ->set($db->quoteName('catatan') . ' = ' . $db->quote(self::cleanHistoryText($catatan, 2000)))
@@ -684,7 +687,7 @@ final class ModSplaskscoreHelper
         }
 
         $moduleId = $input->getInt('module_id', 0);
-        $token = $input->getString('token', '');
+        $token = self::normaliseToken($input->getString('token', ''));
         $appearance = $input->getCmd('appearance', 'light');
         $preset = 'dashboard_tile';
         $user = \Joomla\CMS\Factory::getUser();
@@ -707,17 +710,20 @@ final class ModSplaskscoreHelper
         $triggeredBy = 'user:' . (int) $user->id;
 
         $result = self::collectSingleModuleAnalytics($moduleId, $token, 'manual', $triggeredBy);
-        $tokenHash = hash('sha256', $token);
+        $scope = self::resolveHistoryScope($moduleId, hash('sha256', $token));
+        $tokenHash = $scope['hash'];
+        $scopeNotice = self::historyScopeNotice($scope);
         self::normalizeDailyHistoryDuplicates($moduleId, $tokenHash);
         $records = self::getHistoryRecords($moduleId, $tokenHash);
         $chartRecords = self::getHistoryChartRecords($moduleId, $tokenHash);
         $totalRecords = self::getHistoryRecordCount($moduleId, $tokenHash);
 
         return array_merge($result, [
-            'html' => self::renderHistoryModal($records, $appearance, self::getAnalyticsHealth($moduleId, $tokenHash), self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords, self::getBrandingForModule($moduleId), self::canEditCatatan($user, $moduleId)),
+            'html' => self::renderHistoryModal($records, $appearance, self::getAnalyticsHealth($moduleId, $tokenHash), self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords, self::getBrandingForModule($moduleId), self::canEditCatatan($user, $moduleId), $scopeNotice),
             'chart' => self::buildTrendSeries($chartRecords),
             'mini_trend' => self::buildMiniTrendSeriesFromChartRecords($chartRecords),
             'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
+            'scope' => $scope,
         ]);
     }
 
@@ -739,7 +745,7 @@ final class ModSplaskscoreHelper
         }
 
         $moduleId = $input->getInt('module_id', 0);
-        $token = $input->getString('token', '');
+        $token = self::normaliseToken($input->getString('token', ''));
         $appearance = $input->getCmd('appearance', 'light');
         $preset = 'dashboard_tile';
 
@@ -752,7 +758,8 @@ final class ModSplaskscoreHelper
 
         self::ensureHistoryTable();
 
-        $tokenHash = hash('sha256', $token);
+        $scope = self::resolveHistoryScope($moduleId, hash('sha256', $token));
+        $tokenHash = $scope['hash'];
         self::normalizeDailyHistoryDuplicates($moduleId, $tokenHash);
         $records = self::getHistoryRecords($moduleId, $tokenHash);
         $chartRecords = self::getHistoryChartRecords($moduleId, $tokenHash);
@@ -762,10 +769,11 @@ final class ModSplaskscoreHelper
 
         return [
             'success' => true,
-            'html' => self::renderHistoryModal($records, $appearance, $health, self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords, self::getBrandingForModule($moduleId), self::canEditCatatan(\Joomla\CMS\Factory::getUser(), $moduleId)),
+            'html' => self::renderHistoryModal($records, $appearance, $health, self::getHistoryRowsPerPage($moduleId), $preset, $chartRecords, $totalRecords, self::getBrandingForModule($moduleId), self::canEditCatatan(\Joomla\CMS\Factory::getUser(), $moduleId), self::historyScopeNotice($scope)),
             'chart' => self::buildTrendSeries($chartRecords),
             'mini_trend' => self::buildMiniTrendSeriesFromChartRecords($chartRecords),
             'health' => $health,
+            'scope' => $scope,
         ];
     }
 
@@ -777,7 +785,7 @@ final class ModSplaskscoreHelper
      *
      * @return  string
      */
-    public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null, ?int $rowsPerPage = null, string $preset = 'dashboard_tile', ?array $chartRecords = null, ?int $totalRecords = null, ?array $branding = null, bool $canEditCatatan = false): string
+    public static function renderHistoryModal(array $records, string $appearance = 'light', ?array $health = null, ?int $rowsPerPage = null, string $preset = 'dashboard_tile', ?array $chartRecords = null, ?int $totalRecords = null, ?array $branding = null, bool $canEditCatatan = false, ?string $scopeNotice = null): string
     {
         $appearance = in_array($appearance, self::getAllowedAppearanceModes(), true) ? $appearance : 'light';
         $preset = 'dashboard_tile';
@@ -799,6 +807,9 @@ final class ModSplaskscoreHelper
         ob_start();
         ?>
         <div class="splask-history-content splask-history-<?php echo htmlspecialchars($appearance, ENT_QUOTES, 'UTF-8'); ?> splask-history-mode-<?php echo htmlspecialchars($modeClass, ENT_QUOTES, 'UTF-8'); ?>" data-splask-history-preset="<?php echo htmlspecialchars($preset, ENT_QUOTES, 'UTF-8'); ?>">
+            <?php if ($scopeNotice !== null && $scopeNotice !== '') : ?>
+            <div class="alert alert-info splask-history-scope-notice" role="status"><?php echo htmlspecialchars($scopeNotice, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
             <section class="splask-history-ops-console" aria-label="<?php echo htmlspecialchars($branding['analytics_title'], ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="splask-history-ops-rail" aria-label="<?php echo htmlspecialchars($branding['analytics_title'], ENT_QUOTES, 'UTF-8'); ?>">
                     <div class="splask-history-ops-primary"><span><?php echo htmlspecialchars($branding['kpi_score_today_label'], ENT_QUOTES, 'UTF-8'); ?></span><strong><?php echo $latest ? htmlspecialchars(self::formatScorePercent((float) $latest->score), ENT_QUOTES, 'UTF-8') : '--'; ?></strong><small><?php echo $latest ? htmlspecialchars(self::formatHistoryDateOnly((string) ($latest->source_checked_at ?: $latest->created_at)), ENT_QUOTES, 'UTF-8') : 'Tiada'; ?></small></div>
@@ -1202,6 +1213,8 @@ final class ModSplaskscoreHelper
      */
     public static function collectSingleModuleAnalytics(int $moduleId, string $token, string $source = 'scheduler', string $triggeredBy = 'scheduler'): array
     {
+        $token = self::normaliseToken($token);
+
         if ($moduleId <= 0 || $token === '') {
             return [
                 'success' => false,
@@ -1210,7 +1223,7 @@ final class ModSplaskscoreHelper
         }
 
         self::ensureHistoryTable();
-        $tokenHash = hash('sha256', $token);
+        $tokenHash = self::resolveHistoryScope($moduleId, hash('sha256', $token))['hash'];
 
         try {
             $apiData = self::fetchScoreFromApiWithRetry($token, $moduleId, $source);
@@ -1345,7 +1358,7 @@ final class ModSplaskscoreHelper
 
         foreach ($rows as $row) {
             $params = json_decode((string) $row->params, true) ?: [];
-            $token = trim((string) ($params['splask_token'] ?? ''));
+            $token = self::normaliseToken((string) ($params['splask_token'] ?? ''));
             $enabled = (string) ($params['analytics_auto_enabled'] ?? '1') === '1';
             if ($enabled && $token !== '') {
                 $modules[] = (object) ['id' => (int) $row->id, 'token' => $token];
@@ -1737,6 +1750,201 @@ final class ModSplaskscoreHelper
     /**
      * Build a stable content signature for duplicate protection.
      */
+    /**
+     * Normalise a SPLaSK token so every code path derives an identical scope hash.
+     *
+     * Tokens are pasted from portals and e-mail, so leading/trailing newlines and
+     * non-breaking spaces are common. They must never create a second history scope.
+     *
+     * @param   string  $token  Raw token value.
+     *
+     * @return  string
+     */
+    private static function normaliseToken(string $token): string
+    {
+        if ($token === '') {
+            return '';
+        }
+
+        $stripped = preg_replace('/^[\s\x{00A0}\x{FEFF}\x{2000}-\x{200B}]+|[\s\x{00A0}\x{FEFF}\x{2000}-\x{200B}]+$/u', '', $token);
+
+        return is_string($stripped) ? $stripped : trim($token);
+    }
+
+    /**
+     * Hash of the token currently stored in the module parameters.
+     *
+     * @param   int  $moduleId  Joomla module id.
+     *
+     * @return  string  Empty string when the module or its token is unavailable.
+     */
+    private static function moduleTokenHash(int $moduleId): string
+    {
+        $params = self::getModuleParams($moduleId);
+        $token = self::normaliseToken((string) ($params['splask_token'] ?? ''));
+
+        return $token === '' ? '' : hash('sha256', $token);
+    }
+
+    /**
+     * Determine whether a value is a stable analytics scope key.
+     *
+     * Scope keys are 32-character hexadecimal UUID values, while legacy token keys are
+     * 64-character SHA-256 hashes. That length difference keeps the two key spaces apart.
+     *
+     * @param   string  $value  Candidate key.
+     *
+     * @return  bool
+     */
+    private static function isAnalyticsScopeKey(string $value): bool
+    {
+        return preg_match('/^[0-9a-f]{32}$/', $value) === 1;
+    }
+
+    /**
+     * Return the stable analytics scope of a module, creating it on first use.
+     *
+     * The scope is stored once in the module parameters, so it survives token changes,
+     * grade-rule edits and package upgrades. History rows keep using the existing
+     * `token_hash` column, which now stores this scope key.
+     *
+     * @param   int   $moduleId  Joomla module id.
+     * @param   bool  $create    Generate and persist the scope when it is missing.
+     *
+     * @return  string  Scope key, or an empty string when it cannot be used.
+     */
+    private static function getAnalyticsScope(int $moduleId, bool $create = true): string
+    {
+        if ($moduleId <= 0) {
+            return '';
+        }
+
+        $params = self::getModuleParams($moduleId);
+        $scope = strtolower(trim((string) ($params['analytics_scope'] ?? '')));
+
+        if (self::isAnalyticsScopeKey($scope)) {
+            return $scope;
+        }
+
+        if (!$create) {
+            return '';
+        }
+
+        $scope = bin2hex(random_bytes(16));
+        $params['analytics_scope'] = $scope;
+        self::writeModuleParams($moduleId, $params);
+
+        return $scope;
+    }
+
+    /**
+     * Resolve the history scope used for reads and writes.
+     *
+     * The scope is stable, so analytics can never be orphaned by a token change. Rows that
+     * were written before scopes existed still carry a 64-character token hash; they are
+     * adopted once into the scope, so existing installations keep their full history.
+     *
+     * @param   int     $moduleId   Joomla module id.
+     * @param   string  $tokenHash  Hash derived from the request token.
+     *
+     * @return  array{hash: string, authoritative: string, legacy: bool, healed: int}
+     */
+    private static function resolveHistoryScope(int $moduleId, string $tokenHash): array
+    {
+        $result = [
+            'hash' => $tokenHash,
+            'authoritative' => '',
+            'legacy' => false,
+            'healed' => 0,
+        ];
+
+        if ($moduleId <= 0 || $tokenHash === '') {
+            return $result;
+        }
+
+        try {
+            self::ensureHistoryTable();
+            $result['authoritative'] = self::moduleTokenHash($moduleId);
+            $scope = self::getAnalyticsScope($moduleId);
+
+            if ($scope === '') {
+                return $result;
+            }
+
+            $result['hash'] = $scope;
+            $adopted = self::adoptLegacyHistoryScope($moduleId, $scope);
+
+            if ($adopted > 0) {
+                $result['legacy'] = true;
+                $result['healed'] = $adopted;
+            }
+
+            return $result;
+        } catch (\Throwable $exception) {
+            self::logAnalyticsEvent('warning', 'History scope resolution failed.', ['module_id' => $moduleId, 'error' => $exception->getMessage()]);
+
+            return $result;
+        }
+    }
+
+    /**
+     * Adopt history and health rows that still carry a legacy token-hash key.
+     *
+     * @param   int     $moduleId  Joomla module id.
+     * @param   string  $scope     Current analytics scope key.
+     *
+     * @return  int  Number of rows adopted.
+     */
+    private static function adoptLegacyHistoryScope(int $moduleId, string $scope): int
+    {
+        if ($moduleId <= 0 || !self::isAnalyticsScopeKey($scope)) {
+            return 0;
+        }
+
+        self::ensureHealthTable();
+        $db = \Joomla\CMS\Factory::getDbo();
+        $adopted = 0;
+
+        foreach ([self::getHistoryTableName(), self::getHealthTableName()] as $table) {
+            $query = $db->getQuery(true)
+                ->update($db->quoteName($table))
+                ->set($db->quoteName('token_hash') . ' = ' . $db->quote($scope))
+                ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
+                ->where('CHAR_LENGTH(' . $db->quoteName('token_hash') . ') <> 32');
+            $db->setQuery($query)->execute();
+            $adopted += (int) $db->getAffectedRows();
+        }
+
+        if ($adopted > 0) {
+            self::logAnalyticsEvent('info', 'Legacy history adopted into the module analytics scope.', [
+                'module_id' => $moduleId,
+                'scope' => substr($scope, 0, 12),
+                'rows_adopted' => $adopted,
+            ]);
+        }
+
+        return $adopted;
+    }
+
+    /**
+     * Operator-facing notice describing history adopted into the module scope.
+     *
+     * @param   array<string, mixed>  $scope  Result of resolveHistoryScope().
+     *
+     * @return  string
+     */
+    private static function historyScopeNotice(array $scope): string
+    {
+        $adopted = (int) ($scope['healed'] ?? 0);
+
+        if ($adopted <= 0) {
+            return '';
+        }
+
+        return 'Skop analitik modul ini kini kekal: ' . $adopted
+            . ' rekod sejarah lama telah dipautkan kepadanya, jadi sejarah tidak lagi hilang apabila token SPLaSK berubah.';
+    }
+
     private static function buildHistorySignature(float $score, string $gradeKey, string $statusLabel, string $verificationUrl, ?string $sourceCheckedAt): string
     {
         return hash('sha256', implode('|', [number_format($score, 2, '.', ''), $gradeKey, $statusLabel, $verificationUrl, (string) $sourceCheckedAt]));

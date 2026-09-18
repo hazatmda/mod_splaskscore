@@ -587,6 +587,27 @@ def validate_dashboard_consistency() -> None:
         raise AssertionError("Analytics KPI rail alignment regression: centered compact KPI styles are missing: " + ", ".join(missing_kpi_alignment))
 
 
+def validate_history_scope_regression() -> None:
+    """Guard the token-change failure mode that hid existing analytics history."""
+    if shutil.which("php") is None:
+        raise AssertionError("PHP CLI is required for the history scope regression test")
+    run(["php", "scripts/test_history_scope.php"])
+
+
+def validate_scheduler_timezone_regression() -> None:
+    """Run the Joomla scheduler timezone test when an extracted Joomla tree is provided."""
+    tree = os.environ.get("JOOMLA_SOURCE_ROOT", "").strip()
+
+    if not tree:
+        print("skipping scheduler timezone integration test; set JOOMLA_SOURCE_ROOT to enable it")
+        return
+
+    if not Path(tree).is_dir():
+        raise AssertionError(f"JOOMLA_SOURCE_ROOT must point to an extracted Joomla 5.2+ package: {tree}")
+
+    run(["php", "scripts/test_scheduler_timezone.php", tree])
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--release-tag", help="Expected release tag, for example v1.2.3. Defaults to v<manifest version>.")
@@ -609,6 +630,8 @@ def main() -> int:
         validate_joomla_package(package_zip, version)
         validate_schema_and_workflows()
         validate_php()
+        validate_history_scope_regression()
+        validate_scheduler_timezone_regression()
         validate_css()
         validate_js()
         validate_dashboard_consistency()

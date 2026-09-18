@@ -13,7 +13,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.6.26.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.7.0.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 4. Semak tetapan automasi analitik jika mahu kutipan sejarah berjalan melalui Joomla Scheduled Tasks.
@@ -42,7 +42,17 @@ Modul ini menyokong Joomla Update Server.
 
 Fail `updates.xml` dan `mod_splaskscore_update.xml` menyediakan metadata kemaskini, versi, dan URL muat turun pakej release yang disemak oleh Joomla.
 
-Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.6.26` dan pakej `mod_splaskscore_v1.6.26.zip`.
+Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.7.0` dan pakej `mod_splaskscore_v1.7.0.zip`.
+
+## Skop Analitik Kekal (analytics_scope)
+
+Setiap instance modul menyimpan satu kunci skop analitik (`analytics_scope`, UUID 32 aksara) dalam parameter modul. Kunci ini dijana secara automatik pada penggunaan pertama dan menjadi penanda sejarah yang **kekal**, jadi menukar token SPLaSK, menyunting gred, atau naik taraf pakej tidak lagi memisahkan sejarah lama daripada dashboard.
+
+- Lajur `token_hash` dalam jadual sejarah dan kesihatan kini menyimpan kunci skop ini.
+- Baris lama yang masih menyimpan hash token SHA-256 (64 aksara) akan **diadopsi secara automatik** ke dalam skop apabila dashboard analitik dibuka kali pertama selepas naik taraf. Tiada data hilang dan tiada migrasi manual diperlukan.
+- Modal Sejarah & Analitik akan memaklumkan berapa banyak rekod lama yang telah dipautkan.
+- Ingin memulakan buku sejarah baharu (contoh berpindah ke laman SPLaSK yang lain)? Padam nilai `analytics_scope` daripada parameter modul; kunci baharu akan dijana dan sejarah lama kekal di bawah kunci lama dalam pangkalan data.
+- Modal Sejarah & Analitik membaca data daripada jadual `#__splaskscore_history` dan `#__splaskscore_health` sahaja. Kedua-duanya ditapis pada `module_id` bersama kunci skop, jadi tukar token tidak lagi menghasilkan dashboard kosong.
 
 ## Workflow Wajib Sebelum PR / Release
 
@@ -55,7 +65,7 @@ php scripts/test_scheduler_timezone.php /path/to/joomla
 Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
 
 ```bash
-python3 scripts/pre_pr_validation.py --release-tag v1.6.26
+python3 scripts/pre_pr_validation.py --release-tag v1.7.0
 ```
 
 Semakan ini adalah disiplin wajib projek dan merangkumi:
@@ -71,11 +81,23 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 - Lint PHP untuk semua fail PHP modul dan plugin.
 - Semakan sanity CSS untuk struktur, selector dashboard/analytics, dan mod gelap.
 - Validasi sintaks JS apabila fail JS wujud.
+- Ujian regresi skop sejarah/token (`scripts/test_history_scope.php`) yang mengunci tingkah laku normalisasi token dan format kunci skop.
+- Ujian integrasi zon masa scheduler dijalankan apabila `JOOMLA_SOURCE_ROOT` ditetapkan kepada direktori sumber Joomla 5.2+ (dilangkau jika tidak ditetapkan).
 - Semakan konsistensi rendering analytics/dashboard, format ketepatan markah, tingkah laku dark/light appearance, `Semakan Seterusnya` date-only, `Tarikh Semakan` timestamp, jam Joomla live, dan timestamp analitik.
 
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
 ## Changelog
+
+### v1.7.0 (18 September 2026) — Skop analitik kekal & pemulihan sejarah
+
+- Menambah `analytics_scope` (UUID) sebagai penanda sejarah yang kekal bagi setiap instance modul, menggantikan hash token sebagai kunci sejarah.
+- Sejarah sedia ada dalam pangkalan data diadopsi secara automatik ke dalam skop tersebut apabila dashboard analitik dibuka — tiada data hilang dan tiada migrasi manual.
+- Menormalkan token SPLaSK (buang ruang, newline, non-breaking space, dan BOM di hujung sahaja) supaya semua laluan kod menghasilkan kunci yang sama.
+- Menambah notis operator dalam modal Sejarah & Analitik apabila rekod lama dipautkan ke skop baharu.
+- Membaiki harness `scripts/test_scheduler_timezone.php` yang sebelum ini tidak dapat dijalankan kerana autoload `Webmozart\Assert` tidak didaftarkan.
+- Menambah ujian regresi `scripts/test_history_scope.php` dan menyambungkan kedua-dua ujian ke `scripts/pre_pr_validation.py`.
+- Menyelaraskan metadata modul, plugin, pakej, panel About dan pelayan kemaskini kepada `1.7.0`.
 
 ### v1.6.26 (18 September 2026) — Joomla timezone scheduling fix
 

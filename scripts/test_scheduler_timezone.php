@@ -83,6 +83,17 @@ namespace {
             require $joomlaRoot . '/libraries/vendor/dragonmantank/cron-expression/src/'
                 . str_replace('\\', '/', $class) . '.php';
         }
+
+        // cron-expression depends on webmozart/assert, whose classes are not PSR-4
+        // autoloadable: they map to a flat src directory.
+        if (str_starts_with($class, 'Webmozart\\Assert\\')) {
+            $file = $joomlaRoot . '/libraries/vendor/webmozart/assert/src/'
+                . substr($class, \strlen('Webmozart\\Assert\\')) . '.php';
+
+            if (is_file($file)) {
+                require $file;
+            }
+        }
     });
 
     require $joomlaRoot . '/libraries/src/Date/Date.php';

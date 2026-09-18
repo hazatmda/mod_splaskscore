@@ -54,6 +54,7 @@ Setiap instance modul menyimpan satu kunci skop analitik (`analytics_scope`, UUI
 - Ingin memulakan buku sejarah baharu (contoh berpindah ke laman SPLaSK yang lain)? Padam nilai `analytics_scope` daripada parameter modul; kunci baharu akan dijana dan sejarah lama kekal di bawah kunci lama dalam pangkalan data.
 - Modal Sejarah & Analitik membaca data daripada jadual `#__splaskscore_history` dan `#__splaskscore_health` sahaja. Kedua-duanya ditapis pada `module_id` bersama kunci skop, jadi tukar token tidak lagi menghasilkan dashboard kosong.
 - **Semakan kebenaran (ACL):** membaca modal Sejarah & Analitik dan menyimpan snapshot dari dashboard tidak lagi bergantung pada pengetahuan token; ia memerlukan **Super User**, **`core.manage` pada `com_modules`**, atau **`core.edit` pada instance modul itu**. Pengguna tanpa kebenaran ini akan menerima mesej penafian dan bukan data.
+- **Token SPLaSK dibaca daripada parameter modul (pangkalan data)** untuk semua tindakan pelayan — kutipan cron, butang Refresh, penulisan sejarah, dan penyimpanan catatan. Token yang dihantar oleh browser hanya diterima sebagai sandaran lama jika modul belum mempunyai token tersimpan, jadi tindakan pelayan tidak lagi bergantung pada halaman yang sudah lapuk.
 - **Jaminan tiada pendua di peringkat pangkalan data:** jadual sejarah mempunyai kolum terjana `history_day` bersama kunci unik `uniq_splaskscore_history_day` (`module_id`, `token_hash`, `history_day`). Pangkalan data sendiri akan menolak snapshot kedua bagi skop dan hari yang sama — perlindungan tidak lagi bergantung pada kod PHP sahaja.
 - Log kesihatan dipangkas secara automatik (lalai 90 hari; boleh ubah melalui `Pengekalan Log Kesihatan`). Snapshot sejarah tidak terjejas.
 - Nota `Rekod pendua diabaikan.` direkod sekali sahaja bagi setiap skop dan hari supaya log operasi kekal bersih.
@@ -92,6 +93,14 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
 ## Changelog
+
+### v1.7.2 (18 September 2026) — Token SPLaSK daripada pangkalan data untuk semua tindakan
+
+- Butang Refresh kini membaca token daripada parameter modul (`#__modules.params`), bukan daripada permintaan browser. Jika token belum dikonfigurasi, ia memulangkan mesej yang jelas dan bukan kegagalan API yang kabur.
+- Laluan AJAX lain (modal sejarah, simpan snapshot dashboard, simpan catatan) turut menggunakan token tersimpan sebagai sumber utama; token dari browser hanya sandaran lama.
+- Menambah pembantu `moduleToken()` dan `resolveActionToken()` supaya hanya ada satu tempat token dibaca untuk tindakan pelayan.
+- Menambah semakan token autoriti dalam gate validasi.
+- Menyelaraskan metadata modul, plugin, pakej dan pelayan kemaskini kepada `1.7.2`.
 
 ### v1.7.1 (18 September 2026) — Jaminan tiada pendua & log kesihatan terurus
 

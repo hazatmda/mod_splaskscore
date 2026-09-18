@@ -325,6 +325,15 @@ def validate_schema_and_workflows() -> None:
     if missing_acl:
         raise AssertionError("Analytics history ACL validation missing: " + ", ".join(missing_acl))
 
+    token_authority_tokens = [
+        "private static function moduleToken(int $moduleId): string",
+        "private static function resolveActionToken(int $moduleId, string $requestToken): string",
+        "Token SPLaSK belum dikonfigurasi pada modul ini.",
+    ]
+    missing_token_authority = [token for token in token_authority_tokens if token not in helper]
+    if missing_token_authority:
+        raise AssertionError("Stored SPLaSK token authority validation missing: " + ", ".join(missing_token_authority))
+
     health_failure_tokens = [
         "strcmp($lastFailed, $effectiveSuccess) > 0",
         "must not be masked by an older successful collection",

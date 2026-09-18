@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.7.1';
+    private const ENGINE_VERSION = '1.7.2';
 
     public static function getEngineVersion(): string
     {
@@ -619,7 +619,7 @@ final class ModSplaskscoreHelper
 
         return self::saveHistoryRecord([
             'module_id' => $moduleId,
-            'token' => $input->getString('token', ''),
+            'token' => self::resolveActionToken($moduleId, $input->getString('token', '')),
             'score' => $input->getFloat('score', 0),
             'grade_key' => $input->getCmd('grade_key', ''),
             'grade_label' => $input->getString('grade_label', ''),
@@ -648,7 +648,7 @@ final class ModSplaskscoreHelper
 
         $id = $input->getInt('id', 0);
         $moduleId = $input->getInt('module_id', 0);
-        $token = self::normaliseToken($input->getString('token', ''));
+        $token = self::resolveActionToken($moduleId, $input->getString('token', ''));
         $catatan = trim($input->getString('catatan', ''));
 
         if ($id <= 0 || $moduleId <= 0 || $token === '') {
@@ -735,7 +735,7 @@ final class ModSplaskscoreHelper
         }
 
         $moduleId = $input->getInt('module_id', 0);
-        $token = self::normaliseToken($input->getString('token', ''));
+        $token = self::resolveActionToken($moduleId, $input->getString('token', ''));
         $appearance = $input->getCmd('appearance', 'light');
         $preset = 'dashboard_tile';
         $user = \Joomla\CMS\Factory::getUser();
@@ -756,6 +756,13 @@ final class ModSplaskscoreHelper
         }
 
         $triggeredBy = 'user:' . (int) $user->id;
+
+        if ($token === '') {
+            return [
+                'success' => false,
+                'message' => 'Token SPLaSK belum dikonfigurasi pada modul ini.',
+            ];
+        }
 
         $result = self::collectSingleModuleAnalytics($moduleId, $token, 'manual', $triggeredBy);
         $scope = self::resolveHistoryScope($moduleId, hash('sha256', $token));
@@ -793,7 +800,7 @@ final class ModSplaskscoreHelper
         }
 
         $moduleId = $input->getInt('module_id', 0);
-        $token = self::normaliseToken($input->getString('token', ''));
+        $token = self::resolveActionToken($moduleId, $input->getString('token', ''));
         $appearance = $input->getCmd('appearance', 'light');
         $preset = 'dashboard_tile';
 
@@ -1829,6 +1836,42 @@ final class ModSplaskscoreHelper
     }
 
     /**
+     * Return the SPLaSK token stored in the module parameters.
+     *
+     * This is the single source of truth for every server-side action: cron collection,
+     * manual refresh and history writes all read the token from here.
+     *
+     * @param   int  $moduleId  Joomla module id.
+     *
+     * @return  string  Normalised token, or an empty string when it is not configured.
+     */
+    private static function moduleToken(int $moduleId): string
+    {
+        $params = self::getModuleParams($moduleId);
+
+        return self::normaliseToken((string) ($params['splask_token'] ?? ''));
+    }
+
+    /**
+     * Resolve the token used by an AJAX action.
+     *
+     * The stored module token is authoritative, so an action never depends on the browser
+     * carrying a valid token. A request token is accepted only as a legacy fallback for a
+     * module that has no stored token yet.
+     *
+     * @param   int     $moduleId      Joomla module id.
+     * @param   string  $requestToken  Token supplied by the caller, if any.
+     *
+     * @return  string
+     */
+    private static function resolveActionToken(int $moduleId, string $requestToken): string
+    {
+        $stored = self::moduleToken($moduleId);
+
+        return $stored !== '' ? $stored : self::normaliseToken($requestToken);
+    }
+
+    /**
      * Hash of the token currently stored in the module parameters.
      *
      * @param   int  $moduleId  Joomla module id.
@@ -1837,8 +1880,7 @@ final class ModSplaskscoreHelper
      */
     private static function moduleTokenHash(int $moduleId): string
     {
-        $params = self::getModuleParams($moduleId);
-        $token = self::normaliseToken((string) ($params['splask_token'] ?? ''));
+        $token = self::moduleToken($moduleId);
 
         return $token === '' ? '' : hash('sha256', $token);
     }

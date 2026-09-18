@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.8.1';
+    private const ENGINE_VERSION = '1.8.2';
 
     public static function getEngineVersion(): string
     {
@@ -2333,6 +2333,33 @@ final class ModSplaskscoreHelper
         $db->setQuery($query);
 
         return (int) $db->loadResult() > 0;
+    }
+
+    /**
+     * Resolve the stable analytics scope key for a module.
+     *
+     * Every read and write for one module must use this key. Hashing the token directly
+     * would look for rows under a legacy token hash instead of the module scope, which is
+     * how analytics used to appear "missing" after a token change.
+     *
+     * @param   int     $moduleId  Joomla module id.
+     * @param   string  $token     Optional token used only to derive the scope.
+     *
+     * @return  string  Scope key, or an empty string when it is unavailable.
+     */
+    public static function getAnalyticsScopeKey(int $moduleId, string $token = ''): string
+    {
+        if ($moduleId <= 0) {
+            return '';
+        }
+
+        try {
+            return self::resolveHistoryScope($moduleId, hash('sha256', self::normaliseToken($token)))['hash'];
+        } catch (\Throwable $exception) {
+            self::logAnalyticsEvent('warning', 'Analytics scope key unavailable.', ['module_id' => $moduleId, 'error' => $exception->getMessage()]);
+
+            return '';
+        }
     }
 
     /**

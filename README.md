@@ -13,7 +13,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.8.1.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.8.2.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 4. Semak tetapan automasi analitik jika mahu kutipan sejarah berjalan melalui Joomla Scheduled Tasks.
@@ -42,7 +42,7 @@ Modul ini menyokong Joomla Update Server.
 
 Fail `updates.xml` dan `mod_splaskscore_update.xml` menyediakan metadata kemaskini, versi, dan URL muat turun pakej release yang disemak oleh Joomla.
 
-Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.1` dan pakej `mod_splaskscore_v1.8.1.zip`.
+Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.2` dan pakej `mod_splaskscore_v1.8.2.zip`.
 
 ## Skop Analitik Kekal (analytics_scope)
 
@@ -71,7 +71,7 @@ php scripts/test_scheduler_timezone.php /path/to/joomla
 Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
 
 ```bash
-python3 scripts/pre_pr_validation.py --release-tag v1.8.1
+python3 scripts/pre_pr_validation.py --release-tag v1.8.2
 ```
 
 Semakan ini adalah disiplin wajib projek dan merangkumi:
@@ -94,6 +94,13 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
 ## Changelog
+
+### v1.8.2 (18 September 2026) — Kunci skop digunakan untuk semua bacaan dashboard
+
+- Membetulkan bacaan awal dashboard (`kesihatan analitik` dan `mini-trend`) yang masih menghash token secara terus, jadi ia mencari baris di bawah hash token lama dan bukan skop modul.
+- Menambah pembantu awam `getAnalyticsScopeKey()` supaya hanya ada satu cara menentukan kunci skop, digunakan oleh template dan semua laluan lain.
+- Menambah semakan gate: validasi kini **gagal** jika mana-mana fail dalam `tmpl/` menghash token secara terus.
+- Menyelaraskan metadata modul, plugin, pakej dan pelayan kemaskini kepada `1.8.2`.
 
 ### v1.8.1 (18 September 2026) — Panel About diselaraskan dan disegerakkan automatik
 

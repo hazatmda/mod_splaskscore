@@ -324,6 +324,19 @@ def validate_schema_and_workflows() -> None:
             + ", ".join(leaked_browser_tokens)
         )
 
+    hashed_templates = [
+        path.name for path in sorted((ROOT / "tmpl").glob("*.php"))
+        if "hash('sha256'" in path.read_text()
+    ]
+    if hashed_templates:
+        raise AssertionError(
+            "Templates must resolve the analytics scope with getAnalyticsScopeKey() instead of hashing the token: "
+            + ", ".join(hashed_templates)
+        )
+
+    if "getAnalyticsScopeKey" not in (helper + template):
+        raise AssertionError("Analytics scope key helper validation missing: getAnalyticsScopeKey")
+
     persisted_snapshot_tokens = ["data-splask-snapshot", "updateEmptyState", "getDashboardSnapshot"]
     missing_snapshot = [token for token in persisted_snapshot_tokens if token not in (script + template + helper)]
     if missing_snapshot:

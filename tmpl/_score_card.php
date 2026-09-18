@@ -30,13 +30,14 @@ $document->addScript($assetBase . '/js/splaskscore.js', ['defer' => true]);
 $ajaxUrl = Uri::base(true) . '/index.php?option=com_ajax&module=splaskscore&format=json';
 $historyModalId = $rootId . '-history-modal';
 $csrfToken = Session::getFormToken();
-$initialHealth = $token !== '' ? ModSplaskscoreHelper::getAnalyticsHealth($moduleId, hash('sha256', (string) $token)) : [
+$historyScopeKey = ModSplaskscoreHelper::getAnalyticsScopeKey($moduleId, (string) $token);
+$initialHealth = $historyScopeKey !== '' ? ModSplaskscoreHelper::getAnalyticsHealth($moduleId, $historyScopeKey) : [
     'last_success' => '',
     'last_failed' => '',
     'status' => 'UNKNOWN',
     'missing_today' => true,
 ];
-$miniTrendSeries = $token !== '' ? ModSplaskscoreHelper::getDashboardMiniTrendSeries($moduleId, hash('sha256', (string) $token)) : [];
+$miniTrendSeries = $historyScopeKey !== '' ? ModSplaskscoreHelper::getDashboardMiniTrendSeries($moduleId, $historyScopeKey) : [];
 $miniTrendJson = htmlspecialchars(json_encode($miniTrendSeries, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]', ENT_QUOTES, 'UTF-8');
 $branding = ModSplaskscoreHelper::getBranding($params);
 $brandingJson = ModSplaskscoreHelper::getBrandingJson($branding);

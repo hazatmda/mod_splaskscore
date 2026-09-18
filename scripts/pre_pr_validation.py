@@ -294,6 +294,7 @@ def validate_schema_and_workflows() -> None:
     readme = (ROOT / "README.md").read_text()
     release_workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text()
     script = (ROOT / "media" / "js" / "splaskscore.js").read_text()
+    styles = (ROOT / "media" / "css" / "splaskscore.css").read_text()
     template = (ROOT / "tmpl" / "_score_card.php").read_text()
 
     schema_tokens = ["splaskscore_health", "source", "recorded_at", "engine_version", "signature", "triggered_by"]
@@ -392,10 +393,41 @@ def validate_schema_and_workflows() -> None:
     if missing_http_tokens:
         raise AssertionError("SPLaSK API HTTP status validation missing: " + ", ".join(missing_http_tokens))
 
-    refresh_error_tokens = ["showRefreshError", "Joomla.renderMessages", "data.message", "!data.success"]
+    refresh_error_tokens = ["showRefreshError", "showNotification", "data.message", "!data.success"]
     missing_refresh_tokens = [token for token in refresh_error_tokens if token not in script]
     if missing_refresh_tokens:
         raise AssertionError("Refresh error popup validation missing: " + ", ".join(missing_refresh_tokens))
+
+    notification = extract_function_body(script, "showNotification")
+    notification_tokens = [
+        "root.querySelector('.modal-content')",
+        "document.createElement('div')",
+        "document.createElement('span')",
+        "text.textContent = String(message || '')",
+        "modalContent.prepend(toast)",
+        "toast.classList.add('is-leaving')",
+        "toast.remove()",
+        "}, 5000)",
+    ]
+    missing_notification_tokens = [token for token in notification_tokens if token not in notification]
+    if missing_notification_tokens or "window.alert" in script or "Joomla.renderMessages" in script:
+        raise AssertionError("Custom modal notification validation missing: " + ", ".join(missing_notification_tokens))
+
+    notification_style_tokens = [
+        ".splask-toast",
+        "position: absolute",
+        "top: 1rem",
+        "left: 50%",
+        "transform: translateX(-50%)",
+        "backdrop-filter: blur(16px)",
+        ".splask-toast-success",
+        ".splask-toast-error",
+        "@keyframes splask-toast-enter",
+        "@keyframes splask-toast-exit",
+    ]
+    missing_notification_styles = [token for token in notification_style_tokens if token not in styles]
+    if missing_notification_styles:
+        raise AssertionError("Premium notification CSS missing: " + ", ".join(missing_notification_styles))
 
     post_ajax = extract_function_body(script, "postModuleAjax")
     ajax_response_tokens = [
@@ -414,7 +446,7 @@ def validate_schema_and_workflows() -> None:
         )
 
     refresh_analytics = extract_function_body(script, "refreshAnalytics")
-    success_popup = "window.alert('Berjaya kemaskini markah SPLaSK pada tarikh: ' + payload.last_check);"
+    success_popup = "showNotification(root, 'Berjaya kemaskini markah SPLaSK pada tarikh: ' + payload.last_check, 'success');"
     if success_popup not in refresh_analytics:
         raise AssertionError("Manual refresh success popup validation missing")
 
@@ -562,6 +594,13 @@ def validate_ajax_response_regression() -> None:
     if shutil.which("node") is None:
         raise AssertionError("Node.js is required for the AJAX response regression test")
     run(["node", "scripts/test_ajax_response_handling.js"])
+
+
+def validate_dashboard_notification_regression() -> None:
+    """Exercise the custom modal notification lifecycle and safe text rendering."""
+    if shutil.which("node") is None:
+        raise AssertionError("Node.js is required for the dashboard notification regression test")
+    run(["node", "scripts/test_dashboard_notifications.js"])
 
 
 def extract_function_body(source: str, function_name: str) -> str:
@@ -753,6 +792,7 @@ def main() -> int:
         validate_css()
         validate_js()
         validate_ajax_response_regression()
+        validate_dashboard_notification_regression()
         validate_dashboard_consistency()
         validate_analytics_refinement()
     except (AssertionError, subprocess.CalledProcessError, ET.ParseError, zipfile.BadZipFile) as exc:

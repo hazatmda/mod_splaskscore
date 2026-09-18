@@ -13,7 +13,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.8.7.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.8.8.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 4. Semak tetapan automasi analitik jika mahu kutipan sejarah berjalan melalui Joomla Scheduled Tasks.
@@ -42,7 +42,7 @@ Modul ini menyokong Joomla Update Server.
 
 Fail `updates.xml` dan `mod_splaskscore_update.xml` menyediakan metadata kemaskini, versi, dan URL muat turun pakej release yang disemak oleh Joomla.
 
-Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.7` dan pakej `mod_splaskscore_v1.8.7.zip`.
+Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.8` dan pakej `mod_splaskscore_v1.8.8.zip`.
 
 ## Skop Analitik Kekal (analytics_scope)
 
@@ -71,7 +71,7 @@ php scripts/test_scheduler_timezone.php /path/to/joomla
 Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
 
 ```bash
-python3 scripts/pre_pr_validation.py --release-tag v1.8.7
+python3 scripts/pre_pr_validation.py --release-tag v1.8.8
 ```
 
 Semakan ini adalah disiplin wajib projek dan merangkumi:
@@ -90,12 +90,21 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 - Ujian regresi skop sejarah/token (`scripts/test_history_scope.php`) yang mengunci tingkah laku normalisasi token dan format kunci skop.
 - Ujian regresi kod status HTTP API (`scripts/test_api_http_errors.php`) untuk respons berjaya, status tidak diketahui, ralat 403/404/503, dan JSON tidak sah.
 - Ujian regresi respons AJAX browser (`scripts/test_ajax_response_handling.js`) untuk JSON sah, HTML daripada HTTP 503, dan respons bukan JSON.
+- Ujian regresi notifikasi dashboard (`scripts/test_dashboard_notifications.js`) untuk kandungan teks selamat, penggantian toast, aksesibiliti, animasi keluar dan auto-dismiss.
 - Ujian integrasi zon masa scheduler dijalankan apabila `JOOMLA_SOURCE_ROOT` ditetapkan kepada direktori sumber Joomla 5.2+ (dilangkau jika tidak ditetapkan).
 - Semakan konsistensi rendering analytics/dashboard, format ketepatan markah, tingkah laku dark/light appearance, `Semakan Seterusnya` date-only, `Tarikh Semakan` timestamp, jam Joomla live, dan timestamp analitik.
 
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
 ## Changelog
+
+### v1.8.8 (18 September 2026) — Notifikasi toast premium dalam modal
+
+- Menggantikan `window.alert` dan mesej global Joomla dengan toast khusus di bahagian atas modal analitik.
+- Menambah tema hijau untuk kejayaan dan merah/crimson untuk ralat, bersama blur latar, bayang lembut, bentuk pill dan animasi masuk/keluar.
+- Toast menggunakan kandungan teks selamat, atribut aksesibiliti mengikut jenis, menggantikan notifikasi lama dan hilang secara automatik selepas lima saat.
+- Menambah ujian regresi lifecycle notifikasi serta pengawal JavaScript/CSS dalam gate release.
+- Menyelaraskan metadata modul, plugin, pakej dan pelayan kemaskini kepada `1.8.8`.
 
 ### v1.8.7 (18 September 2026) — Ralat AJAX yang jelas dan popup kejayaan
 

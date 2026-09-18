@@ -1236,17 +1236,36 @@
     });
   }
 
-  function showRefreshError(root, message) {
-    const text = String(message || label(root, 'button_refresh_failed_label'));
-
-    if (window.Joomla && typeof window.Joomla.renderMessages === 'function') {
-      window.Joomla.renderMessages({ error: [text] });
+  function showNotification(root, message, type = 'success') {
+    const modalContent = root.querySelector('.modal-content');
+    if (!modalContent) {
       return;
     }
 
-    if (typeof window.alert === 'function') {
-      window.alert(text);
-    }
+    const notificationType = type === 'error' ? 'error' : 'success';
+    const toast = document.createElement('div');
+    const text = document.createElement('span');
+
+    modalContent.querySelectorAll('.splask-toast').forEach((existingToast) => existingToast.remove());
+
+    toast.className = `splask-toast splask-toast-${notificationType}`;
+    toast.setAttribute('role', notificationType === 'error' ? 'alert' : 'status');
+    toast.setAttribute('aria-live', notificationType === 'error' ? 'assertive' : 'polite');
+    toast.setAttribute('aria-atomic', 'true');
+    text.textContent = String(message || '');
+    toast.appendChild(text);
+    modalContent.prepend(toast);
+
+    window.setTimeout(() => {
+      toast.classList.add('is-leaving');
+      const removeToast = () => toast.remove();
+      toast.addEventListener('animationend', removeToast, { once: true });
+      window.setTimeout(removeToast, 400);
+    }, 5000);
+  }
+
+  function showRefreshError(root, message) {
+    showNotification(root, message || label(root, 'button_refresh_failed_label'), 'error');
   }
 
   function refreshAnalytics(root) {
@@ -1284,7 +1303,7 @@
             last_check: payload.last_check
           }, JSON.parse(root.dataset.splaskGradeRules || '[]'));
 
-          window.alert('Berjaya kemaskini markah SPLaSK pada tarikh: ' + payload.last_check);
+          showNotification(root, 'Berjaya kemaskini markah SPLaSK pada tarikh: ' + payload.last_check, 'success');
         } else if (data.snapshot && data.snapshot.has_record) {
           updateSuccess(root, {
             final_score: data.snapshot.score,

@@ -13,7 +13,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.8.0.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.8.1.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 4. Semak tetapan automasi analitik jika mahu kutipan sejarah berjalan melalui Joomla Scheduled Tasks.
@@ -42,7 +42,7 @@ Modul ini menyokong Joomla Update Server.
 
 Fail `updates.xml` dan `mod_splaskscore_update.xml` menyediakan metadata kemaskini, versi, dan URL muat turun pakej release yang disemak oleh Joomla.
 
-Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.0` dan pakej `mod_splaskscore_v1.8.0.zip`.
+Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.1` dan pakej `mod_splaskscore_v1.8.1.zip`.
 
 ## Skop Analitik Kekal (analytics_scope)
 
@@ -71,7 +71,7 @@ php scripts/test_scheduler_timezone.php /path/to/joomla
 Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
 
 ```bash
-python3 scripts/pre_pr_validation.py --release-tag v1.8.0
+python3 scripts/pre_pr_validation.py --release-tag v1.8.1
 ```
 
 Semakan ini adalah disiplin wajib projek dan merangkumi:
@@ -94,6 +94,14 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
 ## Changelog
+
+### v1.8.1 (18 September 2026) — Panel About diselaraskan dan disegerakkan automatik
+
+- Membetulkan panel About yang masih memaparkan versi `1.6.26` sejak v1.7.0 — kini ia menunjukkan versi release semasa.
+- `scripts/sync_release_metadata.py` kini turut menulis versi panel About, jadi nombor versi itu disegerakkan automatik semasa release dan tidak boleh tersasar lagi.
+- `scripts/validate_release_metadata.py` kini **gagal** jika versi panel About tidak sepadan dengan versi manifest.
+- Menambah fakta seni bina pada panel About: skop analitik kekal dan jaminan snapshot harian di peringkat pangkalan data.
+- Menyelaraskan metadata modul, plugin, pakej dan pelayan kemaskini kepada `1.8.1`.
 
 ### v1.8.0 (18 September 2026) — Dashboard menjadi pembaca sahaja
 

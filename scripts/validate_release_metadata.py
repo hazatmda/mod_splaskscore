@@ -148,6 +148,23 @@ def validate(
                 f"{module_manifest}: description version {description_version} does not match manifest version {module_version}"
             )
 
+    about_versions = []
+
+    for field in module_root.iter("field"):
+        if field.attrib.get("name") == "about_metadata_panel":
+            about_versions = DESCRIPTION_VERSION_PATTERN.findall(field.attrib.get("description", ""))
+
+    if not about_versions:
+        raise ValueError(
+            f"{module_manifest}: About panel must state the release version, for example 'versi {module_version}'"
+        )
+
+    for about_version in about_versions:
+        if about_version != module_version:
+            raise ValueError(
+                f"{module_manifest}: About panel version {about_version} does not match manifest version {module_version}"
+            )
+
     update_server = module_root.find("updateservers/server")
     if update_server is None:
         raise ValueError(f"{module_manifest}: missing <updateservers><server> declaration")

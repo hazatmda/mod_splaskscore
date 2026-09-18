@@ -178,6 +178,26 @@ def sync_legacy_update_manifest(legacy_manifest: Path, version: str) -> list[str
     return changes
 
 
+def sync_about_panel_version(module_root: ET.Element, module_manifest: Path, version: str) -> tuple[str, str] | None:
+    """Patch the version advertised by the module About panel note field."""
+    for field in module_root.iter("field"):
+        if field.attrib.get("name") != "about_metadata_panel":
+            continue
+
+        description = field.attrib.get("description", "")
+        if not description:
+            return None
+
+        new_description, replacements = DESCRIPTION_VERSION_PATTERN.subn(rf"\g<1>{version}", description)
+        if replacements == 0:
+            return None
+
+        field.set("description", new_description)
+        return description, new_description
+
+    return None
+
+
 def sync_metadata(
     module_manifest: Path,
     update_manifest: Path,
@@ -213,6 +233,11 @@ def sync_metadata(
     changes: list[str] = []
     old, new = set_required_text(module_root, "version", module_manifest, version)
     changes.append(f"{module_manifest}: <version> {old} -> {new}")
+
+    about_change = sync_about_panel_version(module_root, module_manifest, version)
+    if about_change:
+        old_about, new_about = about_change
+        changes.append(f"{module_manifest}: About panel version updated")
 
     description_change = sync_description_version(module_root, module_manifest, version)
     if description_change is not None:

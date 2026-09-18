@@ -15,7 +15,9 @@ CREATE TABLE IF NOT EXISTS `#__splaskscore_history` (
   `signature` char(64) NOT NULL DEFAULT '',
   `triggered_by` varchar(128) NOT NULL DEFAULT '',
   `created_at` datetime NOT NULL,
+  `history_day` date GENERATED ALWAYS AS (DATE(COALESCE(`source_checked_at`, `recorded_at`, `created_at`))) STORED,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_splaskscore_history_day` (`module_id`, `token_hash`, `history_day`),
   KEY `idx_splaskscore_history_lookup` (`module_id`, `token_hash`, `recorded_at`),
   KEY `idx_splaskscore_history_source` (`module_id`, `token_hash`, `source_checked_at`),
   KEY `idx_splaskscore_history_signature` (`module_id`, `token_hash`, `signature`)

@@ -13,7 +13,7 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.7.0.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `mod_splaskscore_v1.7.1.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Masukkan token SPLaSK anda dalam konfigurasi modul.
 4. Semak tetapan automasi analitik jika mahu kutipan sejarah berjalan melalui Joomla Scheduled Tasks.
@@ -42,7 +42,7 @@ Modul ini menyokong Joomla Update Server.
 
 Fail `updates.xml` dan `mod_splaskscore_update.xml` menyediakan metadata kemaskini, versi, dan URL muat turun pakej release yang disemak oleh Joomla.
 
-Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.7.0` dan pakej `mod_splaskscore_v1.7.0.zip`.
+Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.7.1` dan pakej `mod_splaskscore_v1.7.1.zip`.
 
 ## Skop Analitik Kekal (analytics_scope)
 
@@ -53,6 +53,10 @@ Setiap instance modul menyimpan satu kunci skop analitik (`analytics_scope`, UUI
 - Modal Sejarah & Analitik akan memaklumkan berapa banyak rekod lama yang telah dipautkan.
 - Ingin memulakan buku sejarah baharu (contoh berpindah ke laman SPLaSK yang lain)? Padam nilai `analytics_scope` daripada parameter modul; kunci baharu akan dijana dan sejarah lama kekal di bawah kunci lama dalam pangkalan data.
 - Modal Sejarah & Analitik membaca data daripada jadual `#__splaskscore_history` dan `#__splaskscore_health` sahaja. Kedua-duanya ditapis pada `module_id` bersama kunci skop, jadi tukar token tidak lagi menghasilkan dashboard kosong.
+- **Semakan kebenaran (ACL):** membaca modal Sejarah & Analitik dan menyimpan snapshot dari dashboard tidak lagi bergantung pada pengetahuan token; ia memerlukan **Super User**, **`core.manage` pada `com_modules`**, atau **`core.edit` pada instance modul itu**. Pengguna tanpa kebenaran ini akan menerima mesej penafian dan bukan data.
+- **Jaminan tiada pendua di peringkat pangkalan data:** jadual sejarah mempunyai kolum terjana `history_day` bersama kunci unik `uniq_splaskscore_history_day` (`module_id`, `token_hash`, `history_day`). Pangkalan data sendiri akan menolak snapshot kedua bagi skop dan hari yang sama — perlindungan tidak lagi bergantung pada kod PHP sahaja.
+- Log kesihatan dipangkas secara automatik (lalai 90 hari; boleh ubah melalui `Pengekalan Log Kesihatan`). Snapshot sejarah tidak terjejas.
+- Nota `Rekod pendua diabaikan.` direkod sekali sahaja bagi setiap skop dan hari supaya log operasi kekal bersih.
 
 ## Workflow Wajib Sebelum PR / Release
 
@@ -65,7 +69,7 @@ php scripts/test_scheduler_timezone.php /path/to/joomla
 Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
 
 ```bash
-python3 scripts/pre_pr_validation.py --release-tag v1.7.0
+python3 scripts/pre_pr_validation.py --release-tag v1.7.1
 ```
 
 Semakan ini adalah disiplin wajib projek dan merangkumi:
@@ -88,6 +92,16 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
 ## Changelog
+
+### v1.7.1 (18 September 2026) — Jaminan tiada pendua & log kesihatan terurus
+
+- Menambah kolum terjana `history_day` dan kunci unik `uniq_splaskscore_history_day` pada jadual sejarah, jadi snapshot pendua ditolak oleh pangkalan data sendiri, bukan hanya oleh kod PHP.
+- Migrasi automatik untuk pemasangan sedia ada: kolum dan kunci ditambah pada penggunaan pertama selepas naik taraf, selepas pendua lama dikolaps terlebih dahulu.
+- Menambah pengekalan log kesihatan (lalai 90 hari, minimum 7 hari) supaya jadual kesihatan tidak membesar tanpa had.
+- Nota `Rekod pendua diabaikan.` kini direkod maksimum sekali sehari bagi setiap skop.
+- Menambah semakan kebenaran (ACL) pada laluan baca dan tulis sejarah analitik dari dashboard, supaya token tidak lagi menjadi kunci akses tersembunyi.
+- Menambah semakan token jaminan pendua harian dalam gate validasi.
+- Menyelaraskan metadata modul, plugin, pakej dan pelayan kemaskini kepada `1.7.1`.
 
 ### v1.7.0 (18 September 2026) — Skop analitik kekal & pemulihan sejarah
 

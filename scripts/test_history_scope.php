@@ -99,4 +99,11 @@ foreach ($invalidScopes as $label => $invalidScope) {
 }
 echo "PASS: legacy token hashes and malformed keys are rejected as scopes\n";
 
+$constants = (new \ReflectionClass('ModSplaskscoreHelper'))->getConstants();
+checkScope(
+    ($constants['DUPLICATE_SKIP_MESSAGE'] ?? '') === 'Rekod pendua diabaikan.',
+    'The duplicate-skip message must stay in sync with the once-per-day health de-duplication'
+);
+echo "PASS: duplicate-skip message matches the health de-duplication message\n";
+
 echo "History scope regression checks passed\n";

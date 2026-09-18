@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.7.0';
+    private const ENGINE_VERSION = '1.7.1';
 
     public static function getEngineVersion(): string
     {
@@ -51,6 +51,17 @@ final class ModSplaskscoreHelper
     private const MINI_TREND_DAY_WINDOW = 7;
 
     private const SCHEDULER_TASK_TYPE = 'splaskscore.analytics.collect';
+
+    private const HISTORY_DAY_INDEX = 'uniq_splaskscore_history_day';
+
+    private const DAILY_HISTORY_GUARD_COLUMN = 'history_day';
+
+    private const DEFAULT_HEALTH_RETENTION_DAYS = 90;
+
+    private const DUPLICATE_SKIP_MESSAGE = 'Rekod pendua diabaikan.';
+
+    /** @var bool  Daily snapshot guard already reconciled during this request. */
+    private static $dailyHistoryGuardChecked = false;
 
     private const MANUAL_REFRESH_COOLDOWN_SECONDS = 60;
 
@@ -473,7 +484,7 @@ final class ModSplaskscoreHelper
         $latest = self::getLatestHistoryRecord($moduleId, $tokenHash);
 
         if ($latest && self::isDuplicateHistoryRecord($latest, $signature, $recordedAt, $cooldownMinutes)) {
-            self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', 'Rekod pendua diabaikan.', $recordedAt);
+            self::recordDuplicateSkipHealth($moduleId, $tokenHash, $source, $recordedAt);
             self::updateModuleLastSuccessfulCollection($moduleId, self::latestSuccessfulCollectionTimestamp($moduleId, $tokenHash));
 
             return [
@@ -597,9 +608,17 @@ final class ModSplaskscoreHelper
     public static function saveHistoryAjax(): array
     {
         $input = \Joomla\CMS\Factory::getApplication()->input;
+        $moduleId = $input->getInt('module_id', 0);
+
+        if (!self::canViewAnalytics(\Joomla\CMS\Factory::getUser(), $moduleId)) {
+            return [
+                'success' => false,
+                'message' => 'Anda tidak dibenarkan menyimpan sejarah analitik modul ini.',
+            ];
+        }
 
         return self::saveHistoryRecord([
-            'module_id' => $input->getInt('module_id', 0),
+            'module_id' => $moduleId,
             'token' => $input->getString('token', ''),
             'score' => $input->getFloat('score', 0),
             'grade_key' => $input->getCmd('grade_key', ''),
@@ -672,6 +691,35 @@ final class ModSplaskscoreHelper
         $moduleAsset = 'com_modules.module.' . (int) $moduleId;
 
         return $user->authorise('core.edit', $moduleAsset);
+    }
+
+    /**
+     * Determines whether the user may read analytics history for a module instance.
+     *
+     * Reading the history modal no longer relies on knowing the SPLaSK token: it requires
+     * an explicit Joomla permission. Super users and module managers are allowed, as are
+     * users who may edit that specific module instance.
+     *
+     * @param   \Joomla\CMS\User\User|null  $user      Current user.
+     * @param   int                         $moduleId  Joomla module id.
+     *
+     * @return  bool
+     */
+    private static function canViewAnalytics(?\Joomla\CMS\User\User $user, int $moduleId): bool
+    {
+        if (!$user || $user->guest || $moduleId <= 0) {
+            return false;
+        }
+
+        if ($user->authorise('core.admin')) {
+            return true;
+        }
+
+        if ($user->authorise('core.manage', 'com_modules')) {
+            return true;
+        }
+
+        return $user->authorise('core.edit', 'com_modules.module.' . (int) $moduleId);
     }
 
     public static function refreshAnalyticsAjax(): array
@@ -753,6 +801,13 @@ final class ModSplaskscoreHelper
             return [
                 'success' => false,
                 'message' => 'Konfigurasi sejarah tidak lengkap.',
+            ];
+        }
+
+        if (!self::canViewAnalytics(\Joomla\CMS\Factory::getUser(), $moduleId)) {
+            return [
+                'success' => false,
+                'message' => 'Anda tidak dibenarkan melihat sejarah analitik modul ini.',
             ];
         }
 
@@ -932,6 +987,7 @@ final class ModSplaskscoreHelper
 
         if ($columns) {
             self::migrateHistoryTable($columns);
+            self::ensureDailyHistoryGuard();
             self::ensureHealthTable();
             return;
         }
@@ -945,6 +1001,7 @@ final class ModSplaskscoreHelper
             }
         }
 
+        self::ensureDailyHistoryGuard();
         self::ensureHealthTable();
     }
 
@@ -2062,6 +2119,174 @@ final class ModSplaskscoreHelper
             'recorded_at' => $recordedAt ?: \Joomla\CMS\Factory::getDate()->toSql(),
         ];
         $db->insertObject(self::getHealthTableName(), $record);
+
+        self::applyHealthRetentionPolicy($moduleId, $tokenHash);
+    }
+
+    /**
+     * Guarantee at database level that one scope and day hold at most one snapshot.
+     *
+     * A generated day column plus a unique key make duplicate daily snapshots impossible
+     * even if a code path ever attempts one, so duplicate protection no longer depends on
+     * application code alone. The guard is reconciled once per request.
+     *
+     * @return  void
+     */
+    private static function ensureDailyHistoryGuard(): void
+    {
+        if (self::$dailyHistoryGuardChecked) {
+            return;
+        }
+
+        self::$dailyHistoryGuardChecked = true;
+        $db = \Joomla\CMS\Factory::getDbo();
+        $table = self::getHistoryTableName();
+
+        try {
+            $columns = $db->getTableColumns($table, false);
+        } catch (\Throwable $exception) {
+            return;
+        }
+
+        if (!isset($columns[self::DAILY_HISTORY_GUARD_COLUMN])) {
+            try {
+                $db->setQuery(
+                    'ALTER TABLE ' . $db->quoteName($table)
+                    . ' ADD ' . $db->quoteName(self::DAILY_HISTORY_GUARD_COLUMN) . ' date GENERATED ALWAYS AS (DATE(COALESCE('
+                    . $db->quoteName('source_checked_at') . ', ' . $db->quoteName('recorded_at') . ', '
+                    . $db->quoteName('created_at') . '))) STORED'
+                )->execute();
+            } catch (\Throwable $exception) {
+                self::logAnalyticsEvent('warning', 'Daily history guard column unavailable.', ['error' => $exception->getMessage()]);
+
+                return;
+            }
+        }
+
+        if (self::historyGuardIndexExists($db, $table)) {
+            return;
+        }
+
+        // Legacy rows may still share one calendar day, so collapse them before the unique key.
+        self::normalizeDailyHistoryDuplicates();
+
+        try {
+            $db->setQuery(
+                'ALTER TABLE ' . $db->quoteName($table)
+                . ' ADD UNIQUE KEY ' . $db->quoteName(self::HISTORY_DAY_INDEX)
+                . ' (' . $db->quoteName('module_id') . ', ' . $db->quoteName('token_hash') . ', '
+                . $db->quoteName(self::DAILY_HISTORY_GUARD_COLUMN) . ')'
+            )->execute();
+        } catch (\Throwable $exception) {
+            if (stripos($exception->getMessage(), 'duplicate key name') === false) {
+                self::logAnalyticsEvent('warning', 'Daily history guard index could not be created.', ['error' => $exception->getMessage()]);
+            }
+        }
+    }
+
+    /**
+     * @param   \Joomla\Database\DatabaseDriver  $db     Database driver.
+     * @param   string                           $table  History table name.
+     *
+     * @return  bool
+     */
+    private static function historyGuardIndexExists($db, string $table): bool
+    {
+        try {
+            foreach ($db->getTableKeys($table, false) as $key) {
+                $name = (string) ($key->Key_name ?? ($key->key_name ?? ($key->Name ?? '')));
+
+                if ($name === self::HISTORY_DAY_INDEX) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $exception) {
+            return false;
+        }
+
+        return false;
+    }
+
+    /**
+     * Prune operational health rows so the attempt log cannot grow without bound.
+     *
+     * @param   int     $moduleId   Joomla module id.
+     * @param   string  $tokenHash  Analytics scope key.
+     *
+     * @return  void
+     */
+    private static function applyHealthRetentionPolicy(int $moduleId, string $tokenHash): void
+    {
+        if ($moduleId <= 0 || $tokenHash === '') {
+            return;
+        }
+
+        try {
+            $params = self::getModuleParams($moduleId);
+            $days = max(7, (int) ($params['analytics_health_retention_days'] ?? self::DEFAULT_HEALTH_RETENTION_DAYS));
+            $cutoff = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))
+                ->modify('-' . $days . ' days')
+                ->format('Y-m-d H:i:s');
+            $db = \Joomla\CMS\Factory::getDbo();
+            $query = $db->getQuery(true)
+                ->delete($db->quoteName(self::getHealthTableName()))
+                ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
+                ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
+                ->where($db->quoteName('recorded_at') . ' < ' . $db->quote($cutoff));
+            $db->setQuery($query)->execute();
+        } catch (\Throwable $exception) {
+            self::logAnalyticsEvent('warning', 'Health retention policy failed.', ['module_id' => $moduleId, 'error' => $exception->getMessage()]);
+        }
+    }
+
+    /**
+     * Record a skipped duplicate snapshot at most once per scope and day.
+     *
+     * Operators still see that a duplicate was ignored, without a health row for every
+     * dashboard view.
+     *
+     * @param   int     $moduleId    Joomla module id.
+     * @param   string  $tokenHash   Analytics scope key.
+     * @param   string  $source      Collection source.
+     * @param   string  $recordedAt  Snapshot timestamp.
+     *
+     * @return  void
+     */
+    private static function recordDuplicateSkipHealth(int $moduleId, string $tokenHash, string $source, string $recordedAt): void
+    {
+        if (!self::healthMessageExistsOnDay($moduleId, $tokenHash, self::DUPLICATE_SKIP_MESSAGE, $recordedAt)) {
+            self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', self::DUPLICATE_SKIP_MESSAGE, $recordedAt);
+        }
+    }
+
+    /**
+     * @param   int     $moduleId    Joomla module id.
+     * @param   string  $tokenHash   Analytics scope key.
+     * @param   string  $message     Health message to look for.
+     * @param   string  $recordedAt  Reference timestamp; only its date is compared.
+     *
+     * @return  bool
+     */
+    private static function healthMessageExistsOnDay(int $moduleId, string $tokenHash, string $message, string $recordedAt): bool
+    {
+        $day = substr($recordedAt, 0, 10);
+
+        if ($moduleId <= 0 || $tokenHash === '' || $day === '') {
+            return false;
+        }
+
+        self::ensureHealthTable();
+        $db = \Joomla\CMS\Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName(self::getHealthTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . (int) $moduleId)
+            ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
+            ->where($db->quoteName('message') . ' = ' . $db->quote($message))
+            ->where('DATE(' . $db->quoteName('recorded_at') . ') = ' . $db->quote($day));
+        $db->setQuery($query);
+
+        return (int) $db->loadResult() > 0;
     }
 
     public static function getAnalyticsHealth(int $moduleId, string $tokenHash): array

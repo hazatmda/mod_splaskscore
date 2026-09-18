@@ -306,6 +306,25 @@ def validate_schema_and_workflows() -> None:
     if missing_helper:
         raise AssertionError("Install/upgrade/manual/scheduler helper validation missing: " + ", ".join(missing_helper))
 
+    duplicate_guard_schema_tokens = ["uniq_splaskscore_history_day", "history_day", "GENERATED ALWAYS AS"]
+    missing_guard_schema = [token for token in duplicate_guard_schema_tokens if token not in install_sql]
+    if missing_guard_schema:
+        raise AssertionError("Daily snapshot uniqueness guard missing from install schema: " + ", ".join(missing_guard_schema))
+
+    duplicate_guard_helper_tokens = ["ensureDailyHistoryGuard", "applyHealthRetentionPolicy", "recordDuplicateSkipHealth"]
+    missing_guard_helper = [token for token in duplicate_guard_helper_tokens if token not in helper]
+    if missing_guard_helper:
+        raise AssertionError("Daily snapshot uniqueness guard missing from helper: " + ", ".join(missing_guard_helper))
+
+    analytics_acl_tokens = [
+        "canViewAnalytics",
+        "Anda tidak dibenarkan melihat sejarah analitik modul ini.",
+        "Anda tidak dibenarkan menyimpan sejarah analitik modul ini.",
+    ]
+    missing_acl = [token for token in analytics_acl_tokens if token not in helper]
+    if missing_acl:
+        raise AssertionError("Analytics history ACL validation missing: " + ", ".join(missing_acl))
+
     health_failure_tokens = [
         "strcmp($lastFailed, $effectiveSuccess) > 0",
         "must not be masked by an older successful collection",

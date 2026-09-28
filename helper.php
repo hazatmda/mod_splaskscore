@@ -29,14 +29,17 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.8.8';
+    private const ENGINE_VERSION = '1.9.5';
 
     public static function getEngineVersion(): string
     {
         return self::ENGINE_VERSION;
     }
 
-    private const DEFAULT_DUPLICATE_COOLDOWN_MINUTES = 10;
+    private const DEFAULT_FAILURE_RETRY_MINUTES = 10;
+
+    /** Duplicate suppression is an internal safeguard, not a scheduler setting. */
+    private const HISTORY_DUPLICATE_WINDOW_MINUTES = 10;
 
     private const DEFAULT_RETENTION_ENABLED = false;
 
@@ -59,6 +62,8 @@ final class ModSplaskscoreHelper
     private const DEFAULT_HEALTH_RETENTION_DAYS = 90;
 
     private const DUPLICATE_SKIP_MESSAGE = 'Rekod pendua diabaikan.';
+
+    private const SCHEDULER_DAILY_SKIP_MESSAGE = 'Panggilan API dilangkau kerana kutipan hari ini sudah berjaya.';
 
     /** @var bool  Daily snapshot guard already reconciled during this request. */
     private static $dailyHistoryGuardChecked = false;
@@ -436,6 +441,14 @@ final class ModSplaskscoreHelper
     }
 
     /**
+     * Ensure the operational collection log exists for component reporting.
+     */
+    public static function ensureAnalyticsHealthStorage(): void
+    {
+        self::ensureHealthTable();
+    }
+
+    /**
      * Store a normalized daily score snapshot for one module/token pair.
      *
      * @param   array<string, mixed>  $payload  Client score payload.
@@ -468,7 +481,10 @@ final class ModSplaskscoreHelper
         $triggeredBy = self::cleanHistoryText((string) ($payload['triggered_by'] ?? ''), 128);
         $engineVersion = self::cleanHistoryText((string) ($payload['engine_version'] ?? self::ENGINE_VERSION), 32);
         $signature = (string) ($payload['signature'] ?? self::buildHistorySignature($score, $gradeKey, $statusLabel, $verificationUrl, $sourceCheckedAt));
-        $cooldownMinutes = self::getDuplicateCooldownMinutes($moduleId, (int) ($payload['duplicate_cooldown_minutes'] ?? 0));
+        $cooldownMinutes = max(
+            1,
+            (int) ($payload['history_duplicate_window_minutes'] ?? self::HISTORY_DUPLICATE_WINDOW_MINUTES)
+        );
 
         if (!$moduleId || !$gradeKey || !$gradeLabel || !$statusLabel || $plainToken === '') {
             return [
@@ -841,6 +857,84 @@ final class ModSplaskscoreHelper
             'health' => $health,
             'scope' => $scope,
         ];
+    }
+
+    /**
+     * Build the persisted analytics report used by the administrator component.
+     *
+     * The component deliberately reuses the module's scope, health, chart and
+     * history rendering so both interfaces always display the same dataset.
+     *
+     * @param   int  $moduleId  Administrator module instance id.
+     *
+     * @return  array<string, mixed>
+     */
+    public static function getComponentAnalyticsReport(int $moduleId): array
+    {
+        $user = \Joomla\CMS\Factory::getUser();
+
+        if (!self::canViewAnalytics($user, $moduleId)) {
+            return [
+                'success' => false,
+                'message' => 'Anda tidak dibenarkan melihat analitik modul ini.',
+            ];
+        }
+
+        try {
+            self::ensureHistoryTable();
+
+            $token = self::moduleToken($moduleId);
+            $scope = self::resolveHistoryScope($moduleId, hash('sha256', $token));
+            $tokenHash = (string) ($scope['hash'] ?? '');
+
+            if ($tokenHash === '') {
+                return [
+                    'success' => false,
+                    'message' => 'Skop analitik modul tidak tersedia.',
+                ];
+            }
+
+            self::normalizeDailyHistoryDuplicates($moduleId, $tokenHash);
+            $records = self::getHistoryRecords($moduleId, $tokenHash);
+            $chartRecords = self::getHistoryChartRecords($moduleId, $tokenHash);
+            $totalRecords = self::getHistoryRecordCount($moduleId, $tokenHash);
+            $health = self::getAnalyticsHealth($moduleId, $tokenHash);
+            $params = new \Joomla\Registry\Registry(self::getModuleParams($moduleId));
+            $appearance = self::getAppearanceMode($params);
+            $branding = self::getBranding($params);
+
+            return [
+                'success' => true,
+                'html' => self::renderHistoryModal(
+                    $records,
+                    $appearance,
+                    $health,
+                    self::getHistoryRowsPerPage($moduleId),
+                    'dashboard_tile',
+                    $chartRecords,
+                    $totalRecords,
+                    $branding,
+                    self::canEditCatatan($user, $moduleId),
+                    self::historyScopeNotice($scope)
+                ),
+                'appearance' => $appearance,
+                'branding' => $branding,
+                'health' => $health,
+                'snapshot' => self::getDashboardSnapshot($moduleId, $token),
+                'total_records' => $totalRecords,
+                'scope' => $scope,
+            ];
+        } catch (\Throwable $exception) {
+            self::logAnalyticsEvent('warning', 'Component analytics report unavailable.', [
+                'module_id' => $moduleId,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Analitik tidak dapat dimuatkan: ' . $exception->getMessage(),
+            ];
+        }
     }
 
     /**
@@ -1293,6 +1387,20 @@ final class ModSplaskscoreHelper
         self::ensureHistoryTable();
         $tokenHash = self::resolveHistoryScope($moduleId, hash('sha256', $token))['hash'];
 
+        if ($source === 'scheduler' && self::hasSuccessfulCollectionOnSiteDay($moduleId, $tokenHash)) {
+            self::recordSchedulerDailySkipHealth($moduleId, $tokenHash);
+
+            return [
+                'success' => true,
+                'saved' => false,
+                'skipped' => true,
+                'stop_for_today' => true,
+                'module_id' => $moduleId,
+                'message' => 'Kutipan automatik dihentikan kerana markah hari ini sudah berjaya direkod.',
+                'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
+            ];
+        }
+
         try {
             $apiData = self::fetchScoreFromApiWithRetry($token, $moduleId, $source);
             if (empty($apiData['status'])) {
@@ -1316,7 +1424,12 @@ final class ModSplaskscoreHelper
                 'engine_version' => self::ENGINE_VERSION,
             ]);
 
+            if (empty($save['success'])) {
+                throw new \RuntimeException((string) ($save['message'] ?? 'Rekod sejarah gagal disimpan.'));
+            }
+
             return array_merge($save, [
+                'module_id' => $moduleId,
                 'payload' => [
                     'final_score' => $score,
                     'grade_key' => (string) $grade['key'],
@@ -1332,6 +1445,7 @@ final class ModSplaskscoreHelper
 
             return [
                 'success' => false,
+                'module_id' => $moduleId,
                 'message' => 'Analitik gagal dikemaskini: ' . $exception->getMessage(),
                 'health' => self::getAnalyticsHealth($moduleId, $tokenHash),
             ];
@@ -1357,7 +1471,10 @@ final class ModSplaskscoreHelper
         }
 
         return [
-            'success' => !array_filter($results, static fn ($result) => empty($result['success'])),
+            // An enabled task with no eligible token/module has not completed a
+            // collection and must follow the failure retry policy.
+            'success' => !empty($results)
+                && !array_filter($results, static fn ($result) => empty($result['success'])),
             'count' => count($results),
             'results' => $results,
         ];
@@ -1414,7 +1531,7 @@ final class ModSplaskscoreHelper
     }
 
     /**
-     * Return published module ids and tokens for scheduler collection.
+     * Return the single published module id and token for scheduler collection.
      *
      * @return  array<int, object>
      */
@@ -1426,8 +1543,9 @@ final class ModSplaskscoreHelper
             ->from($db->quoteName('#__modules'))
             ->where($db->quoteName('module') . ' = ' . $db->quote('mod_splaskscore'))
             ->where($db->quoteName('client_id') . ' = 1')
-            ->where($db->quoteName('published') . ' = 1');
-        $db->setQuery($query);
+            ->where($db->quoteName('published') . ' = 1')
+            ->order($db->quoteName('id') . ' ASC');
+        $db->setQuery($query, 0, 1);
         $rows = $db->loadObjectList() ?: [];
         $modules = [];
 
@@ -1444,10 +1562,7 @@ final class ModSplaskscoreHelper
     }
 
     /**
-     * Bootstrap the shared scheduler task from the first/latest SPLaSK module during install/upgrade.
-     * Runtime collection still processes every published enabled module instance; this bootstrap
-     * only chooses one source of schedule settings so multiple modules do not fight over one
-     * Joomla Scheduled Task before an administrator intentionally saves the preferred instance.
+     * Bootstrap the scheduler task from the singleton SPLaSK module during install/upgrade.
      *
      * @return  array<int, array<string, mixed>>
      */
@@ -1459,8 +1574,9 @@ final class ModSplaskscoreHelper
             ->from($db->quoteName('#__modules'))
             ->where($db->quoteName('module') . ' = ' . $db->quote('mod_splaskscore'))
             ->where($db->quoteName('client_id') . ' = 1')
-            ->order($db->quoteName('id') . ' DESC');
-        $db->setQuery($query);
+            ->where($db->quoteName('published') . ' = 1')
+            ->order($db->quoteName('id') . ' ASC');
+        $db->setQuery($query, 0, 1);
         $ids = array_map('intval', $db->loadColumn() ?: []);
         $results = [];
 
@@ -1472,7 +1588,7 @@ final class ModSplaskscoreHelper
         return $results;
     }
 
-    /* Validation note: Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. Runtime collection still processes every published enabled module instance; install/upgrade bootstrap synchronizes the first/latest published instance. */
+    /* Validation note: Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment. The component-managed singleton is the only schedule and collection source. */
 
     /**
      * Synchronize Joomla Scheduler with the saved module automation settings.
@@ -1489,7 +1605,9 @@ final class ModSplaskscoreHelper
         }
 
         $enabled = (string) ($params['analytics_auto_enabled'] ?? '1') === '1';
-        $frequency = in_array((string) ($params['analytics_frequency'] ?? 'daily'), ['daily', 'hourly'], true) ? (string) $params['analytics_frequency'] : 'daily';
+        // Automatic collection is always one successful snapshot per site-local day.
+        // Failed attempts are rescheduled separately using the configured cooldown.
+        $frequency = 'daily';
         $time = self::normaliseCollectionTime((string) ($params['analytics_collection_time'] ?? '06:00'));
         $status = $enabled ? 'enabled' : 'disabled';
 
@@ -1512,7 +1630,10 @@ final class ModSplaskscoreHelper
                 'module_id' => $moduleId,
                 'frequency' => $frequency,
                 'collection_time' => $time,
-                'duplicate_cooldown_minutes' => self::getDuplicateCooldownMinutes($moduleId),
+                'retry_cooldown_minutes' => self::getFailureRetryMinutes($moduleId),
+                // Retain the legacy key so existing installations and status
+                // readers can upgrade without losing the configured value.
+                'duplicate_cooldown_minutes' => self::getFailureRetryMinutes($moduleId),
                 'retention_enabled' => !empty($params['analytics_retention_enabled']),
                 'retention_days' => max(1, (int) ($params['analytics_retention_days'] ?? self::DEFAULT_RETENTION_DAYS)),
                 'max_history_records' => max(1, (int) ($params['analytics_max_rows'] ?? self::DEFAULT_MAX_HISTORY_ROWS)),
@@ -1524,7 +1645,7 @@ final class ModSplaskscoreHelper
                 'state' => $enabled ? 1 : 0,
                 'execution_rules' => $rules['execution_rules'],
                 'params' => $taskParams,
-                'note' => 'Diurus secara automatik daripada tetapan modul SPLaSK Score. Masa kutipan harian menggunakan zon masa Joomla yang dikonfigurasi. Kutipan analitik automatik bergantung pada Joomla Scheduled Tasks yang aktif dalam persekitaran hosting. Suntingan manual penjadual dikekalkan hanya sehingga modul disimpan semula.',
+                'note' => 'Diurus secara automatik daripada tetapan komponen SPLaSK Score. Selepas kutipan berjaya, tugas menunggu hari berikutnya. Kutipan gagal dicuba semula mengikut cooldown dalam hari yang sama. Masa kutipan harian menggunakan zon masa Joomla yang dikonfigurasi. Kutipan analitik automatik bergantung pada Joomla Scheduled Tasks yang aktif dalam persekitaran hosting.',
                 'priority' => 5,
                 'cli_exclusive' => 0,
             ];
@@ -1557,6 +1678,72 @@ final class ModSplaskscoreHelper
             self::updateModuleAutomationMetadata($moduleId, 'Sync failed', '');
 
             return ['success' => false, 'status' => 'failed', 'message' => $exception->getMessage()];
+        }
+    }
+
+    /**
+     * Override Joomla's next execution after the task has released its lock.
+     *
+     * A successful collection waits for the configured time on the next local
+     * day. A failed collection retries after the cooldown only while that retry
+     * remains on the same local day; otherwise the next daily cycle takes over.
+     *
+     * @return array<string, mixed>
+     */
+    public static function rescheduleManagedTaskAfterCollection(int $taskId, int $moduleId, bool $successful): array
+    {
+        try {
+            if ($taskId <= 0) {
+                return ['success' => false, 'message' => 'Scheduler task id is unavailable.'];
+            }
+
+            if ($moduleId <= 0) {
+                $modules = self::getPublishedModuleConfigs();
+                $moduleId = isset($modules[0]) ? (int) $modules[0]->id : 0;
+            }
+
+            $params = self::getModuleParams($moduleId);
+            if ($moduleId <= 0 || !$params) {
+                return ['success' => false, 'message' => 'Module settings are unavailable.'];
+            }
+
+            $collectionTime = self::normaliseCollectionTime((string) ($params['analytics_collection_time'] ?? '06:00'));
+            $cooldownMinutes = self::getFailureRetryMinutes($moduleId);
+            $nextExecution = self::calculateNextCollectionExecution($successful, $cooldownMinutes, $collectionTime);
+            $db = \Joomla\CMS\Factory::getDbo();
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__scheduler_tasks'))
+                ->set($db->quoteName('next_execution') . ' = ' . $db->quote($nextExecution))
+                ->where($db->quoteName('id') . ' = ' . $taskId)
+                ->where($db->quoteName('type') . ' = ' . $db->quote(self::SCHEDULER_TASK_TYPE));
+            $db->setQuery($query)->execute();
+            self::clearSchedulerCache();
+
+            $status = $successful
+                ? 'Enabled (completed today; next daily at ' . $collectionTime . ')'
+                : 'Enabled (retry policy: ' . $cooldownMinutes . ' minutes)';
+            self::updateModuleAutomationMetadata($moduleId, $status, self::getModuleLastSuccessfulCollection($moduleId));
+            self::logAnalyticsEvent('info', 'Scheduler next execution adjusted after collection.', [
+                'module_id' => $moduleId,
+                'task_id' => $taskId,
+                'result' => $successful ? 'success' : 'failed',
+                'cooldown_minutes' => $cooldownMinutes,
+                'next_execution' => $nextExecution,
+            ]);
+
+            return [
+                'success' => true,
+                'next_execution' => $nextExecution,
+                'result' => $successful ? 'success' : 'failed',
+            ];
+        } catch (\Throwable $exception) {
+            self::logAnalyticsEvent('error', 'Scheduler post-collection reschedule failed.', [
+                'module_id' => $moduleId,
+                'task_id' => $taskId,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return ['success' => false, 'message' => $exception->getMessage()];
         }
     }
 
@@ -1631,9 +1818,20 @@ final class ModSplaskscoreHelper
 
         [$hour, $minute] = array_map('intval', explode(':', $time));
 
+        if (!self::supportsSingleArgumentCronExpression()) {
+            return [
+                'execution_rules' => [
+                    'rule-type' => 'interval-days',
+                    'interval-days' => 1,
+                    'exec-day' => $execDay,
+                    'exec-time' => self::localCollectionTimeToUtc($time),
+                ],
+            ];
+        }
+
         // Joomla 5.2+ evaluates cron rules in the configured site timezone and
         // stores next_execution in UTC. A daily interval interprets exec-time
-        // in UTC, so it cannot preserve the selected local collection time.
+        // in UTC, so it is used only as a compatibility fallback above.
         return [
             'execution_rules' => [
                 'rule-type' => 'cron-expression',
@@ -1650,6 +1848,41 @@ final class ModSplaskscoreHelper
         ];
     }
 
+    /**
+     * Check whether Joomla's loaded cron library matches the one-argument call
+     * made by com_scheduler's ExecRuleHelper.
+     */
+    private static function supportsSingleArgumentCronExpression(): bool
+    {
+        try {
+            if (!class_exists('Cron\\CronExpression')) {
+                return false;
+            }
+
+            $constructor = (new \ReflectionClass('Cron\\CronExpression'))->getConstructor();
+
+            return $constructor === null || $constructor->getNumberOfRequiredParameters() <= 1;
+        } catch (\Throwable $exception) {
+            return false;
+        }
+    }
+
+    /**
+     * Convert a site-local collection time for Joomla's UTC-based daily rule.
+     */
+    private static function localCollectionTimeToUtc(string $time): string
+    {
+        try {
+            $timezoneName = (string) \Joomla\CMS\Factory::getApplication()->get('offset', 'UTC');
+            $timezone = new \DateTimeZone($timezoneName !== '' ? $timezoneName : 'UTC');
+            $localTime = new \DateTimeImmutable('today ' . $time, $timezone);
+
+            return $localTime->setTimezone(new \DateTimeZone('UTC'))->format('H:i');
+        } catch (\Throwable $exception) {
+            return $time;
+        }
+    }
+
     private static function normaliseCollectionTime(string $time): string
     {
         if (!preg_match('/^(\\d{1,2}):(\\d{2})$/', $time, $matches)) {
@@ -1660,6 +1893,106 @@ final class ModSplaskscoreHelper
         $minute = max(0, min(59, (int) $matches[2]));
 
         return sprintf('%02d:%02d', $hour, $minute);
+    }
+
+    /**
+     * Calculate the next UTC execution for the daily-success/retry policy.
+     */
+    private static function calculateNextCollectionExecution(
+        bool $successful,
+        int $cooldownMinutes,
+        string $collectionTime,
+        ?\DateTimeImmutable $nowUtc = null,
+        ?\DateTimeZone $siteTimezone = null
+    ): string {
+        $utc = new \DateTimeZone('UTC');
+        $nowUtc = ($nowUtc ?: new \DateTimeImmutable('now', $utc))->setTimezone($utc);
+        $siteTimezone = $siteTimezone ?: self::getConfiguredSiteTimezone();
+        $localNow = $nowUtc->setTimezone($siteTimezone);
+        [$hour, $minute] = array_map('intval', explode(':', self::normaliseCollectionTime($collectionTime)));
+        $nextDaily = $localNow->modify('tomorrow')->setTime($hour, $minute, 0);
+
+        if ($successful) {
+            return $nextDaily->setTimezone($utc)->format('Y-m-d H:i:s');
+        }
+
+        $retry = $localNow->modify('+' . max(1, $cooldownMinutes) . ' minutes');
+        if ($retry->format('Y-m-d') === $localNow->format('Y-m-d')) {
+            return $retry->setTimezone($utc)->format('Y-m-d H:i:s');
+        }
+
+        return $nextDaily->setTimezone($utc)->format('Y-m-d H:i:s');
+    }
+
+    private static function getConfiguredSiteTimezone(): \DateTimeZone
+    {
+        try {
+            $timezoneName = (string) \Joomla\CMS\Factory::getApplication()->get('offset', 'UTC');
+
+            return new \DateTimeZone($timezoneName !== '' ? $timezoneName : 'UTC');
+        } catch (\Throwable $exception) {
+            return new \DateTimeZone('UTC');
+        }
+    }
+
+    /**
+     * Return the current site-local day as an inclusive/exclusive UTC range.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private static function getSiteDayUtcBounds(
+        ?\DateTimeImmutable $nowUtc = null,
+        ?\DateTimeZone $siteTimezone = null
+    ): array {
+        $utc = new \DateTimeZone('UTC');
+        $nowUtc = ($nowUtc ?: new \DateTimeImmutable('now', $utc))->setTimezone($utc);
+        $siteTimezone = $siteTimezone ?: self::getConfiguredSiteTimezone();
+        $localStart = $nowUtc->setTimezone($siteTimezone)->setTime(0, 0, 0);
+        $localEnd = $localStart->modify('+1 day');
+
+        return [
+            $localStart->setTimezone($utc)->format('Y-m-d H:i:s'),
+            $localEnd->setTimezone($utc)->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    /**
+     * Check both the collection audit trail and persisted snapshots before the
+     * scheduler makes another API request on the same site-local day.
+     */
+    private static function hasSuccessfulCollectionOnSiteDay(int $moduleId, string $tokenHash): bool
+    {
+        if ($moduleId <= 0 || $tokenHash === '') {
+            return false;
+        }
+
+        self::ensureHealthTable();
+        [$dayStart, $dayEnd] = self::getSiteDayUtcBounds();
+        $db = \Joomla\CMS\Factory::getDbo();
+        $healthQuery = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName(self::getHealthTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . $moduleId)
+            ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
+            ->where($db->quoteName('status') . ' = ' . $db->quote('success'))
+            ->where($db->quoteName('recorded_at') . ' >= ' . $db->quote($dayStart))
+            ->where($db->quoteName('recorded_at') . ' < ' . $db->quote($dayEnd));
+        $db->setQuery($healthQuery);
+
+        if ((int) $db->loadResult() > 0) {
+            return true;
+        }
+
+        $historyQuery = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName(self::getHistoryTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . $moduleId)
+            ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
+            ->where($db->quoteName('recorded_at') . ' >= ' . $db->quote($dayStart))
+            ->where($db->quoteName('recorded_at') . ' < ' . $db->quote($dayEnd));
+        $db->setQuery($historyQuery);
+
+        return (int) $db->loadResult() > 0;
     }
 
     private static function clearSchedulerCache(): void
@@ -2060,14 +2393,14 @@ final class ModSplaskscoreHelper
         return hash('sha256', implode('|', [number_format($score, 2, '.', ''), $gradeKey, $statusLabel, $verificationUrl, (string) $sourceCheckedAt]));
     }
 
-    private static function getDuplicateCooldownMinutes(int $moduleId, int $override = 0): int
+    private static function getFailureRetryMinutes(int $moduleId, int $override = 0): int
     {
         if ($override > 0) {
             return $override;
         }
 
         $params = self::getModuleParams($moduleId);
-        return max(1, (int) ($params['analytics_duplicate_cooldown'] ?? self::DEFAULT_DUPLICATE_COOLDOWN_MINUTES));
+        return max(1, (int) ($params['analytics_duplicate_cooldown'] ?? self::DEFAULT_FAILURE_RETRY_MINUTES));
     }
 
     private static function getModuleParams(int $moduleId): array
@@ -2309,6 +2642,43 @@ final class ModSplaskscoreHelper
     {
         if (!self::healthMessageExistsOnDay($moduleId, $tokenHash, self::DUPLICATE_SKIP_MESSAGE, $recordedAt)) {
             self::recordAnalyticsHealth($moduleId, $tokenHash, $source, 'success', self::DUPLICATE_SKIP_MESSAGE, $recordedAt);
+        }
+    }
+
+    /**
+     * Record at most one scheduler skip for each site-local day.
+     */
+    private static function recordSchedulerDailySkipHealth(int $moduleId, string $tokenHash): void
+    {
+        try {
+            self::ensureHealthTable();
+            [$dayStart, $dayEnd] = self::getSiteDayUtcBounds();
+            $db = \Joomla\CMS\Factory::getDbo();
+            $query = $db->getQuery(true)
+                ->select('COUNT(*)')
+                ->from($db->quoteName(self::getHealthTableName()))
+                ->where($db->quoteName('module_id') . ' = ' . $moduleId)
+                ->where($db->quoteName('token_hash') . ' = ' . $db->quote($tokenHash))
+                ->where($db->quoteName('status') . ' = ' . $db->quote('skipped'))
+                ->where($db->quoteName('message') . ' = ' . $db->quote(self::SCHEDULER_DAILY_SKIP_MESSAGE))
+                ->where($db->quoteName('recorded_at') . ' >= ' . $db->quote($dayStart))
+                ->where($db->quoteName('recorded_at') . ' < ' . $db->quote($dayEnd));
+            $db->setQuery($query);
+
+            if ((int) $db->loadResult() === 0) {
+                self::recordAnalyticsHealth(
+                    $moduleId,
+                    $tokenHash,
+                    'scheduler',
+                    'skipped',
+                    self::SCHEDULER_DAILY_SKIP_MESSAGE
+                );
+            }
+        } catch (\Throwable $exception) {
+            self::logAnalyticsEvent('warning', 'Unable to record scheduler daily skip.', [
+                'module_id' => $moduleId,
+                'error' => $exception->getMessage(),
+            ]);
         }
     }
 

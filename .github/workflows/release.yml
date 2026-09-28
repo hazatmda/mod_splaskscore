@@ -1,4 +1,4 @@
-name: Release Joomla module
+name: Release SPLaSK Score Joomla package
 
 on:
   push:
@@ -20,7 +20,7 @@ env:
 
 jobs:
   release:
-    name: Build and publish Joomla install ZIP
+    name: Build and publish Joomla release assets
     runs-on: ubuntu-latest
 
     steps:
@@ -47,12 +47,16 @@ jobs:
 
           VERSION="${TAG_NAME#v}"
           ZIP_NAME="${EXTENSION_NAME}_v${VERSION}.zip"
+          PACKAGE_ZIP_NAME="pkg_splaskscore_v${VERSION}.zip"
+          COMPONENT_ZIP_NAME="com_splaskscore_v${VERSION}.zip"
           ZIP_URL="https://github.com/${RELEASE_REPOSITORY}/releases/download/${TAG_NAME}/${ZIP_NAME}"
 
           {
             echo "release_tag=${TAG_NAME}"
             echo "release_version=${VERSION}"
             echo "zip_name=${ZIP_NAME}"
+            echo "package_zip_name=${PACKAGE_ZIP_NAME}"
+            echo "component_zip_name=${COMPONENT_ZIP_NAME}"
             echo "expected_zip_url=${ZIP_URL}"
           } >> "$GITHUB_ENV"
 
@@ -60,7 +64,9 @@ jobs:
             echo "## Release inputs"
             echo "- Tag: ${TAG_NAME}"
             echo "- Version: ${VERSION}"
-            echo "- ZIP: ${ZIP_NAME}"
+            echo "- Automatic-update ZIP: ${ZIP_NAME}"
+            echo "- User installation package: ${PACKAGE_ZIP_NAME}"
+            echo "- Internal component validation ZIP: ${COMPONENT_ZIP_NAME}"
             echo "- Expected download URL: ${ZIP_URL}"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -110,62 +116,27 @@ jobs:
 
           python3 scripts/pre_pr_validation.py --release-tag "$release_tag"
 
-      - name: Build clean Joomla installation ZIP
+      - name: Resolve validated package paths
         run: |
           set -euo pipefail
 
-          STAGING_DIR="build/${EXTENSION_NAME}"
-          PACKAGE_DIR="$STAGING_DIR/packages"
-          ZIP_PATH="dist/${zip_name}"
-          TASK_PLUGIN_ZIP="build/plg_task_splaskscoreanalytics.zip"
-          SYSTEM_PLUGIN_ZIP="build/plg_system_splaskscoreautomation.zip"
+          ZIP_PATH="dist/internal/${zip_name}"
+          PACKAGE_ZIP_PATH="dist/release/${package_zip_name}"
+          COMPONENT_ZIP_PATH="dist/internal/${component_zip_name}"
 
-          rm -rf build dist
-          mkdir -p "$STAGING_DIR" "$PACKAGE_DIR" dist
-
-          (
-            cd plugins/task/splaskscoreanalytics
-            zip -r "$GITHUB_WORKSPACE/$TASK_PLUGIN_ZIP" .
-          )
-          (
-            cd plugins/system/splaskscoreautomation
-            zip -r "$GITHUB_WORKSPACE/$SYSTEM_PLUGIN_ZIP" .
-          )
-
-          install -m 0644 mod_splaskscore.php "$STAGING_DIR/mod_splaskscore.php"
-          install -m 0644 helper.php "$STAGING_DIR/helper.php"
-          install -m 0644 script.php "$STAGING_DIR/script.php"
-          install -m 0644 mod_splaskscore.xml "$STAGING_DIR/mod_splaskscore.xml"
-          install -m 0644 "$TASK_PLUGIN_ZIP" "$PACKAGE_DIR/plg_task_splaskscoreanalytics.zip"
-          install -m 0644 "$SYSTEM_PLUGIN_ZIP" "$PACKAGE_DIR/plg_system_splaskscoreautomation.zip"
-
-          for optional_file in LICENSE LICENSE.txt; do
-            if [ -f "$optional_file" ]; then
-              install -m 0644 "$optional_file" "$STAGING_DIR/$optional_file"
-            fi
-          done
-
-          for optional_dir in tmpl media language sql; do
-            if [ -d "$optional_dir" ]; then
-              mkdir -p "$STAGING_DIR/$optional_dir"
-              cp -R "$optional_dir/." "$STAGING_DIR/$optional_dir/"
-            fi
-          done
-
-          (
-            cd "$STAGING_DIR"
-            zip -r "../../$ZIP_PATH" .
-          )
+          test -f "$ZIP_PATH"
+          test -f "$PACKAGE_ZIP_PATH"
+          test -f "$COMPONENT_ZIP_PATH"
 
           echo "zip_path=$ZIP_PATH" >> "$GITHUB_ENV"
+          echo "package_zip_path=$PACKAGE_ZIP_PATH" >> "$GITHUB_ENV"
+          echo "component_zip_path=$COMPONENT_ZIP_PATH" >> "$GITHUB_ENV"
 
           {
             echo "## Package"
-            echo "- Built: ${ZIP_PATH}"
-            echo "- Release asset name: ${zip_name}"
-            echo "- Bundled installer script: script.php"
-            echo "- Bundled scheduler plugin: packages/plg_task_splaskscoreanalytics.zip"
-            echo "- Bundled module-save automation plugin: packages/plg_system_splaskscoreautomation.zip"
+            echo "- User installation package: ${PACKAGE_ZIP_PATH}"
+            echo "- Automatic-update asset: ${ZIP_PATH}"
+            echo "- Internal validation asset: ${COMPONENT_ZIP_PATH}"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Validate Joomla package contents
@@ -173,6 +144,8 @@ jobs:
           set -euo pipefail
 
           test -f "$zip_path"
+          test -f "$package_zip_path"
+          test -f "$component_zip_path"
           unzip -l "$zip_path" | tee package-contents.txt
           unzip -p "$zip_path" mod_splaskscore.xml > packaged-manifest.xml
           grep -Eq "<version>${release_version}</version>" packaged-manifest.xml
@@ -183,15 +156,28 @@ jobs:
           grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+packages/$' package-contents.txt
           grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+packages/plg_task_splaskscoreanalytics\.zip$' package-contents.txt
           grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+packages/plg_system_splaskscoreautomation\.zip$' package-contents.txt
+          grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+packages/com_splaskscore\.zip$' package-contents.txt
           unzip -p "$zip_path" script.php > packaged-script.php
           grep -Eq "resolvePackagesPath|/packages" packaged-script.php
           grep -Eq "plg_task_splaskscoreanalytics\.zip" packaged-script.php
           grep -Eq "plg_system_splaskscoreautomation\.zip" packaged-script.php
-          grep -Eq "Installer::getInstance\(\)->install" packaged-script.php
+          grep -Fq '$nestedInstaller = new Installer()' packaged-script.php
+          grep -Fq 'DatabaseInterface::class' packaged-script.php
+          grep -Fq '$nestedInstaller->install($installPath)' packaged-script.php
+          grep -Fq 'ensureSingleModuleInstance' packaged-script.php
+          ! grep -Fq 'Installer::getInstance()' packaged-script.php
           unzip -p "$zip_path" packages/plg_task_splaskscoreanalytics.zip > /tmp/plg_task_splaskscoreanalytics.zip
           unzip -p "$zip_path" packages/plg_system_splaskscoreautomation.zip > /tmp/plg_system_splaskscoreautomation.zip
+          unzip -p "$zip_path" packages/com_splaskscore.zip > /tmp/com_splaskscore.zip
           unzip -l /tmp/plg_task_splaskscoreanalytics.zip | grep -Eq 'splaskscoreanalytics\.(php|xml)'
           unzip -l /tmp/plg_system_splaskscoreautomation.zip | grep -Eq 'splaskscoreautomation\.(php|xml)'
+          unzip -p /tmp/plg_system_splaskscoreautomation.zip splaskscoreautomation.php | grep -Fq 'onContentBeforeSave'
+          unzip -p /tmp/plg_system_splaskscoreautomation.zip splaskscoreautomation.php | grep -Fq 'onBeforeCompileHead'
+          unzip -l /tmp/com_splaskscore.zip | grep -Eq 'splaskscore\.xml'
+          unzip -l /tmp/com_splaskscore.zip | grep -Eq 'administrator/components/com_splaskscore/forms/settings\.xml'
+          unzip -l /tmp/com_splaskscore.zip | grep -Eq 'administrator/components/com_splaskscore/src/Model/AnalyticsModel\.php'
+          unzip -l /tmp/com_splaskscore.zip | grep -Eq 'administrator/components/com_splaskscore/src/View/Analytics/HtmlView\.php'
+          unzip -l /tmp/com_splaskscore.zip | grep -Eq 'administrator/components/com_splaskscore/tmpl/analytics/default\.php'
 
           if grep -Eq '<folder>sql</folder>' packaged-manifest.xml; then
             grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9\-]+[[:space:]]+[0-9:]+[[:space:]]+sql/$' package-contents.txt
@@ -232,6 +218,8 @@ jobs:
             --package-manifest "${METADATA_WORKTREE}/pkg_splaskscore.xml" \
             --plugin-manifest "${METADATA_WORKTREE}/plugins/task/splaskscoreanalytics/splaskscoreanalytics.xml" \
             --system-plugin-manifest "${METADATA_WORKTREE}/plugins/system/splaskscoreautomation/splaskscoreautomation.xml" \
+            --component-manifest "${METADATA_WORKTREE}/component/com_splaskscore/splaskscore.xml" \
+            --component-asset-manifest "${METADATA_WORKTREE}/component/com_splaskscore/media/com_splaskscore/joomla.asset.json" \
             --helper-file "${METADATA_WORKTREE}/helper.php"
 
           python3 scripts/validate_release_metadata.py \
@@ -242,6 +230,8 @@ jobs:
             --package-manifest "${METADATA_WORKTREE}/pkg_splaskscore.xml" \
             --plugin-manifest "${METADATA_WORKTREE}/plugins/task/splaskscoreanalytics/splaskscoreanalytics.xml" \
             --system-plugin-manifest "${METADATA_WORKTREE}/plugins/system/splaskscoreautomation/splaskscoreautomation.xml" \
+            --component-manifest "${METADATA_WORKTREE}/component/com_splaskscore/splaskscore.xml" \
+            --component-asset-manifest "${METADATA_WORKTREE}/component/com_splaskscore/media/com_splaskscore/joomla.asset.json" \
             --helper-file "${METADATA_WORKTREE}/helper.php"
 
           METADATA_PATHS=(
@@ -251,6 +241,8 @@ jobs:
             pkg_splaskscore.xml
             plugins/task/splaskscoreanalytics/splaskscoreanalytics.xml
             plugins/system/splaskscoreautomation/splaskscoreautomation.xml
+            component/com_splaskscore/splaskscore.xml
+            component/com_splaskscore/media/com_splaskscore/joomla.asset.json
             helper.php
           )
 
@@ -279,13 +271,18 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.zip_name }}
-          path: ${{ env.zip_path }}
+          name: splaskscore-${{ env.release_version }}
+          path: |
+            ${{ env.zip_path }}
+            ${{ env.package_zip_path }}
+            ${{ env.component_zip_path }}
           if-no-files-found: error
 
       - name: Attach ZIP to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.release_tag }}
-          files: ${{ env.zip_path }}
+          files: |
+            ${{ env.package_zip_path }}
+            ${{ env.zip_path }}
           fail_on_unmatched_files: true

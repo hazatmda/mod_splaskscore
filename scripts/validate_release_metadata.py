@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -17,6 +18,8 @@ LEGACY_UPDATE_MANIFEST = Path("mod_splaskscore_update.xml")
 PACKAGE_MANIFEST = Path("pkg_splaskscore.xml")
 PLUGIN_MANIFEST = Path("plugins/task/splaskscoreanalytics/splaskscoreanalytics.xml")
 SYSTEM_PLUGIN_MANIFEST = Path("plugins/system/splaskscoreautomation/splaskscoreautomation.xml")
+COMPONENT_MANIFEST = Path("component/com_splaskscore/splaskscore.xml")
+COMPONENT_ASSET_MANIFEST = Path("component/com_splaskscore/media/com_splaskscore/joomla.asset.json")
 HELPER_FILE = Path("helper.php")
 DESCRIPTION_VERSION_PATTERN = re.compile(r"versi\s+(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)", re.IGNORECASE)
 BRACKET_VERSION_PATTERN = re.compile(r"\[v(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)\]", re.IGNORECASE)
@@ -122,6 +125,8 @@ def validate(
     package_manifest: Path,
     plugin_manifest: Path,
     system_plugin_manifest: Path,
+    component_manifest: Path,
+    component_asset_manifest: Path,
     helper_file: Path,
     version: str | None,
 ) -> None:
@@ -228,6 +233,12 @@ def validate(
     validate_manifest_version(package_manifest, module_version, "package")
     validate_manifest_version(plugin_manifest, module_version, "plugin")
     validate_manifest_version(system_plugin_manifest, module_version, "plugin")
+    validate_manifest_version(component_manifest, module_version, "component")
+    asset_data = json.loads(component_asset_manifest.read_text(encoding="utf-8"))
+    if str(asset_data.get("version", "")) != module_version:
+        raise ValueError(
+            f"{component_asset_manifest}: version {asset_data.get('version', '')} does not match release version {module_version}"
+        )
     validate_helper_engine_version(helper_file, module_version)
 
 
@@ -240,6 +251,8 @@ def main() -> int:
     parser.add_argument("--package-manifest", type=Path, default=PACKAGE_MANIFEST)
     parser.add_argument("--plugin-manifest", type=Path, default=PLUGIN_MANIFEST)
     parser.add_argument("--system-plugin-manifest", type=Path, default=SYSTEM_PLUGIN_MANIFEST)
+    parser.add_argument("--component-manifest", type=Path, default=COMPONENT_MANIFEST)
+    parser.add_argument("--component-asset-manifest", type=Path, default=COMPONENT_ASSET_MANIFEST)
     parser.add_argument("--helper-file", type=Path, default=HELPER_FILE)
     args = parser.parse_args()
 
@@ -251,6 +264,8 @@ def main() -> int:
             args.package_manifest,
             args.plugin_manifest,
             args.system_plugin_manifest,
+            args.component_manifest,
+            args.component_asset_manifest,
             args.helper_file,
             args.version,
         )

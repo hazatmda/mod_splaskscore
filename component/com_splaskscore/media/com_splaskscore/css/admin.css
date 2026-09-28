@@ -1,0 +1,139 @@
+.com-splaskscore-dashboard,
+.com-splaskscore-analytics,
+.com-splaskscore-collectionlogs,
+.com-splaskscore-settings,
+.com-splaskscore-about {
+  max-width: 1440px;
+}
+
+.splaskscore-component-hero {
+  align-items: flex-start;
+  background: linear-gradient(135deg, #0b1f3a, #123f64 60%, #176b87);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1rem;
+  color: #fff;
+  display: flex;
+  gap: 2rem;
+  justify-content: space-between;
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.splaskscore-component-hero p {
+  color: rgba(255, 255, 255, 0.78);
+  max-width: 760px;
+}
+
+.com-splaskscore-settings .card-header {
+  float: none;
+  width: 100%;
+}
+
+.com-splaskscore-settings .control-label {
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.splaskscore-token-control {
+  max-width: 48rem;
+}
+
+.splaskscore-token-control input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.splaskscore-token-control [data-splask-token-revealed] {
+  direction: ltr;
+  letter-spacing: normal;
+  -webkit-text-security: none;
+}
+
+.splaskscore-token-control .btn {
+  min-width: 2.75rem;
+}
+
+.splaskscore-scheduler-panel {
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0.9rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.splaskscore-diagnostic-item {
+  background: var(--body-bg, #fff);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  height: 100%;
+  padding: 0.9rem;
+}
+
+.splaskscore-diagnostic-item span {
+  color: var(--secondary-color, #64748b);
+  font-size: 0.82rem;
+}
+
+.splaskscore-analytics-filter {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 0.9rem;
+}
+
+.splaskscore-collectionlogs-filter {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 0.9rem;
+}
+
+.splaskscore-collection-summary {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.splaskscore-about-card,
+.splaskscore-about-architecture {
+  border-color: rgba(148, 163, 184, 0.24);
+  border-radius: 0.9rem;
+}
+
+.splaskscore-about-card .card-body {
+  padding: 1.25rem;
+}
+
+.com-splaskscore-collectionlogs .table th,
+.com-splaskscore-collectionlogs .table td {
+  padding: 0.85rem 1rem;
+  vertical-align: middle;
+}
+
+.splask-component-analytics {
+  overflow: hidden;
+  border: 1px solid var(--splask-panel-border);
+  border-radius: 1rem;
+  padding: clamp(0.75rem, 2vw, 1.15rem);
+  background: var(--splask-modal-bg);
+  box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.12);
+}
+
+.splask-component-analytics .splask-history-content {
+  min-width: 0;
+}
+
+.splask-component-analytics .splask-history-table-wrap {
+  max-height: 38rem;
+}
+
+.splask-component-analytics .splask-history-chart-canvas-wrap {
+  min-height: 18rem;
+}
+
+@media (max-width: 767px) {
+  .splaskscore-component-hero {
+    flex-direction: column;
+  }
+
+  .splask-component-analytics .splask-history-chart-canvas-wrap {
+    min-height: 13rem;
+  }
+}

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fieldset name="module" label="COM_SPLASHSCORE_FIELDSET_MODULE">
+        <field name="module_id" type="hidden" filter="integer" />
+        <field name="module_title" type="text" label="COM_SPLASHSCORE_MODULE_TITLE" readonly="true" />
+    </fieldset>
+
+    <fieldset name="display" label="COM_SPLASHSCORE_FIELDSET_DISPLAY">
+        <field name="dashboard_display_enabled" type="radio" label="COM_SPLASHSCORE_DASHBOARD_DISPLAY" description="COM_SPLASHSCORE_DASHBOARD_DISPLAY_DESC" default="0" filter="integer" layout="joomla.form.field.radio.switcher">
+            <option value="0">JDISABLED</option>
+            <option value="1">JENABLED</option>
+        </field>
+    </fieldset>
+
+    <fieldset name="basic" label="COM_SPLASHSCORE_FIELDSET_BASIC">
+        <field name="splask_token" type="password" label="COM_SPLASHSCORE_TOKEN" description="COM_SPLASHSCORE_TOKEN_DESC" autocomplete="new-password" filter="raw" />
+        <field name="splask_token_status" type="text" label="COM_SPLASHSCORE_TOKEN_STATUS" readonly="true" />
+        <field name="appearance_mode" type="list" label="COM_SPLASHSCORE_APPEARANCE" default="light" filter="cmd">
+            <option value="light">COM_SPLASHSCORE_APPEARANCE_LIGHT</option>
+            <option value="dark">COM_SPLASHSCORE_APPEARANCE_DARK</option>
+            <option value="auto">COM_SPLASHSCORE_APPEARANCE_AUTO</option>
+        </field>
+    </fieldset>
+
+    <fieldset name="automation" label="COM_SPLASHSCORE_FIELDSET_AUTOMATION">
+        <field name="analytics_auto_enabled" type="radio" label="COM_SPLASHSCORE_AUTO_ENABLED" default="1" filter="integer" layout="joomla.form.field.radio.switcher">
+            <option value="0">JDISABLED</option>
+            <option value="1">JENABLED</option>
+        </field>
+        <field name="analytics_frequency" type="hidden" default="daily" filter="cmd" />
+        <field name="analytics_collection_time" type="time" label="COM_SPLASHSCORE_COLLECTION_TIME" description="COM_SPLASHSCORE_COLLECTION_TIME_DESC" default="06:00" filter="string" />
+        <field name="analytics_duplicate_cooldown" type="number" label="COM_SPLASHSCORE_DUPLICATE_COOLDOWN" description="COM_SPLASHSCORE_DUPLICATE_COOLDOWN_DESC" default="10" min="1" max="1440" filter="integer" />
+        <field name="analytics_retention_enabled" type="radio" label="COM_SPLASHSCORE_RETENTION_ENABLED" default="0" filter="integer" layout="joomla.form.field.radio.switcher">
+            <option value="0">JDISABLED</option>
+            <option value="1">JENABLED</option>
+        </field>
+        <field name="analytics_retention_days" type="number" label="COM_SPLASHSCORE_RETENTION_DAYS" default="365" min="1" filter="integer" showon="analytics_retention_enabled:1" />
+        <field name="analytics_max_rows" type="number" label="COM_SPLASHSCORE_MAX_ROWS" default="500" min="1" filter="integer" showon="analytics_retention_enabled:1" />
+        <field name="analytics_health_retention_days" type="number" label="COM_SPLASHSCORE_HEALTH_RETENTION" default="90" min="7" max="3650" filter="integer" />
+        <field name="analytics_rows_per_page" type="number" label="COM_SPLASHSCORE_ROWS_PER_PAGE" default="7" min="1" max="50" filter="integer" />
+    </fieldset>
+
+    <fieldset name="branding" label="COM_SPLASHSCORE_FIELDSET_BRANDING">
+        <field name="dashboard_title" type="text" label="COM_SPLASHSCORE_DASHBOARD_FIELD_TITLE" default="Markah Penilaian SPLaSK" filter="string" />
+        <field name="dashboard_subtitle" type="text" label="COM_SPLASHSCORE_DASHBOARD_FIELD_SUBTITLE" default="Papan pemuka pemantauan operasi" filter="string" />
+        <field name="analytics_title" type="text" label="COM_SPLASHSCORE_ANALYTICS_FIELD_TITLE" default="Sejarah &amp; Analitik SPLaSK" filter="string" />
+        <field name="analytics_subtitle" type="text" label="COM_SPLASHSCORE_ANALYTICS_FIELD_SUBTITLE" default="Rekod markah terkini dan trend prestasi." filter="string" />
+        <field name="button_verification_label" type="text" label="COM_SPLASHSCORE_BUTTON_VERIFICATION" default="Lihat Pengesahan Penuh" filter="string" />
+        <field name="button_history_label" type="text" label="COM_SPLASHSCORE_BUTTON_HISTORY" default="Sejarah &amp; Analitik" filter="string" />
+        <field name="button_refresh_label" type="text" label="COM_SPLASHSCORE_BUTTON_REFRESH" default="Segar Semula Analitik" filter="string" />
+        <field name="button_refresh_loading_label" type="text" label="COM_SPLASHSCORE_BUTTON_REFRESH_LOADING" default="Menyegar semula..." filter="string" />
+        <field name="button_refresh_current_label" type="text" label="COM_SPLASHSCORE_BUTTON_REFRESH_CURRENT" default="Sudah Terkini" filter="string" />
+        <field name="button_refresh_failed_label" type="text" label="COM_SPLASHSCORE_BUTTON_REFRESH_FAILED" default="Segar Semula Gagal" filter="string" />
+        <field name="button_close_label" type="text" label="COM_SPLASHSCORE_BUTTON_CLOSE" default="Tutup" filter="string" />
+        <field name="kpi_mini_trend_label" type="text" label="COM_SPLASHSCORE_KPI_MINI_TREND" default="Trend 7 Hari" filter="string" />
+        <field name="kpi_check_date_label" type="text" label="COM_SPLASHSCORE_KPI_CHECK_DATE" default="Tarikh Semakan" filter="string" />
+        <field name="kpi_next_check_label" type="text" label="COM_SPLASHSCORE_KPI_NEXT_CHECK" default="Semakan Seterusnya" filter="string" />
+        <field name="kpi_score_today_label" type="text" label="COM_SPLASHSCORE_KPI_SCORE_TODAY" default="Skor Hari Ini" filter="string" />
+        <field name="kpi_lowest_score_label" type="text" label="COM_SPLASHSCORE_KPI_LOWEST_SCORE" default="Skor Terendah" filter="string" />
+        <field name="kpi_total_records_label" type="text" label="COM_SPLASHSCORE_KPI_TOTAL_RECORDS" default="Jumlah Rekod" filter="string" />
+        <field name="kpi_total_records_caption" type="text" label="COM_SPLASHSCORE_KPI_TOTAL_RECORDS_CAPTION" default="Semua rekod DB" filter="string" />
+        <field name="kpi_rows_per_page_label" type="text" label="COM_SPLASHSCORE_KPI_ROWS_PER_PAGE" default="Baris Setiap Halaman" filter="string" />
+        <field name="graph_mini_trend_aria_label" type="text" label="COM_SPLASHSCORE_GRAPH_MINI_TREND" default="Graf garis trend operasi tujuh hari" filter="string" />
+        <field name="graph_history_chart_aria_label" type="text" label="COM_SPLASHSCORE_GRAPH_HISTORY" default="Carta trend peratus SPLaSK" filter="string" />
+        <field name="history_table_aria_label" type="text" label="COM_SPLASHSCORE_HISTORY_TABLE" default="Senarai sejarah SPLaSK boleh ditatal" filter="string" />
+        <field name="history_table_date_label" type="text" label="COM_SPLASHSCORE_HISTORY_DATE" default="Tarikh" filter="string" />
+        <field name="history_table_time_label" type="text" label="COM_SPLASHSCORE_HISTORY_TIME" default="Masa Semakan" filter="string" />
+        <field name="history_table_score_label" type="text" label="COM_SPLASHSCORE_HISTORY_SCORE" default="Markah" filter="string" />
+        <field name="history_table_grade_label" type="text" label="COM_SPLASHSCORE_HISTORY_GRADE" default="Gred" filter="string" />
+        <field name="history_table_status_label" type="text" label="COM_SPLASHSCORE_HISTORY_STATUS" default="Status" filter="string" />
+        <field name="score_loading_label" type="text" label="COM_SPLASHSCORE_SCORE_LOADING" default="Memuatkan..." filter="string" />
+        <field name="status_waiting_label" type="text" label="COM_SPLASHSCORE_STATUS_WAITING_LABEL" default="Menunggu semakan" filter="string" />
+        <field name="history_pagination_aria_label" type="text" label="COM_SPLASHSCORE_HISTORY_PAGINATION" default="Navigasi halaman sejarah" filter="string" />
+        <field name="history_previous_label" type="text" label="COM_SPLASHSCORE_HISTORY_PREVIOUS" default="Sebelumnya" filter="string" />
+        <field name="history_next_label" type="text" label="COM_SPLASHSCORE_HISTORY_NEXT" default="Seterusnya" filter="string" />
+        <field name="history_page_status_template" type="text" label="COM_SPLASHSCORE_HISTORY_PAGE_STATUS" default="Memaparkan {start}–{end} daripada {total}" filter="string" />
+        <field name="history_page_number_aria_template" type="text" label="COM_SPLASHSCORE_HISTORY_PAGE_NUMBER" default="Pergi ke halaman sejarah {page}" filter="string" />
+        <field name="history_empty_label" type="text" label="COM_SPLASHSCORE_HISTORY_EMPTY" default="Belum ada rekod sejarah. Rekod akan disimpan selepas markah berjaya dimuatkan." filter="string" />
+        <field name="history_loading_label" type="text" label="COM_SPLASHSCORE_HISTORY_LOADING" default="Memuatkan sejarah..." filter="string" />
+        <field name="history_load_failed_label" type="text" label="COM_SPLASHSCORE_HISTORY_LOAD_FAILED" default="Sejarah tidak dapat dimuatkan." filter="string" />
+        <field name="history_connection_error_label" type="text" label="COM_SPLASHSCORE_HISTORY_CONNECTION_ERROR" default="Ralat sambungan semasa memuatkan sejarah." filter="string" />
+    </fieldset>
+</form>

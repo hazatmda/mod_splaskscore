@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developer.joomla.org/schemas/json-schema/web_assets.json",
+  "name": "com_splaskscore",
+  "version": "1.9.5",
+  "description": "SPLaSK Score administrator component assets",
+  "license": "GPL-3.0-or-later",
+  "assets": [
+    {
+      "name": "com_splaskscore.admin",
+      "type": "style",
+      "uri": "com_splaskscore/css/admin.css"
+    },
+    {
+      "name": "com_splaskscore.admin",
+      "type": "script",
+      "uri": "com_splaskscore/js/admin.js",
+      "attributes": {
+        "defer": true
+      }
+    }
+  ]
+}

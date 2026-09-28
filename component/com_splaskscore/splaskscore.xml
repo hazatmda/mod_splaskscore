@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<extension type="component" method="upgrade">
+    <name>COM_SPLASHSCORE</name>
+    <author>Muhammad Azizan Hazim</author>
+    <creationDate>2026-09-26</creationDate>
+    <version>1.9.5</version>
+    <description>COM_SPLASHSCORE_XML_DESCRIPTION</description>
+    <element>com_splaskscore</element>
+    <namespace path="src">Hazim\Component\Splaskscore</namespace>
+    <license>GNU General Public License version 3 or later; see LICENSE.txt</license>
+    <administration>
+        <menu view="analytics" img="class:chart">COM_SPLASHSCORE_MENU</menu>
+        <submenu>
+            <menu view="analytics">COM_SPLASHSCORE_MENU_ANALYTICS</menu>
+            <menu view="collectionlogs">COM_SPLASHSCORE_MENU_COLLECTION_LOGS</menu>
+            <menu view="settings">COM_SPLASHSCORE_MENU_SETTINGS</menu>
+            <menu view="about">COM_SPLASHSCORE_MENU_ABOUT</menu>
+        </submenu>
+        <files folder="administrator/components/com_splaskscore">
+            <folder>forms</folder>
+            <folder>services</folder>
+            <folder>src</folder>
+            <folder>tmpl</folder>
+            <filename>access.xml</filename>
+            <filename>config.xml</filename>
+        </files>
+        <languages folder="administrator/components/com_splaskscore/language">
+            <language tag="en-GB">en-GB/com_splaskscore.ini</language>
+            <language tag="en-GB">en-GB/com_splaskscore.sys.ini</language>
+            <language tag="ms-MY">ms-MY/com_splaskscore.ini</language>
+            <language tag="ms-MY">ms-MY/com_splaskscore.sys.ini</language>
+        </languages>
+    </administration>
+    <media destination="com_splaskscore" folder="media/com_splaskscore">
+        <filename>joomla.asset.json</filename>
+        <folder>css</folder>
+        <folder>js</folder>
+    </media>
+</extension>

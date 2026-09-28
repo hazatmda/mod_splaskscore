@@ -1,10 +1,15 @@
-# mod_splaskscore
+# SPLaSK Score untuk Joomla
 
-Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dari sistem SPLaSK (Sistem Pemantauan Laman Web dan Perkhidmatan Dalam Talian).
+Pakej Joomla yang menggabungkan komponen pengurusan administrator, modul dashboard, dan plugin automasi untuk memaparkan markah penilaian serta tarikh kemaskini terakhir dari sistem SPLaSK (Sistem Pemantauan Laman Web dan Perkhidmatan Dalam Talian).
 
 ## Fungsi Utama
 
 - Paparan markah penilaian SPLaSK melalui API rasmi.
+- Komponen `com_splaskscore` di menu **Components > SPLaSK Score** dengan empat halaman: **Analitik**, **Rekod Kutipan**, **Tetapan** dan **About**.
+- Satu token dan satu dashboard terurus bagi setiap laman Joomla.
+- Modul `mod_splaskscore` kekal sebagai widget pada Home Dashboard administrator.
+- Token tersimpan tidak dihantar dalam HTML awal. Selepas Save, medan memaparkan penanda bertopeng; nilai sebenar hanya diambil melalui permintaan pelayan ber-ACL apabila ikon mata ditekan dan dibuang semula daripada halaman apabila disembunyikan.
+- Rekod Kutipan membezakan status berjaya, gagal dan dilangkau serta menyediakan ujian segera, countdown, amaran scheduler lewat dan eksport CSV.
 - Paparan `Tarikh Semakan` dengan timestamp penuh untuk audit operasi.
 - Paparan `Semakan Seterusnya` sebagai hari dan tarikh sahaja, dikira daripada `Tarikh Semakan + 1 hari`.
 - Jam telemetry masa nyata berasaskan timezone Joomla pada dashboard pentadbir.
@@ -13,28 +18,49 @@ Modul Joomla untuk memaparkan markah penilaian dan tarikh kemaskini terakhir dar
 
 ## Cara Pasang
 
-1. Muat turun `mod_splaskscore_v1.8.8.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases).
+1. Muat turun `pkg_splaskscore_v1.9.5.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases) selepas versi tersebut diterbitkan. Untuk calon ujian tempatan, gunakan satu-satunya ZIP pengguna di dalam folder `dist/release`.
 2. Pasang di Joomla: **Extensions > Manage > Install**.
-3. Masukkan token SPLaSK anda dalam konfigurasi modul.
-4. Semak tetapan automasi analitik jika mahu kutipan sejarah berjalan melalui Joomla Scheduled Tasks.
+3. Buka **Components > SPLaSK Score > Tetapan**, masukkan satu token SPLaSK untuk laman Joomla tersebut.
+4. Dalam halaman yang sama, aktifkan **Paparan Dashboard** untuk memaparkan widget pada Dashboard administrator atau nyahaktifkannya untuk menyembunyikan widget.
+5. Semak tetapan automasi analitik jika mahu kutipan sejarah berjalan melalui Joomla Scheduled Tasks. Tiada konfigurasi atau penciptaan modul secara manual diperlukan.
+
+## Komponen Administrator dan Tetapan
+
+Komponen ialah satu-satunya pusat pengurusan SPLaSK Score:
+
+- Halaman **Analitik** memaparkan KPI operasi, carta trend 30 hari, sejarah berhalaman, status kesihatan, catatan dan eksport CSV daripada rekod tersimpan laman tersebut.
+- Halaman **Rekod Kutipan** memaparkan status tugas, sebab dan countdown pelaksanaan seterusnya, amaran runner lewat, serta jejak audit kutipan automatik atau manual yang berjaya, gagal atau dilangkau. Pentadbir juga boleh menjalankan ujian kutipan segera dan mengeksport rekod bertapis sebagai CSV.
+- Halaman **Tetapan** mengandungi token tunggal, suis Paparan Dashboard, automasi, retention, pagination, label dan penjenamaan. Token tersimpan tidak dipraisi dalam HTML; ikon mata mendapatkannya hanya atas permintaan pentadbir yang dibenarkan. Menyembunyikan token membuang nilainya daripada halaman, manakala Save tanpa nilai pengganti mengekalkan token sedia ada.
+- Halaman **About** selepas Tetapan memaparkan versi semasa, pemilik, organisasi, keserasian, lesen, pautan repositori dan ringkasan seni bina.
+- Semua halaman komponen dilindungi oleh ACL `core.manage`. Super User boleh membuka **Options** dari mana-mana halaman untuk menetapkan akses komponen; penyimpanan tetapan dan pendedahan token turut memerlukan kebenaran sunting/status bagi renderer modul terurus.
+- Installer mencipta satu renderer modul dalaman secara automatik. Renderer itu tidak memerlukan konfigurasi melalui Module Manager.
+- Jenis SPLaSK Score disembunyikan daripada skrin **Add Module**; URL tambah secara terus dan cubaan mencipta instance kedua turut disekat di peringkat pelayan.
+- Jika naik taraf menemui instance lama yang berganda, satu instance utama dikekalkan dan instance tambahan dinyahterbitkan tanpa memadam jadual sejarahnya.
+- Menyahaktifkan **Paparan Dashboard** hanya menyembunyikan widget. Kutipan analitik automatik kekal dikawal oleh tetapan automasi yang berasingan.
 
 ## Automasi Analitik & Joomla Scheduled Tasks
 
-Tetapan modul ialah panel kawalan utama untuk automasi analitik. Selepas pemasangan atau simpanan modul, SPLaSK Score akan cuba memasang/mengaktifkan plugin Scheduler, mencipta tugas Joomla Scheduled Tasks yang diperlukan, dan menyelaraskan status aktif, frekuensi, masa kutipan, duplicate cooldown, retention days, serta had rekod sejarah daripada parameter modul.
+Halaman **Tetapan** komponen ialah panel kawalan utama untuk automasi analitik. Selepas pemasangan atau simpanan tetapan, SPLaSK Score akan cuba memasang/mengaktifkan plugin Scheduler, mencipta tugas Joomla Scheduled Tasks yang diperlukan, dan menyelaraskan status aktif, masa kutipan harian, sela percubaan semula bagi kutipan gagal, retention days, serta had rekod sejarah.
 
-Pada Joomla 5.2 dan lebih baharu, kutipan **Harian** menggunakan peraturan cron Joomla yang mengikuti zon masa laman dalam Global Configuration. Contohnya, `Masa Kutipan = 06:00` dengan zon masa `Asia/Kuala_Lumpur` bermaksud 6:00 pagi waktu Malaysia. Joomla menyimpan masa pelaksanaan seterusnya dalam UTC dan mengira jadual berikutnya menggunakan zon masa laman. Kutipan **Setiap Jam** kekal pada sela satu jam.
+Halaman Joomla **Scheduled Tasks** hanya menjadi paparan status dan tempat menjalankan **Run Test** bagi tugas SPLaSK Score. Tugas terurus itu tidak boleh disunting, dinyahaktifkan, dipadam atau dicipta semula melalui Scheduler Manager; klik pada tajuknya akan membawa pentadbir ke **Components > SPLaSK Score > Tetapan**. Tugas SPLaSK Score juga disembunyikan daripada senarai jenis tugas baharu supaya semua konfigurasi kekal mempunyai satu sumber yang jelas.
 
-Selepas memasang pembetulan zon masa ini, simpan semula modul untuk menukar tugas harian sedia ada kepada peraturan baharu. Simpan semula modul juga selepas menukar zon masa Joomla supaya masa pelaksanaan seterusnya dikira semula dengan segera. Joomla 5.0/5.1 mentafsir peraturan cron dalam UTC; naik taraf kepada Joomla 5.2 atau lebih baharu diperlukan untuk tingkah laku zon masa ini.
+Pada Joomla 5.2 dan lebih baharu, kutipan **Harian** menggunakan peraturan cron Joomla yang mengikuti zon masa laman dalam Global Configuration. Contohnya, `Masa Kutipan = 06:00` dengan zon masa `Asia/Kuala_Lumpur` bermaksud 6:00 pagi waktu Malaysia. Joomla menyimpan masa pelaksanaan seterusnya dalam UTC dan mengira jadual berikutnya menggunakan zon masa laman. Jika hosting memuatkan pustaka `CronExpression` lama/bertindih yang tidak serasi dengan panggilan satu argumen Joomla, modul mengesan keadaan itu dan menggunakan peraturan harian UTC yang telah ditukar daripada masa tempatan supaya simpanan tetapan tidak gagal.
+
+Tugas automatik menggunakan dasar **satu kutipan berjaya sehari**. Sebelum memanggil API, tugas menyemak sama ada kutipan berjaya sudah direkod pada hari tempatan Joomla yang sama. Jika sudah berjaya, percubaan lain dihentikan sehingga `Masa Kutipan` pada hari berikutnya. Jika kutipan gagal, tugas dijadualkan semula mengikut **Sela percubaan semula kutipan gagal**; contohnya nilai `500` akan mencuba semula setiap 500 minit selagi masa retry masih pada hari yang sama. Apabila sela itu melintasi tengah malam, kitaran baharu bermula pada masa kutipan harian yang ditetapkan.
+
+Nilai cooldown turut dipaparkan dalam bentuk mudah baca, contohnya `500 minit = 8 jam 20 minit`. Rekod Kutipan menunjukkan sama ada masa seterusnya ialah retry kegagalan atau kitaran harian baharu. Jika `next_execution` terlewat lebih 15 minit tanpa task sedang berjalan, komponen memaparkan amaran supaya runner Joomla Scheduled Tasks atau cron hosting diperiksa.
+
+Panel **Status Scheduler** pada halaman Tetapan memaparkan zon masa Joomla, masa kutipan harian seterusnya, pelaksanaan terakhir/seterusnya dan amaran bagi tugas hilang, tidak aktif, belum pernah berjalan, lewat atau gagal berulang kali. Panel itu turut menyediakan arahan cron hosting berasaskan lokasi Joomla sebenar untuk disalin. Runner cron disyorkan setiap 5 minit; sela ini hanya menentukan bila Joomla memeriksa tugas, manakala cooldown menentukan bila API dicuba semula selepas kegagalan.
+
+Selepas memasang pembetulan zon masa ini, simpan semula halaman Tetapan untuk menukar tugas harian sedia ada kepada peraturan baharu. Simpan semula Tetapan juga selepas menukar zon masa Joomla supaya masa pelaksanaan seterusnya dikira semula dengan segera. Joomla 5.0/5.1 mentafsir peraturan cron dalam UTC; naik taraf kepada Joomla 5.2 atau lebih baharu diperlukan untuk tingkah laku zon masa ini.
 
 **Had pustaka Joomla:** Ujian dengan Joomla 5.4.0 dan `cron-expression` 3.4.0 mendapati jadual boleh melangkau hari peralihan daylight saving musim bunga (contoh `Europe/Berlin`). Zon masa Malaysia tidak menggunakan daylight saving. Pengendalian peralihan ini bergantung pada pustaka cron Joomla.
 
-**Nota operasi penting:** Kutipan analitik automatik bergantung pada Joomla Scheduled Tasks yang aktif dalam persekitaran hosting. Pastikan infrastruktur Joomla Scheduled Tasks/cron di hosting anda berjalan untuk jaminan kutipan automatik; tanpa runner Scheduled Tasks yang aktif, tugas boleh wujud dan aktif tetapi tidak akan dilaksanakan sehingga scheduler Joomla diproses.
+**Nota operasi penting:** Kutipan analitik automatik bergantung pada Joomla Scheduled Tasks yang aktif dalam persekitaran hosting. Gunakan arahan cron yang dipaparkan dalam panel Status Scheduler (disyorkan setiap 5 minit) atau mekanisme runner setara daripada hosting. Pada server Linux dengan SSH, buka `crontab -e`, tampal baris yang dijana oleh komponen, simpan dan semak semula panel Status Scheduler. Tetapan ini hanya perlu dibuat sekali. Tanpa runner aktif, tugas boleh wujud dan aktif tetapi tidak akan dilaksanakan sehingga scheduler Joomla diproses.
 
-## Tingkah Laku Multi-Modul
+## Tingkah Laku Singleton
 
-SPLaSK Score menggunakan satu tugas Joomla Scheduled Tasks yang dikongsi untuk rutin `splaskscore.analytics.collect`. Semasa tugas dijalankan, collector memproses semua instance modul administrator yang published, mempunyai token, dan mengaktifkan **Kutipan Analitik Automatik**.
-
-Untuk mengelakkan beberapa module instance saling menulis jadual scheduler yang sama semasa install/upgrade, bootstrap installer hanya menyelaraskan instance modul published pertama/terkini yang ditemui. Selepas itu, apabila mana-mana instance modul disimpan, instance terakhir yang disimpan akan menjadi sumber tetapan jadual bagi tugas scheduler yang dikongsi. Jika anda memasang beberapa instance modul, gunakan satu instance utama sebagai sumber tetapan automation bagi masa/frekuensi scheduler, sementara semua instance published yang enabled masih akan dikutip ketika scheduler berjalan.
+SPLaSK Score menggunakan satu token, satu renderer dashboard dalaman dan satu tugas Joomla Scheduled Tasks bagi setiap laman Joomla. Komponen mencipta dan mengurus renderer tersebut secara automatik. Pendekatan ini mengelakkan token atau jadual scheduler bercanggah antara beberapa instance dan menjadikan halaman Tetapan satu-satunya sumber konfigurasi.
 
 ## Kemaskini Automatik
 
@@ -42,11 +68,11 @@ Modul ini menyokong Joomla Update Server.
 
 Fail `updates.xml` dan `mod_splaskscore_update.xml` menyediakan metadata kemaskini, versi, dan URL muat turun pakej release yang disemak oleh Joomla.
 
-Untuk release semasa, metadata kemaskini menunjuk kepada tag `v1.8.8` dan pakej `mod_splaskscore_v1.8.8.zip`.
+Untuk calon release semasa, metadata kemaskini menunjuk kepada tag `v1.9.5` dan pakej `mod_splaskscore_v1.9.5.zip`. Installer modul tersebut turut membawa komponen dan kedua-dua plugin sokongan; pakej lengkap `pkg_splaskscore_v1.9.5.zip` disediakan untuk ujian pemasangan penuh.
 
 ## Skop Analitik Kekal (analytics_scope)
 
-Setiap instance modul menyimpan satu kunci skop analitik (`analytics_scope`, UUID 32 aksara) dalam parameter modul. Kunci ini dijana secara automatik pada penggunaan pertama dan menjadi penanda sejarah yang **kekal**, jadi menukar token SPLaSK, menyunting gred, atau naik taraf pakej tidak lagi memisahkan sejarah lama daripada dashboard.
+Laman menyimpan satu kunci skop analitik (`analytics_scope`, UUID 32 aksara) pada renderer dalaman. Kunci ini dijana secara automatik pada penggunaan pertama dan menjadi penanda sejarah yang **kekal**, jadi menukar token SPLaSK, menyunting gred, atau naik taraf pakej tidak lagi memisahkan sejarah lama daripada dashboard.
 
 - Lajur `token_hash` dalam jadual sejarah dan kesihatan kini menyimpan kunci skop ini.
 - Baris lama yang masih menyimpan hash token SHA-256 (64 aksara) akan **diadopsi secara automatik** ke dalam skop apabila dashboard analitik dibuka kali pertama selepas naik taraf. Tiada data hilang dan tiada migrasi manual diperlukan.
@@ -71,13 +97,13 @@ php scripts/test_scheduler_timezone.php /path/to/joomla
 Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
 
 ```bash
-python3 scripts/pre_pr_validation.py --release-tag v1.8.8
+python3 scripts/pre_pr_validation.py --release-tag v1.9.5
 ```
 
 Semakan ini adalah disiplin wajib projek dan merangkumi:
 
-- Simulasi pembinaan ZIP installer Joomla di `dist/mod_splaskscore_v<version>.zip`.
-- Simulasi pembinaan pakej Joomla di `dist/pkg_splaskscore_v<version>.zip`.
+- Simulasi pembinaan ZIP dalaman di `dist/internal/`.
+- Pembinaan satu pakej pemasangan pengguna sahaja di `dist/release/pkg_splaskscore_v<version>.zip`.
 - Pemeriksaan kandungan ZIP yang dijana.
 - Pengesahan pembungkusan direktori `sql` apabila dideklarasikan dalam manifest.
 - Pengesahan fail SQL install/uninstall wujud dan tidak kosong dalam ZIP.
@@ -91,12 +117,88 @@ Semakan ini adalah disiplin wajib projek dan merangkumi:
 - Ujian regresi kod status HTTP API (`scripts/test_api_http_errors.php`) untuk respons berjaya, status tidak diketahui, ralat 403/404/503, dan JSON tidak sah.
 - Ujian regresi respons AJAX browser (`scripts/test_ajax_response_handling.js`) untuk JSON sah, HTML daripada HTTP 503, dan respons bukan JSON.
 - Ujian regresi notifikasi dashboard (`scripts/test_dashboard_notifications.js`) untuk kandungan teks selamat, penggantian toast, aksesibiliti, animasi keluar dan auto-dismiss.
+- Ujian UI komponen (`scripts/test_component_admin_ui.js`) untuk pengambilan token atas permintaan, pembuangan token selepas disembunyikan, pengekalan token ketika Save, penukaran sela retry, penyediaan countdown dan salinan arahan cron.
 - Ujian integrasi zon masa scheduler dijalankan apabila `JOOMLA_SOURCE_ROOT` ditetapkan kepada direktori sumber Joomla 5.2+ (dilangkau jika tidak ditetapkan).
 - Semakan konsistensi rendering analytics/dashboard, format ketepatan markah, tingkah laku dark/light appearance, `Semakan Seterusnya` date-only, `Tarikh Semakan` timestamp, jam Joomla live, dan timestamp analitik.
 
 Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, metadata, UI, dan release dikesan lebih awal.
 
+### Verifikasi pada Joomla sebenar
+
+Selepas memasang pakej pada laman Joomla ujian, jalankan verifier baca-sahaja mengikut senario. Skrip ini membaca fail dan pangkalan data Joomla tanpa mengubahnya:
+
+```bash
+php scripts/test_joomla_integration.php /path/to/joomla installed 1.9.5
+php scripts/test_joomla_integration.php /path/to/joomla upgrade 1.9.5
+php scripts/test_joomla_integration.php /path/to/joomla failed
+php scripts/test_joomla_integration.php /path/to/joomla success
+php scripts/test_joomla_integration.php /path/to/joomla skipped
+php scripts/test_joomla_integration.php /path/to/joomla uninstalled
+```
+
+Fasa `failed`, `success` dan `skipped` dijalankan selepas mencetuskan senario tersebut melalui **Uji Kutipan Sekarang** atau runner Scheduled Tasks. Verifier memastikan pemasangan tunggal, plugin aktif, jadual DB, versi, pengekalan sejarah ketika naik taraf, status audit dan masa task seterusnya.
+
 ## Changelog
+
+### v1.9.5 (Calon release, 28 September 2026) — Pembetulan mesej paparan token
+
+- Membetulkan fungsi pembersihan mesej supaya klik ikon mata yang berjaya tidak lagi memaparkan ralat palsu.
+- Membersihkan mesej ralat sekali lagi selepas respons token berjaya diterima.
+- Menjadikan inisialisasi kawalan token idempoten supaya skrip berganda tidak memasang lebih daripada satu pengendali klik.
+- Menambah ujian regresi bagi keadaan token dipaparkan tanpa mesej ralat.
+
+### v1.9.4 (Calon release, 28 September 2026) — Paparan token AJAX tanpa refresh
+
+- Memuatkan aset JavaScript pentadbir secara terus dengan URL berversi pada halaman Tetapan dan Rekod Kutipan, tanpa bergantung sepenuhnya pada pendaftaran Web Asset Manager.
+- Memastikan klik ikon mata mengambil, memaparkan dan menyembunyikan token melalui AJAX tanpa memuat semula halaman.
+- Mengekalkan aliran POST pelayan sebagai fallback selamat hanya apabila JavaScript tidak tersedia.
+- Menambah cache-busting mengikut versi supaya browser tidak terus menggunakan skrip pentadbir lama selepas naik taraf.
+
+### v1.9.3 (Calon release, 28 September 2026) — Butang token dengan fallback pelayan
+
+- Menjadikan ikon mata sebagai butang POST sebenar dengan perlindungan CSRF dan ACL, supaya paparan token tetap berfungsi melalui muat semula Joomla walaupun JavaScript pentadbir gagal dimuatkan.
+- Menambah aliran pelayan sekali guna: klik pertama memaparkan token, manakala klik seterusnya memuat semula halaman tanpa token.
+- Memulakan kawalan JavaScript serta-merta apabila dokumen sudah siap, di samping laluan biasa `DOMContentLoaded`.
+- Mengekalkan pengalaman AJAX tanpa muat semula apabila JavaScript tersedia dan menghalang penghantaran borang sandaran dalam keadaan itu.
+
+### v1.9.2 (Calon release, 28 September 2026) — Paparan token teks yang konsisten
+
+- Menggunakan medan teks baca-sahaja yang berasingan untuk memaparkan token tersimpan, supaya browser atau gaya medan kata laluan Joomla tidak boleh terus menutup aksara token.
+- Mengosongkan nilai token yang dipaparkan dan membuang medan teks daripada pandangan apabila ikon mata ditekan semula atau borang dihantar.
+- Mengukuhkan permintaan token dengan pengepala AJAX/JSON serta pengendalian respons JSON yang jelas.
+- Menambah ujian regresi yang memastikan token sebenar masuk ke medan teks baca-sahaja, bukan ke medan kata laluan.
+
+### v1.9.1 (Calon release, 28 September 2026) — Paparan token dan ACL
+
+- Menghapuskan ikon mata kedua yang dijana oleh susun atur `PasswordField` Joomla dan menggunakan satu kawalan paparan token milik komponen.
+- Menjana penanda token `••••••••••••••••` terus dalam HTML selepas Save tanpa mendedahkan nilai token sebenar.
+- Mengekalkan pengambilan token atas permintaan, pembuangan token daripada halaman apabila disembunyikan dan pengekalan token lama apabila medan tidak diubah.
+- Menambah pemeriksaan `core.manage` secara eksplisit pada semua halaman komponen dan endpoint Tetapan, di samping ACL modul yang diperlukan untuk menyimpan tetapan atau mendedahkan token.
+- Memaparkan butang Options ACL pada setiap halaman komponen kepada pengguna yang mempunyai `core.admin` bagi `com_splaskscore`.
+- Menambah nota pemasangan cron sekali sahaja melalui `crontab -e` bagi server Linux yang diurus melalui SSH.
+
+### v1.9.0 (Calon release, 26 September 2026) — Komponen pengurusan administrator
+
+- Menambah komponen administrator `com_splaskscore` dengan menu Analitik, Rekod Kutipan, Tetapan dan About.
+- Menambah halaman Analitik yang menggunakan semula skop, KPI, carta, sejarah, kesihatan, catatan dan eksport CSV tanpa menduplikasi data.
+- Menambah halaman Rekod Kutipan sebelum Tetapan untuk memantau status tugas dan kutipan automatik/manual yang berjaya atau gagal.
+- Memulihkan maklumat About lama sebagai halaman komponen selepas Tetapan dengan versi yang dibaca terus daripada enjin.
+- Mengekalkan `mod_splaskscore` sebagai widget Home Dashboard administrator.
+- Menetapkan seni bina singleton: satu token, satu renderer dashboard dan satu sumber tetapan bagi setiap laman Joomla.
+- Memindahkan kawalan Paparan Dashboard ke halaman Tetapan; suis itu menetapkan atau mengosongkan posisi `cpanel` tanpa menghentikan scheduler.
+- Menyembunyikan SPLaSK Score daripada Add Module, mengalihkan suntingan Module Manager ke Tetapan komponen dan menyekat instance kedua di peringkat pelayan.
+- Membolehkan semua parameter diurus hanya daripada komponen tanpa memindahkan token, sejarah atau skop analitik.
+- Menyelaraskan Joomla Scheduler selepas tetapan disimpan melalui komponen.
+- Menetapkan satu kutipan automatik berjaya bagi setiap hari tempatan Joomla; selepas berjaya, tugas menunggu hari berikutnya tanpa memanggil API semula.
+- Menukar cooldown kepada sela percubaan semula bagi kutipan gagal pada hari yang sama dan memaparkan masa retry melalui Rekod Kutipan.
+- Melindungi token dengan medan bertopeng dan ikon mata sahaja; token tidak dihantar dalam HTML awal, hanya diambil daripada endpoint ber-ACL apabila diminta, dibuang semula apabila disembunyikan, dan medan kosong ketika Save mengekalkan nilai sedia ada.
+- Menambah panel Status Scheduler dalam Tetapan dengan zon masa Joomla, masa harian seterusnya, pelaksanaan terakhir/seterusnya, pemeriksaan kesihatan serta arahan cron hosting yang boleh disalin.
+- Menambah status `Dilangkau`, sebab pelaksanaan seterusnya, countdown, amaran scheduler lewat, ujian kutipan segera dan eksport CSV yang dilindungi daripada formula injection.
+- Menambah paparan cooldown mudah baca serta gate regresi UI komponen.
+- Mengasingkan ZIP dalaman ke `dist/internal` dan menyediakan hanya pakej penuh untuk pengguna di `dist/release`.
+- Menambah verifier baca-sahaja untuk senario pemasangan, naik taraf, gagal, berjaya, dilangkau dan uninstall pada instance Joomla sebenar.
+- Menambah komponen ke dalam installer modul dan pakej Joomla lengkap.
+- Tiada perubahan dibuat kepada logik markah, API, sejarah atau paparan dashboard sedia ada selain integrasi komponen.
 
 ### v1.8.8 (18 September 2026) — Notifikasi toast premium dalam modal
 

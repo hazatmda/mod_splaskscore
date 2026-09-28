@@ -17,14 +17,19 @@ ROOT = Path(__file__).resolve().parents[1]
 EXTENSION_NAME = "mod_splaskscore"
 PLUGIN_NAME = "plg_task_splaskscoreanalytics"
 SYSTEM_PLUGIN_NAME = "plg_system_splaskscoreautomation"
+COMPONENT_NAME = "com_splaskscore"
 PACKAGE_NAME = "pkg_splaskscore"
 MODULE_MANIFEST = ROOT / "mod_splaskscore.xml"
 UPDATE_MANIFEST = ROOT / "updates.xml"
 PLUGIN_MANIFEST = ROOT / "plugins" / "task" / "splaskscoreanalytics" / "splaskscoreanalytics.xml"
 SYSTEM_PLUGIN_MANIFEST = ROOT / "plugins" / "system" / "splaskscoreautomation" / "splaskscoreautomation.xml"
+COMPONENT_ROOT = ROOT / "component" / "com_splaskscore"
+COMPONENT_MANIFEST = COMPONENT_ROOT / "splaskscore.xml"
 PACKAGE_MANIFEST = ROOT / "pkg_splaskscore.xml"
 BUILD_ROOT = ROOT / "build" / "pre-pr"
 DIST_ROOT = ROOT / "dist"
+INTERNAL_DIST_ROOT = DIST_ROOT / "internal"
+RELEASE_DIST_ROOT = DIST_ROOT / "release"
 EXCLUDED_DIRS = {".git", ".github", "build", "dist", "node_modules", "vendor"}
 
 
@@ -52,12 +57,17 @@ def release_version() -> str:
     return text_at(read_xml(MODULE_MANIFEST), "version", MODULE_MANIFEST)
 
 
-def build_package(version: str, plugin_zip: Path | None = None, system_plugin_zip: Path | None = None) -> Path:
+def build_package(
+    version: str,
+    component_zip: Path | None = None,
+    plugin_zip: Path | None = None,
+    system_plugin_zip: Path | None = None,
+) -> Path:
     staging = BUILD_ROOT / EXTENSION_NAME
-    zip_path = DIST_ROOT / f"{EXTENSION_NAME}_v{version}.zip"
+    zip_path = INTERNAL_DIST_ROOT / f"{EXTENSION_NAME}_v{version}.zip"
 
     shutil.rmtree(BUILD_ROOT, ignore_errors=True)
-    DIST_ROOT.mkdir(exist_ok=True)
+    INTERNAL_DIST_ROOT.mkdir(parents=True, exist_ok=True)
     if zip_path.exists():
         zip_path.unlink()
     staging.mkdir(parents=True)
@@ -68,6 +78,9 @@ def build_package(version: str, plugin_zip: Path | None = None, system_plugin_zi
             shutil.copy2(source, staging / name)
 
     package_dir = staging / "packages"
+    if component_zip is not None:
+        package_dir.mkdir(exist_ok=True)
+        shutil.copy2(component_zip, package_dir / "com_splaskscore.zip")
     if plugin_zip is not None:
         package_dir.mkdir(exist_ok=True)
         shutil.copy2(plugin_zip, package_dir / "plg_task_splaskscoreanalytics.zip")
@@ -95,10 +108,25 @@ def build_package(version: str, plugin_zip: Path | None = None, system_plugin_zi
     return zip_path
 
 
+def build_component(version: str) -> Path:
+    INTERNAL_DIST_ROOT.mkdir(parents=True, exist_ok=True)
+    zip_path = INTERNAL_DIST_ROOT / f"{COMPONENT_NAME}_v{version}.zip"
+    if zip_path.exists():
+        zip_path.unlink()
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(COMPONENT_ROOT.rglob("*")):
+            if path.is_file():
+                archive.write(path, path.relative_to(COMPONENT_ROOT).as_posix())
+
+    print(f"Built administrator component installer simulation: {rel(zip_path)}")
+    return zip_path
+
+
 def build_scheduler_plugin(version: str) -> Path:
     plugin_root = ROOT / "plugins" / "task" / "splaskscoreanalytics"
-    DIST_ROOT.mkdir(exist_ok=True)
-    zip_path = DIST_ROOT / f"{PLUGIN_NAME}_v{version}.zip"
+    INTERNAL_DIST_ROOT.mkdir(parents=True, exist_ok=True)
+    zip_path = INTERNAL_DIST_ROOT / f"{PLUGIN_NAME}_v{version}.zip"
     if zip_path.exists():
         zip_path.unlink()
 
@@ -113,8 +141,8 @@ def build_scheduler_plugin(version: str) -> Path:
 
 def build_system_plugin(version: str) -> Path:
     plugin_root = ROOT / "plugins" / "system" / "splaskscoreautomation"
-    DIST_ROOT.mkdir(exist_ok=True)
-    zip_path = DIST_ROOT / f"{SYSTEM_PLUGIN_NAME}_v{version}.zip"
+    INTERNAL_DIST_ROOT.mkdir(parents=True, exist_ok=True)
+    zip_path = INTERNAL_DIST_ROOT / f"{SYSTEM_PLUGIN_NAME}_v{version}.zip"
     if zip_path.exists():
         zip_path.unlink()
 
@@ -127,13 +155,24 @@ def build_system_plugin(version: str) -> Path:
     return zip_path
 
 
-def build_joomla_package(module_zip: Path, plugin_zip: Path, system_plugin_zip: Path, version: str) -> Path:
-    package_zip = DIST_ROOT / f"{PACKAGE_NAME}_v{version}.zip"
+def build_joomla_package(
+    module_zip: Path,
+    component_zip: Path,
+    plugin_zip: Path,
+    system_plugin_zip: Path,
+    version: str,
+) -> Path:
+    RELEASE_DIST_ROOT.mkdir(parents=True, exist_ok=True)
+    for existing in RELEASE_DIST_ROOT.glob("*.zip"):
+        existing.unlink()
+
+    package_zip = RELEASE_DIST_ROOT / f"{PACKAGE_NAME}_v{version}.zip"
     if package_zip.exists():
         package_zip.unlink()
 
     with zipfile.ZipFile(package_zip, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.write(PACKAGE_MANIFEST, PACKAGE_MANIFEST.name)
+        archive.write(component_zip, "packages/com_splaskscore.zip")
         archive.write(module_zip, "packages/mod_splaskscore.zip")
         archive.write(plugin_zip, "packages/plg_task_splaskscoreanalytics.zip")
         archive.write(system_plugin_zip, "packages/plg_system_splaskscoreautomation.zip")
@@ -151,7 +190,7 @@ def inspect_package(zip_path: Path, version: str) -> None:
             print(f"- {name}")
 
         required_files = required_module_zip_entries(module_root)
-        required_files.update({"packages/plg_task_splaskscoreanalytics.zip", "packages/plg_system_splaskscoreautomation.zip"})
+        required_files.update({"packages/com_splaskscore.zip", "packages/plg_task_splaskscoreanalytics.zip", "packages/plg_system_splaskscoreautomation.zip"})
         missing_files = sorted(required_files - names)
         if missing_files:
             raise AssertionError(f"ZIP is missing required files: {', '.join(missing_files)}")
@@ -170,18 +209,24 @@ def inspect_package(zip_path: Path, version: str) -> None:
         script_body = archive.read("script.php").decode("utf-8")
         for token in [
             "InstallerHelper::unpack",
-            "Installer::getInstance()->install($installPath)",
+            "$nestedInstaller = new Installer()",
+            "setDatabase(Factory::getContainer()->get(DatabaseInterface::class))",
+            "$nestedInstaller->install($installPath)",
             "InstallerHelper::cleanupInstall",
             "is_dir($packagesPath)",
             "is_dir($installPath)",
             "enablePlugin",
+            "ensureSingleModuleInstance",
+            "com_splaskscore",
             "splaskscoreanalytics",
             "splaskscoreautomation",
         ]:
             if token not in script_body:
                 raise AssertionError(f"Install/upgrade flow validation missing token: {token}")
-        if "Installer::getInstance()->install($pluginZip)" in script_body:
-            raise AssertionError("Bundled plugin ZIPs must be unpacked before Installer::install() to avoid Install path warnings")
+        if "Installer::getInstance()" in script_body:
+            raise AssertionError(
+                "Bundled extensions must use isolated Installer instances to avoid corrupting an active package install"
+            )
 
         declares_sql = module_root.find("files/folder[.='sql']") is not None
         if declares_sql and not any(name.startswith("sql/") for name in names):
@@ -248,7 +293,7 @@ def validate_scheduler_plugin_packaging(plugin_zip: Path, version: str) -> None:
         if missing:
             raise AssertionError(f"Scheduler plugin ZIP missing files: {', '.join(missing)}")
         plugin_code = archive.read("splaskscoreanalytics.php").decode("utf-8")
-        for token in ["onTaskOptionsList", "onExecuteTask", "collectScheduledAnalytics", "6:00 AM"]:
+        for token in ["onTaskOptionsList", "onExecuteTask", "onTaskExecuteSuccess", "onTaskExecuteFailure", "rescheduleManagedTaskAfterCollection", "collectScheduledAnalytics", "6:00 AM"]:
             if token not in plugin_code and token not in archive.read("splaskscoreanalytics.xml").decode("utf-8"):
                 raise AssertionError(f"Scheduler registration validation missing token: {token}")
 
@@ -267,9 +312,257 @@ def validate_system_plugin_packaging(plugin_zip: Path, version: str) -> None:
         if missing:
             raise AssertionError(f"Automation plugin ZIP missing files: {', '.join(missing)}")
         plugin_code = archive.read("splaskscoreautomation.php").decode("utf-8")
-        for token in ["onContentAfterSave", "synchronizeSchedulerForModule", "mod_splaskscore"]:
+        for token in ["onAfterRoute", "onBeforeCompileHead", "onContentBeforeSave", "onContentAfterSave", "synchronizeSchedulerForModule", "mod_splaskscore"]:
             if token not in plugin_code:
                 raise AssertionError(f"Module-save scheduler synchronization missing token: {token}")
+
+
+def validate_component_packaging(component_zip: Path, version: str) -> None:
+    component_root = read_xml(COMPONENT_MANIFEST)
+    if component_root.attrib.get("type") != "component":
+        raise AssertionError("SPLaSK Score component manifest must use type='component'")
+    if text_at(component_root, "version", COMPONENT_MANIFEST) != version:
+        raise AssertionError("SPLaSK Score component manifest version does not match release version")
+
+    with zipfile.ZipFile(component_zip) as archive:
+        names = set(archive.namelist())
+        required = {
+            "splaskscore.xml",
+            "administrator/components/com_splaskscore/access.xml",
+            "administrator/components/com_splaskscore/config.xml",
+            "administrator/components/com_splaskscore/forms/settings.xml",
+            "administrator/components/com_splaskscore/language/en-GB/com_splaskscore.ini",
+            "administrator/components/com_splaskscore/language/en-GB/com_splaskscore.sys.ini",
+            "administrator/components/com_splaskscore/language/ms-MY/com_splaskscore.ini",
+            "administrator/components/com_splaskscore/language/ms-MY/com_splaskscore.sys.ini",
+            "administrator/components/com_splaskscore/services/provider.php",
+            "administrator/components/com_splaskscore/src/Model/AnalyticsModel.php",
+            "administrator/components/com_splaskscore/src/Model/CollectionlogsModel.php",
+            "administrator/components/com_splaskscore/src/Controller/DisplayController.php",
+            "administrator/components/com_splaskscore/src/Controller/CollectionlogsController.php",
+            "administrator/components/com_splaskscore/src/Controller/SettingsController.php",
+            "administrator/components/com_splaskscore/src/Model/SettingsModel.php",
+            "administrator/components/com_splaskscore/src/View/Analytics/HtmlView.php",
+            "administrator/components/com_splaskscore/src/View/About/HtmlView.php",
+            "administrator/components/com_splaskscore/src/View/Collectionlogs/HtmlView.php",
+            "administrator/components/com_splaskscore/src/View/Settings/HtmlView.php",
+            "administrator/components/com_splaskscore/tmpl/analytics/default.php",
+            "administrator/components/com_splaskscore/tmpl/about/default.php",
+            "administrator/components/com_splaskscore/tmpl/collectionlogs/default.php",
+            "administrator/components/com_splaskscore/tmpl/settings/default.php",
+            "media/com_splaskscore/joomla.asset.json",
+            "media/com_splaskscore/css/admin.css",
+            "media/com_splaskscore/js/admin.js",
+        }
+        missing = sorted(required - names)
+        if missing:
+            raise AssertionError(f"SPLaSK Score component ZIP missing files: {', '.join(missing)}")
+
+        removed_dashboard_files = {
+            "administrator/components/com_splaskscore/src/Controller/DashboardController.php",
+            "administrator/components/com_splaskscore/src/Model/DashboardModel.php",
+            "administrator/components/com_splaskscore/src/View/Dashboard/HtmlView.php",
+            "administrator/components/com_splaskscore/tmpl/dashboard/default.php",
+        }
+        unexpected_dashboard_files = sorted(removed_dashboard_files & names)
+        if unexpected_dashboard_files:
+            raise AssertionError(
+                "Component must not restore the obsolete Dashboard page; obsolete Dashboard files remain: "
+                + ", ".join(unexpected_dashboard_files)
+            )
+
+        settings_model = archive.read(
+            "administrator/components/com_splaskscore/src/Model/SettingsModel.php"
+        ).decode("utf-8")
+        for token in [
+            "ensureSingleModuleInstance",
+            "saveSettings",
+            "dashboard_display_enabled",
+            "cpanel",
+            "synchronizeSchedulerForModule",
+            "getStoredToken",
+            "getSchedulerDiagnostics",
+            "next_daily_utc",
+            "overdue_minutes",
+            "consecutive_failures",
+            "scheduler:run",
+        ]:
+            if token not in settings_model:
+                raise AssertionError(f"Component settings integration missing token: {token}")
+
+        settings_controller = archive.read(
+            "administrator/components/com_splaskscore/src/Controller/SettingsController.php"
+        ).decode("utf-8")
+        for token in ["revealToken", "revealTokenPage", "hideTokenPage", "getRevealStateKey", "Session::checkToken", "getStoredToken", "Cache-Control", "no-store", "assertCanManageComponent", "core.manage", "com_splaskscore"]:
+            if token not in settings_controller:
+                raise AssertionError(f"Secure stored-token reveal validation missing token: {token}")
+
+        display_controller = archive.read(
+            "administrator/components/com_splaskscore/src/Controller/DisplayController.php"
+        ).decode("utf-8")
+        for token in ["core.manage", "com_splaskscore", "JERROR_ALERTNOAUTHOR"]:
+            if token not in display_controller:
+                raise AssertionError(f"Component-wide view ACL validation missing token: {token}")
+
+        settings_template = archive.read(
+            "administrator/components/com_splaskscore/tmpl/settings/default.php"
+        ).decode("utf-8")
+        for token in [
+            "settings.revealToken",
+            "data-splask-token-control",
+            "data-splask-token-input",
+            "data-splask-token-revealed",
+            "data-server-revealed",
+            "splaskscore-token-reveal-form",
+            "revealTokenPage",
+            "hideTokenPage",
+            "COM_SPLASHSCORE_SCHEDULER_PANEL_TITLE",
+            "next_daily_utc",
+            "data-splask-cron-copy",
+            "com_scheduler",
+        ]:
+            if token not in settings_template:
+                raise AssertionError(f"Component scheduler diagnostics view missing token: {token}")
+
+        for token in ["Uri::root(true)", "/media/com_splaskscore", "/js/admin.js?v=", "['defer' => true]"]:
+            if token not in settings_template:
+                raise AssertionError(f"Settings view must load the versioned administrator script directly: {token}")
+
+        if settings_template.count("data-splask-token-toggle") != 1:
+            raise AssertionError("Token field must render exactly one component-controlled visibility button")
+        token_control = settings_template.split("<?php if ($field->fieldname === 'splask_token') : ?>", 1)[-1].split("<?php else : ?>", 1)[0]
+        if "$field->input" in token_control or 'placeholder="<?php echo $this->tokenConfigured' not in token_control:
+            raise AssertionError("Token field must bypass Joomla's native password eye and render a server-side mask")
+
+        analytics_model = archive.read(
+            "administrator/components/com_splaskscore/src/Model/AnalyticsModel.php"
+        ).decode("utf-8")
+        analytics_template = archive.read(
+            "administrator/components/com_splaskscore/tmpl/analytics/default.php"
+        ).decode("utf-8")
+        for token in ["getModule", "getAnalyticsReport", "getComponentAnalyticsReport"]:
+            if token not in analytics_model:
+                raise AssertionError(f"Component analytics integration missing token: {token}")
+        for token in ["data-splask-widget", "splaskscore.js", "analytics['html']"]:
+            if token not in analytics_template:
+                raise AssertionError(f"Component analytics view missing token: {token}")
+        if "COM_SPLASHSCORE_ANALYTICS_SELECT_MODULE" in analytics_template:
+            raise AssertionError("Singleton analytics view must not expose a module-instance selector")
+
+        submenu_views = [node.attrib.get("view", "") for node in component_root.findall("administration/submenu/menu")]
+        if submenu_views != ["analytics", "collectionlogs", "settings", "about"]:
+            raise AssertionError("Component submenu must contain Analytics, Collection Records, Settings, and About in that order")
+
+        about_view = archive.read(
+            "administrator/components/com_splaskscore/src/View/About/HtmlView.php"
+        ).decode("utf-8")
+        about_template = archive.read(
+            "administrator/components/com_splaskscore/tmpl/about/default.php"
+        ).decode("utf-8")
+        for token in ["getEngineVersion", "COM_SPLASHSCORE_ABOUT_TITLE"]:
+            if token not in about_view:
+                raise AssertionError(f"Component About view validation missing token: {token}")
+        for token in ["COM_SPLASHSCORE_ABOUT_OWNER", "COM_SPLASHSCORE_ABOUT_REPOSITORY", "COM_SPLASHSCORE_ABOUT_LICENSE"]:
+            if token not in about_template:
+                raise AssertionError(f"Component About template validation missing token: {token}")
+
+        acl_view_paths = [
+            "administrator/components/com_splaskscore/src/View/Analytics/HtmlView.php",
+            "administrator/components/com_splaskscore/src/View/Collectionlogs/HtmlView.php",
+            "administrator/components/com_splaskscore/src/View/Settings/HtmlView.php",
+            "administrator/components/com_splaskscore/src/View/About/HtmlView.php",
+        ]
+        for path in acl_view_paths:
+            view_code = archive.read(path).decode("utf-8")
+            for token in ["core.admin", "com_splaskscore", "ToolbarHelper::preferences"]:
+                if token not in view_code:
+                    raise AssertionError(f"Component ACL Options toolbar validation missing from {path}: {token}")
+
+        collection_model = archive.read(
+            "administrator/components/com_splaskscore/src/Model/CollectionlogsModel.php"
+        ).decode("utf-8")
+        collection_template = archive.read(
+            "administrator/components/com_splaskscore/tmpl/collectionlogs/default.php"
+        ).decode("utf-8")
+        for token in ["#__splaskscore_health", "getSummary", "getTaskStatus", "runTestCollection", "getExportRows", "skipped_count", "is_overdue", "filter.status", "filter.source"]:
+            if token not in collection_model:
+                raise AssertionError(f"Collection-record model validation missing token: {token}")
+        for token in ["COM_SPLASHSCORE_COLLECTION_LOGS_SUCCESS", "COM_SPLASHSCORE_COLLECTION_LOGS_FAILED", "COM_SPLASHSCORE_COLLECTION_LOGS_SKIPPED", "COM_SPLASHSCORE_COLLECTION_SCHEDULER_OVERDUE_TITLE", "data-splask-countdown", "collectionlogs.test", "collectionlogs.export", "getListFooter"]:
+            if token not in collection_template:
+                raise AssertionError(f"Collection-record view validation missing token: {token}")
+        for token in ["Uri::root(true)", "/media/com_splaskscore", "/js/admin.js?v=", "['defer' => true]"]:
+            if token not in collection_template:
+                raise AssertionError(f"Collection-record view must load the versioned administrator script directly: {token}")
+
+        collection_controller = archive.read(
+            "administrator/components/com_splaskscore/src/Controller/CollectionlogsController.php"
+        ).decode("utf-8")
+        for token in ["Session::checkToken", "runTestCollection", "getExportRows", "text/csv", "csvSafe"]:
+            if token not in collection_controller:
+                raise AssertionError(f"Collection-record controller validation missing token: {token}")
+
+        module_root = read_xml(MODULE_MANIFEST)
+        module_fields = {
+            field.attrib.get("name", "")
+            for field in module_root.findall(".//config//field")
+            if field.attrib.get("name") != "about_metadata_panel"
+        }
+        if module_fields:
+            raise AssertionError(
+                "Module Manager must not expose SPLaSK settings: " + ", ".join(sorted(module_fields))
+            )
+        component_form = ET.fromstring(
+            archive.read("administrator/components/com_splaskscore/forms/settings.xml").decode("utf-8")
+        )
+        component_fields = {
+            field.attrib.get("name", "")
+            for field in component_form.findall(".//field")
+        }
+        required_settings = {
+            "dashboard_display_enabled",
+            "splask_token",
+            "appearance_mode",
+            "analytics_auto_enabled",
+            "analytics_frequency",
+            "analytics_collection_time",
+            "dashboard_title",
+            "analytics_title",
+        }
+        missing_settings = sorted(required_settings - component_fields)
+        if missing_settings:
+            raise AssertionError(
+                "Component settings form does not expose module fields: " + ", ".join(missing_settings)
+            )
+
+        token_field = component_form.find(".//field[@name='splask_token']")
+        if token_field is None or token_field.attrib.get("type") != "password" or token_field.attrib.get("required") == "true":
+            raise AssertionError("SPLaSK token field must be a non-prefilled password replacement field")
+
+        for token in ["$data['splask_token'] = ''", "$submittedToken === ''", "$existingToken === ''", "COM_SPLASHSCORE_TOKEN_REQUIRED"]:
+            if token not in settings_model:
+                raise AssertionError(f"Stored token privacy validation missing token: {token}")
+
+        admin_script = archive.read("media/com_splaskscore/js/admin.js").decode("utf-8")
+        for token in [
+            "data-splask-token-control",
+            "data-splask-token-input",
+            "data-splask-token-revealed",
+            "window.fetch",
+            "response.text()",
+            "JSON.parse(responseText)",
+            "event.preventDefault()",
+            "document.readyState",
+            "control.dataset.revealUrl",
+            "control.dataset.splaskTokenInitialized",
+            "typeof message === 'string'",
+            "loadedFromServer",
+            "jform_analytics_duplicate_cooldown",
+            "data-splask-countdown",
+            "data-splask-cron-copy",
+            "navigator.clipboard.writeText",
+        ]:
+            if token not in admin_script:
+                raise AssertionError(f"Component administrator script validation missing token: {token}")
 
 
 def validate_joomla_package(package_zip: Path, version: str) -> None:
@@ -279,12 +572,23 @@ def validate_joomla_package(package_zip: Path, version: str) -> None:
     if text_at(package_root, "version", PACKAGE_MANIFEST) != version:
         raise AssertionError("Package manifest version does not match release version")
 
+    component_entries = [
+        node for node in package_root.findall("files/file")
+        if node.attrib.get("type") == "component" and node.attrib.get("id") == "com_splaskscore"
+    ]
+    if len(component_entries) != 1 or (component_entries[0].text or "").strip() != "com_splaskscore.zip":
+        raise AssertionError("Joomla package manifest must install packages/com_splaskscore.zip as com_splaskscore")
+
     with zipfile.ZipFile(package_zip) as archive:
         names = set(archive.namelist())
-        required = {"pkg_splaskscore.xml", "packages/mod_splaskscore.zip", "packages/plg_task_splaskscoreanalytics.zip", "packages/plg_system_splaskscoreautomation.zip"}
+        required = {"pkg_splaskscore.xml", "packages/com_splaskscore.zip", "packages/mod_splaskscore.zip", "packages/plg_task_splaskscoreanalytics.zip", "packages/plg_system_splaskscoreautomation.zip"}
         missing = sorted(required - names)
         if missing:
             raise AssertionError(f"Joomla package ZIP missing files: {', '.join(missing)}")
+
+    release_zips = sorted(RELEASE_DIST_ROOT.glob("*.zip"))
+    if release_zips != [package_zip]:
+        raise AssertionError("dist/release must contain only the full Joomla package intended for testers")
 
 
 def validate_schema_and_workflows() -> None:
@@ -296,13 +600,14 @@ def validate_schema_and_workflows() -> None:
     script = (ROOT / "media" / "js" / "splaskscore.js").read_text()
     styles = (ROOT / "media" / "css" / "splaskscore.css").read_text()
     template = (ROOT / "tmpl" / "_score_card.php").read_text()
+    integration_test = (ROOT / "scripts" / "test_joomla_integration.php").read_text()
 
     schema_tokens = ["splaskscore_health", "source", "recorded_at", "engine_version", "signature", "triggered_by"]
     missing_schema = [token for token in schema_tokens if token not in install_sql]
     if missing_schema:
         raise AssertionError("DB migration/schema validation missing: " + ", ".join(missing_schema))
 
-    helper_tokens = ["migrateHistoryTable", "isDuplicateHistoryRecord", "applyRetentionPolicy", "getAnalyticsHealth", "collectScheduledAnalytics", "refreshAnalyticsAjax", "synchronizeSchedulerForModule", "buildSchedulerRules"]
+    helper_tokens = ["migrateHistoryTable", "isDuplicateHistoryRecord", "applyRetentionPolicy", "getAnalyticsHealth", "collectScheduledAnalytics", "refreshAnalyticsAjax", "synchronizeSchedulerForModule", "buildSchedulerRules", "hasSuccessfulCollectionOnSiteDay", "rescheduleManagedTaskAfterCollection", "calculateNextCollectionExecution", "DEFAULT_FAILURE_RETRY_MINUTES", "HISTORY_DUPLICATE_WINDOW_MINUTES", "retry_cooldown_minutes"]
     missing_helper = [token for token in helper_tokens if token not in helper]
     if missing_helper:
         raise AssertionError("Install/upgrade/manual/scheduler helper validation missing: " + ", ".join(missing_helper))
@@ -312,7 +617,7 @@ def validate_schema_and_workflows() -> None:
     if missing_guard_schema:
         raise AssertionError("Daily snapshot uniqueness guard missing from install schema: " + ", ".join(missing_guard_schema))
 
-    duplicate_guard_helper_tokens = ["ensureDailyHistoryGuard", "applyHealthRetentionPolicy", "recordDuplicateSkipHealth"]
+    duplicate_guard_helper_tokens = ["ensureDailyHistoryGuard", "applyHealthRetentionPolicy", "recordDuplicateSkipHealth", "recordSchedulerDailySkipHealth", "SCHEDULER_DAILY_SKIP_MESSAGE"]
     missing_guard_helper = [token for token in duplicate_guard_helper_tokens if token not in helper]
     if missing_guard_helper:
         raise AssertionError("Daily snapshot uniqueness guard missing from helper: " + ", ".join(missing_guard_helper))
@@ -451,12 +756,16 @@ def validate_schema_and_workflows() -> None:
         raise AssertionError("Manual refresh success popup validation missing")
 
     release_workflow_tokens = [
-        "install -m 0644 script.php",
+        "dist/internal/${zip_name}",
+        "dist/release/${package_zip_name}",
         "packages/plg_task_splaskscoreanalytics.zip",
         "packages/plg_system_splaskscoreautomation.zip",
+        "packages/com_splaskscore.zip",
         r"<scriptfile>script\.php</scriptfile>",
-        r"Installer::getInstance\(\)->install",
+        "new Installer()",
+        "DatabaseInterface::class",
         "--system-plugin-manifest",
+        "--component-manifest",
     ]
     missing_release_workflow = [token for token in release_workflow_tokens if token not in release_workflow]
     if missing_release_workflow:
@@ -464,15 +773,28 @@ def validate_schema_and_workflows() -> None:
 
     scheduler_guidance_tokens = [
         "Automated analytics collection depends on Joomla Scheduled Tasks being active in the hosting environment",
-        "analytics_scheduler_note",
-        "analytics_multi_module_note",
-        "Runtime collection still processes every published enabled module instance",
-        "first/latest published instance",
+        "analytics_auto_enabled",
+        "Tingkah Laku Singleton",
+        "The component-managed singleton is the only schedule and collection source",
     ]
     guidance_sources = readme + module_manifest + helper
     missing_guidance = [token for token in scheduler_guidance_tokens if token not in guidance_sources]
     if missing_guidance:
         raise AssertionError("Scheduler operational guidance validation missing: " + ", ".join(missing_guidance))
+
+    integration_tokens = [
+        "Read-only integration verifier",
+        "installed",
+        "upgrade",
+        "failed",
+        "success",
+        "skipped",
+        "uninstalled",
+        "exactly one managed scheduler task exists",
+    ]
+    missing_integration_tokens = [token for token in integration_tokens if token not in integration_test]
+    if missing_integration_tokens:
+        raise AssertionError("Real Joomla integration verifier missing: " + ", ".join(missing_integration_tokens))
 
     validate_release_workflow_sequence(release_workflow)
 
@@ -499,7 +821,7 @@ def validate_release_workflow_sequence(release_workflow: str) -> None:
         "Resolve release version",
         "Synchronize release metadata from tag",
         "Validate Joomla update metadata",
-        "Build clean Joomla installation ZIP",
+        "Resolve validated package paths",
         "Validate Joomla package contents",
         "Upload workflow artifact",
         "Attach ZIP to GitHub Release",
@@ -518,9 +840,11 @@ def validate_release_workflow_sequence(release_workflow: str) -> None:
         )
 
     upload_tokens = [
-        "path: ${{ env.zip_path }}",
+        "${{ env.zip_path }}",
+        "${{ env.package_zip_path }}",
+        "${{ env.component_zip_path }}",
         "if-no-files-found: error",
-        "files: ${{ env.zip_path }}",
+        "files: |",
         "fail_on_unmatched_files: true",
     ]
     missing_upload_tokens = [token for token in upload_tokens if token not in release_workflow]
@@ -581,6 +905,7 @@ def validate_css() -> None:
 
 def validate_js() -> None:
     js_files = sorted((ROOT / "media" / "js").glob("*.js"))
+    js_files.extend(sorted((COMPONENT_ROOT / "media" / "com_splaskscore" / "js").glob("*.js")))
     if not js_files:
         raise AssertionError("No JS files found under media/js")
     if shutil.which("node") is None:
@@ -601,6 +926,13 @@ def validate_dashboard_notification_regression() -> None:
     if shutil.which("node") is None:
         raise AssertionError("Node.js is required for the dashboard notification regression test")
     run(["node", "scripts/test_dashboard_notifications.js"])
+
+
+def validate_component_admin_ui_regression() -> None:
+    """Exercise secure token reveal, retry preview, countdown, and cron-copy setup."""
+    if shutil.which("node") is None:
+        raise AssertionError("Node.js is required for the component administrator UI regression test")
+    run(["node", "scripts/test_component_admin_ui.js"])
 
 
 def extract_function_body(source: str, function_name: str) -> str:
@@ -764,6 +1096,20 @@ def validate_scheduler_timezone_regression() -> None:
     run(["php", "scripts/test_scheduler_timezone.php", tree])
 
 
+def validate_scheduler_cron_compatibility_regression() -> None:
+    """Exercise the fallback for a legacy CronExpression constructor."""
+    if shutil.which("php") is None:
+        raise AssertionError("PHP CLI is required for the scheduler compatibility regression test")
+    run(["php", "scripts/test_scheduler_cron_compatibility.php"])
+
+
+def validate_scheduler_retry_policy_regression() -> None:
+    """Exercise daily-success stopping and same-day failure cooldown retries."""
+    if shutil.which("php") is None:
+        raise AssertionError("PHP CLI is required for the scheduler retry policy regression test")
+    run(["php", "scripts/test_scheduler_retry_policy.php"])
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--release-tag", help="Expected release tag, for example v1.2.3. Defaults to v<manifest version>.")
@@ -776,11 +1122,13 @@ def main() -> int:
         release_tag = release_tag or f"v{version}"
         print(f"Pre-PR validation for {EXTENSION_NAME} {release_tag}")
         validate_release_metadata(version, release_tag)
+        component_zip = build_component(version)
         plugin_zip = build_scheduler_plugin(version)
         system_plugin_zip = build_system_plugin(version)
-        zip_path = build_package(version, plugin_zip, system_plugin_zip)
-        package_zip = build_joomla_package(zip_path, plugin_zip, system_plugin_zip, version)
+        zip_path = build_package(version, component_zip, plugin_zip, system_plugin_zip)
+        package_zip = build_joomla_package(zip_path, component_zip, plugin_zip, system_plugin_zip, version)
         inspect_package(zip_path, version)
+        validate_component_packaging(component_zip, version)
         validate_scheduler_plugin_packaging(plugin_zip, version)
         validate_system_plugin_packaging(system_plugin_zip, version)
         validate_joomla_package(package_zip, version)
@@ -788,11 +1136,14 @@ def main() -> int:
         validate_php()
         validate_history_scope_regression()
         validate_api_http_error_regression()
+        validate_scheduler_cron_compatibility_regression()
+        validate_scheduler_retry_policy_regression()
         validate_scheduler_timezone_regression()
         validate_css()
         validate_js()
         validate_ajax_response_regression()
         validate_dashboard_notification_regression()
+        validate_component_admin_ui_regression()
         validate_dashboard_consistency()
         validate_analytics_refinement()
     except (AssertionError, subprocess.CalledProcessError, ET.ParseError, zipfile.BadZipFile) as exc:

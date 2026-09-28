@@ -13,6 +13,7 @@ use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\Component\Scheduler\Administrator\Event\ExecuteTaskEvent;
 use Joomla\Component\Scheduler\Administrator\Task\Status;
 use Joomla\Component\Scheduler\Administrator\Traits\TaskPluginTrait;
+use Joomla\Event\EventInterface;
 use Joomla\Event\SubscriberInterface;
 
 /**
@@ -39,6 +40,9 @@ final class PlgTaskSplaskscoreanalytics extends CMSPlugin implements SubscriberI
     /** @var bool */
     protected $autoloadLanguage = true;
 
+    /** @var array<string, mixed> */
+    private $collectionResult = [];
+
     /**
      * @return  array<string, string>
      */
@@ -47,6 +51,8 @@ final class PlgTaskSplaskscoreanalytics extends CMSPlugin implements SubscriberI
         return [
             'onTaskOptionsList' => 'advertiseRoutines',
             'onExecuteTask' => 'standardRoutineHandler',
+            'onTaskExecuteSuccess' => 'rescheduleAfterExecution',
+            'onTaskExecuteFailure' => 'rescheduleAfterExecution',
             'onContentPrepareForm' => 'enhanceTaskItemForm',
         ];
     }
@@ -63,11 +69,31 @@ final class PlgTaskSplaskscoreanalytics extends CMSPlugin implements SubscriberI
         require_once JPATH_ADMINISTRATOR . '/modules/mod_splaskscore/helper.php';
 
         $result = ModSplaskscoreHelper::collectScheduledAnalytics();
+        $this->collectionResult = $result;
 
         if (method_exists($event, 'setResultSnapshot')) {
             $event->setResultSnapshot('SPLaSK analytics snapshots processed: ' . (int) ($result['count'] ?? 0));
         }
 
         return !empty($result['success']) ? Status::OK : Status::KNOCKOUT;
+    }
+
+    /**
+     * Apply the daily-success/retry schedule after Joomla has released the task lock.
+     */
+    public function rescheduleAfterExecution(EventInterface $event): void
+    {
+        $task = $event->getArgument('subject');
+        if (!is_object($task) || !method_exists($task, 'get') || $task->get('type') !== self::TASK_TYPE) {
+            return;
+        }
+
+        require_once JPATH_ADMINISTRATOR . '/modules/mod_splaskscore/helper.php';
+
+        ModSplaskscoreHelper::rescheduleManagedTaskAfterCollection(
+            (int) $task->get('id'),
+            (int) $task->get('params.module_id', 0),
+            !empty($this->collectionResult['success'])
+        );
     }
 }

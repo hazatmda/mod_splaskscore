@@ -12,6 +12,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Installer\Installer;
 use Joomla\CMS\Installer\InstallerHelper;
+use Joomla\Database\DatabaseInterface;
 
 /**
  * Installer script for module upgrades that need the scheduler plugin.
@@ -31,12 +32,16 @@ final class mod_splaskscoreInstallerScript
         $packagesPath = $this->resolvePackagesPath($parent);
 
         if ($packagesPath !== '') {
-            $this->installBundledPlugin($packagesPath . '/plg_task_splaskscoreanalytics.zip');
-            $this->installBundledPlugin($packagesPath . '/plg_system_splaskscoreautomation.zip');
+            if (!$this->installBundledExtension($packagesPath . '/com_splaskscore.zip')
+                || !$this->installBundledPlugin($packagesPath . '/plg_task_splaskscoreanalytics.zip')
+                || !$this->installBundledPlugin($packagesPath . '/plg_system_splaskscoreautomation.zip')) {
+                return false;
+            }
         }
 
         $this->enablePlugin('task', 'splaskscoreanalytics');
         $this->enablePlugin('system', 'splaskscoreautomation');
+        $this->ensureSingleModuleInstance();
         $this->syncExistingModuleScheduler();
 
         return true;
@@ -79,28 +84,89 @@ final class mod_splaskscoreInstallerScript
      *
      * @param   string  $pluginZip  Absolute path to the bundled plugin ZIP.
      *
-     * @return  void
+     * @return  bool
      */
-    private function installBundledPlugin(string $pluginZip): void
+    private function installBundledPlugin(string $pluginZip): bool
     {
-        if (!is_file($pluginZip)) {
-            return;
+        return $this->installBundledExtension($pluginZip);
+    }
+
+    /**
+     * Install a bundled Joomla extension ZIP after unpacking it to a real installer path.
+     *
+     * @param   string  $extensionZip  Absolute path to the bundled extension ZIP.
+     *
+     * @return  bool
+     */
+    private function installBundledExtension(string $extensionZip): bool
+    {
+        if (!is_file($extensionZip)) {
+            return false;
         }
 
-        $package = InstallerHelper::unpack($pluginZip);
+        $package = InstallerHelper::unpack($extensionZip, true);
         if (!is_array($package)) {
-            return;
+            return false;
         }
 
         $installPath = isset($package['dir']) ? (string) $package['dir'] : '';
-        if ($installPath !== '' && is_dir($installPath)) {
-            Installer::getInstance()->install($installPath);
+        $installed = false;
+
+        if (!empty($package['type']) && $installPath !== '' && is_dir($installPath)) {
+            // Do not reuse Joomla's global installer while its package adapter is
+            // still active. A nested install on that singleton overwrites the
+            // parent package's manifest and source paths.
+            $nestedInstaller = new Installer();
+            $nestedInstaller->setDatabase(Factory::getContainer()->get(DatabaseInterface::class));
+            $installed = $nestedInstaller->install($installPath);
         }
 
         $packageFile = isset($package['packagefile']) ? (string) $package['packagefile'] : '';
         $extractDir = isset($package['extractdir']) ? (string) $package['extractdir'] : '';
         if (($packageFile !== '' && is_file($packageFile)) || ($extractDir !== '' && is_dir($extractDir))) {
             InstallerHelper::cleanupInstall($packageFile, $extractDir);
+        }
+
+        return $installed;
+    }
+
+    /**
+     * Ensure the component always has one dashboard module instance to manage.
+     *
+     * The instance starts outside the cpanel position so installation never
+     * changes an administrator dashboard until an operator enables it in the
+     * component. It remains published because dashboard visibility and
+     * scheduled analytics collection are separate controls.
+     *
+     * @return  void
+     */
+    private function ensureSingleModuleInstance(): void
+    {
+        try {
+            $app = Factory::getApplication();
+            $component = method_exists($app, 'bootComponent') ? $app->bootComponent('com_splaskscore') : null;
+
+            if (!$component || !method_exists($component, 'getMVCFactory')) {
+                throw new \RuntimeException('SPLaSK Score component is unavailable.');
+            }
+
+            $model = $component->getMVCFactory()->createModel('Settings', 'Administrator', ['ignore_request' => true]);
+
+            if (!$model || !method_exists($model, 'ensureSingleModuleInstance')) {
+                throw new \RuntimeException('SPLaSK Score settings model is unavailable.');
+            }
+
+            $model->ensureSingleModuleInstance();
+        } catch (\Throwable $exception) {
+            // The package remains usable: the component Dashboard can retry
+            // creation when the operator first enables dashboard display.
+            $app = Factory::getApplication();
+            if (method_exists($app, 'enqueueMessage')) {
+                $app->enqueueMessage(
+                    'SPLaSK Score could not create its managed dashboard instance automatically: ' . $exception->getMessage(),
+                    'warning'
+                );
+            }
         }
     }
 

@@ -11,6 +11,7 @@ release truth.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -24,6 +25,8 @@ LEGACY_UPDATE_MANIFEST = Path("mod_splaskscore_update.xml")
 PACKAGE_MANIFEST = Path("pkg_splaskscore.xml")
 PLUGIN_MANIFEST = Path("plugins/task/splaskscoreanalytics/splaskscoreanalytics.xml")
 SYSTEM_PLUGIN_MANIFEST = Path("plugins/system/splaskscoreautomation/splaskscoreautomation.xml")
+COMPONENT_MANIFEST = Path("component/com_splaskscore/splaskscore.xml")
+COMPONENT_ASSET_MANIFEST = Path("component/com_splaskscore/media/com_splaskscore/joomla.asset.json")
 HELPER_FILE = Path("helper.php")
 VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?")
 DESCRIPTION_VERSION_PATTERN = re.compile(r"(versi\s+)\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", re.IGNORECASE)
@@ -205,6 +208,8 @@ def sync_metadata(
     package_manifest: Path,
     plugin_manifest: Path,
     system_plugin_manifest: Path,
+    component_manifest: Path,
+    component_asset_manifest: Path,
     helper_file: Path,
     version: str,
 ) -> list[str]:
@@ -261,6 +266,12 @@ def sync_metadata(
     changes.extend(sync_manifest_version(package_manifest, version, expected_type="package"))
     changes.extend(sync_manifest_version(plugin_manifest, version, expected_type="plugin"))
     changes.extend(sync_manifest_version(system_plugin_manifest, version, expected_type="plugin"))
+    changes.extend(sync_manifest_version(component_manifest, version, expected_type="component"))
+    asset_data = json.loads(component_asset_manifest.read_text(encoding="utf-8"))
+    old_asset_version = str(asset_data.get("version", ""))
+    asset_data["version"] = version
+    component_asset_manifest.write_text(json.dumps(asset_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    changes.append(f"{component_asset_manifest}: version {old_asset_version} -> {version}")
     changes.extend(sync_helper_engine_version(helper_file, version))
     return changes
 
@@ -275,6 +286,8 @@ def main() -> int:
     parser.add_argument("--package-manifest", type=Path, default=PACKAGE_MANIFEST)
     parser.add_argument("--plugin-manifest", type=Path, default=PLUGIN_MANIFEST)
     parser.add_argument("--system-plugin-manifest", type=Path, default=SYSTEM_PLUGIN_MANIFEST)
+    parser.add_argument("--component-manifest", type=Path, default=COMPONENT_MANIFEST)
+    parser.add_argument("--component-asset-manifest", type=Path, default=COMPONENT_ASSET_MANIFEST)
     parser.add_argument("--helper-file", type=Path, default=HELPER_FILE)
     args = parser.parse_args()
 
@@ -292,6 +305,8 @@ def main() -> int:
             args.package_manifest,
             args.plugin_manifest,
             args.system_plugin_manifest,
+            args.component_manifest,
+            args.component_asset_manifest,
             args.helper_file,
             version,
         )

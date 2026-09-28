@@ -169,7 +169,8 @@ final class CollectionlogsModel extends ListModel
                 $latestStatus = strtolower((string) ($latest->status ?? ''));
                 if (in_array($latestStatus, ['success', 'skipped'], true)) {
                     $task->next_reason = 'completed_today';
-                } elseif ($latestStatus === 'failed') {
+                } elseif ($latestStatus === 'failed'
+                    && $this->isCurrentSiteDay((string) ($task->next_execution ?? ''))) {
                     $task->next_reason = 'retry';
                 }
             }

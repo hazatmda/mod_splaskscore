@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.joomla.org/schemas/json-schema/web_assets.json",
   "name": "com_splaskscore",
-  "version": "1.9.5",
+  "version": "1.9.6",
   "description": "SPLaSK Score administrator component assets",
   "license": "GPL-3.0-or-later",
   "assets": [

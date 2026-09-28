@@ -29,7 +29,7 @@ final class ModSplaskscoreHelper
         12 => 'Disember',
     ];
 
-    private const ENGINE_VERSION = '1.9.5';
+    private const ENGINE_VERSION = '1.9.6';
 
     public static function getEngineVersion(): string
     {
@@ -1663,9 +1663,37 @@ final class ModSplaskscoreHelper
 
             $savedTask = self::getManagedSchedulerTask();
             $nextExecution = (string) ($savedTask->next_execution ?? '');
+            $collectionState = self::getCurrentDayCollectionState($moduleId);
+            $policyNextExecution = self::calculateSynchronizedNextExecution(
+                !empty($collectionState['has_success']),
+                (string) ($collectionState['latest_status'] ?? ''),
+                (string) ($collectionState['latest_recorded_at'] ?? ''),
+                (int) $taskParams['retry_cooldown_minutes'],
+                $time
+            );
+
+            if ($policyNextExecution !== null && $savedTask && !empty($savedTask->id)) {
+                $nextExecution = $policyNextExecution;
+                $nextQuery = $db->getQuery(true)
+                    ->update($db->quoteName('#__scheduler_tasks'))
+                    ->set($db->quoteName('next_execution') . ' = ' . $db->quote($nextExecution))
+                    ->where($db->quoteName('id') . ' = ' . (int) $savedTask->id)
+                    ->where($db->quoteName('type') . ' = ' . $db->quote(self::SCHEDULER_TASK_TYPE));
+                $db->setQuery($nextQuery)->execute();
+                self::clearSchedulerCache();
+            }
+
             $lastSuccess = self::getModuleLastSuccessfulCollection($moduleId);
             self::updateModuleAutomationMetadata($moduleId, ucfirst($status) . ' (' . $frequency . ($frequency === 'daily' ? ' at ' . $time : '') . ')', $lastSuccess);
-            self::logAnalyticsEvent('info', 'Scheduler synchronized from module settings.', ['module_id' => $moduleId, 'status' => $status, 'frequency' => $frequency, 'time' => $time, 'next_execution' => $nextExecution]);
+            self::logAnalyticsEvent('info', 'Scheduler synchronized from module settings.', [
+                'module_id' => $moduleId,
+                'status' => $status,
+                'frequency' => $frequency,
+                'time' => $time,
+                'next_execution' => $nextExecution,
+                'current_day_status' => (string) ($collectionState['latest_status'] ?? ''),
+                'current_day_success' => !empty($collectionState['has_success']),
+            ]);
 
             return ['success' => true, 'status' => $status, 'frequency' => $frequency, 'time' => $time, 'next_execution' => $nextExecution, 'last_success' => $lastSuccess];
         } catch (\Throwable $exception) {
@@ -1922,6 +1950,135 @@ final class ModSplaskscoreHelper
         }
 
         return $nextDaily->setTimezone($utc)->format('Y-m-d H:i:s');
+    }
+
+    /**
+     * Preserve today's success or failure-retry policy when settings are saved.
+     *
+     * Joomla recalculates next_execution from the normal daily rule whenever the
+     * task model is saved. This method reapplies the operational state so saving
+     * component settings cannot silently discard an active same-day retry.
+     */
+    private static function calculateSynchronizedNextExecution(
+        bool $hasSuccessToday,
+        string $latestStatus,
+        string $latestRecordedAt,
+        int $cooldownMinutes,
+        string $collectionTime,
+        ?\DateTimeImmutable $nowUtc = null,
+        ?\DateTimeZone $siteTimezone = null
+    ): ?string {
+        $utc = new \DateTimeZone('UTC');
+        $nowUtc = ($nowUtc ?: new \DateTimeImmutable('now', $utc))->setTimezone($utc);
+        $siteTimezone = $siteTimezone ?: self::getConfiguredSiteTimezone();
+        $latestStatus = strtolower(trim($latestStatus));
+
+        if ($hasSuccessToday || in_array($latestStatus, ['success', 'skipped'], true)) {
+            return self::calculateNextCollectionExecution(
+                true,
+                $cooldownMinutes,
+                $collectionTime,
+                $nowUtc,
+                $siteTimezone
+            );
+        }
+
+        if ($latestStatus !== 'failed' || trim($latestRecordedAt) === '') {
+            return null;
+        }
+
+        try {
+            $failedAtUtc = new \DateTimeImmutable($latestRecordedAt, $utc);
+        } catch (\Throwable $exception) {
+            return null;
+        }
+
+        $failedLocal = $failedAtUtc->setTimezone($siteTimezone);
+        $nowLocal = $nowUtc->setTimezone($siteTimezone);
+
+        if ($failedLocal->format('Y-m-d') !== $nowLocal->format('Y-m-d')) {
+            return null;
+        }
+
+        $retryUtc = $failedAtUtc->modify('+' . max(1, $cooldownMinutes) . ' minutes');
+        $retryLocal = $retryUtc->setTimezone($siteTimezone);
+
+        if ($retryLocal->format('Y-m-d') !== $failedLocal->format('Y-m-d')) {
+            return self::calculateNextCollectionExecution(
+                true,
+                $cooldownMinutes,
+                $collectionTime,
+                $nowUtc,
+                $siteTimezone
+            );
+        }
+
+        // A missed retry must become immediately eligible for the next hosting
+        // cron pass instead of being moved to tomorrow's daily collection.
+        if ($retryUtc <= $nowUtc) {
+            return $nowUtc->modify('-1 minute')->format('Y-m-d H:i:s');
+        }
+
+        return $retryUtc->format('Y-m-d H:i:s');
+    }
+
+    /**
+     * Return the latest collection outcome and whether today already succeeded.
+     *
+     * @return array{has_success: bool, latest_status: string, latest_recorded_at: string}
+     */
+    private static function getCurrentDayCollectionState(int $moduleId): array
+    {
+        $state = [
+            'has_success' => false,
+            'latest_status' => '',
+            'latest_recorded_at' => '',
+        ];
+
+        if ($moduleId <= 0) {
+            return $state;
+        }
+
+        self::ensureHistoryTable();
+        self::ensureHealthTable();
+        [$dayStart, $dayEnd] = self::getSiteDayUtcBounds();
+        $db = \Joomla\CMS\Factory::getDbo();
+
+        $healthSuccessQuery = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName(self::getHealthTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . $moduleId)
+            ->where($db->quoteName('status') . ' = ' . $db->quote('success'))
+            ->where($db->quoteName('recorded_at') . ' >= ' . $db->quote($dayStart))
+            ->where($db->quoteName('recorded_at') . ' < ' . $db->quote($dayEnd));
+        $db->setQuery($healthSuccessQuery);
+        $hasHealthSuccess = (int) $db->loadResult() > 0;
+
+        $historySuccessQuery = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName(self::getHistoryTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . $moduleId)
+            ->where($db->quoteName('recorded_at') . ' >= ' . $db->quote($dayStart))
+            ->where($db->quoteName('recorded_at') . ' < ' . $db->quote($dayEnd));
+        $db->setQuery($historySuccessQuery);
+        $state['has_success'] = $hasHealthSuccess || (int) $db->loadResult() > 0;
+
+        $latestQuery = $db->getQuery(true)
+            ->select([$db->quoteName('status'), $db->quoteName('recorded_at')])
+            ->from($db->quoteName(self::getHealthTableName()))
+            ->where($db->quoteName('module_id') . ' = ' . $moduleId)
+            ->where($db->quoteName('recorded_at') . ' >= ' . $db->quote($dayStart))
+            ->where($db->quoteName('recorded_at') . ' < ' . $db->quote($dayEnd))
+            ->order($db->quoteName('recorded_at') . ' DESC, ' . $db->quoteName('id') . ' DESC');
+        $db->setQuery($latestQuery, 0, 1);
+        $latest = $db->loadObject();
+
+        if ($latest) {
+            $state['latest_status'] = strtolower((string) ($latest->status ?? ''));
+            $state['latest_recorded_at'] = (string) ($latest->recorded_at ?? '');
+        }
+
+        return $state;
     }
 
     private static function getConfiguredSiteTimezone(): \DateTimeZone

@@ -14,7 +14,7 @@ use Joomla\CMS\Uri\Uri;
 $document = $this->getDocument();
 $componentAssetBase = Uri::root(true) . '/media/com_splaskscore';
 $moduleAssetBase = Uri::root(true) . '/media/mod_splaskscore';
-$assetVersion = class_exists('ModSplaskscoreHelper') ? ModSplaskscoreHelper::getEngineVersion() : '1.9.5';
+$assetVersion = class_exists('ModSplaskscoreHelper') ? ModSplaskscoreHelper::getEngineVersion() : '1.9.6';
 $document->addStyleSheet($componentAssetBase . '/css/admin.css?v=' . rawurlencode($assetVersion));
 $document->addStyleSheet($moduleAssetBase . '/css/splaskscore.css?v=' . rawurlencode($assetVersion));
 $document->addScript($moduleAssetBase . '/js/splaskscore.js?v=' . rawurlencode($assetVersion), [], ['defer' => true]);

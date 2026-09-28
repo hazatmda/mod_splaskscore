@@ -11,7 +11,7 @@ use Joomla\CMS\Uri\Uri;
 
 $document = $this->getDocument();
 $assetBase = Uri::root(true) . '/media/com_splaskscore';
-$assetVersion = class_exists('ModSplaskscoreHelper') ? ModSplaskscoreHelper::getEngineVersion() : '1.9.5';
+$assetVersion = class_exists('ModSplaskscoreHelper') ? ModSplaskscoreHelper::getEngineVersion() : '1.9.6';
 $document->addStyleSheet($assetBase . '/css/admin.css?v=' . rawurlencode($assetVersion));
 ?>
 <div class="com-splaskscore-about">

@@ -3,7 +3,7 @@
     <name>COM_SPLASHSCORE</name>
     <author>Muhammad Azizan Hazim</author>
     <creationDate>2026-09-26</creationDate>
-    <version>1.9.5</version>
+    <version>1.9.6</version>
     <description>COM_SPLASHSCORE_XML_DESCRIPTION</description>
     <element>com_splaskscore</element>
     <namespace path="src">Hazim\Component\Splaskscore</namespace>

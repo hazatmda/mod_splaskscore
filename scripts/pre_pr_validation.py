@@ -607,7 +607,7 @@ def validate_schema_and_workflows() -> None:
     if missing_schema:
         raise AssertionError("DB migration/schema validation missing: " + ", ".join(missing_schema))
 
-    helper_tokens = ["migrateHistoryTable", "isDuplicateHistoryRecord", "applyRetentionPolicy", "getAnalyticsHealth", "collectScheduledAnalytics", "refreshAnalyticsAjax", "synchronizeSchedulerForModule", "buildSchedulerRules", "hasSuccessfulCollectionOnSiteDay", "rescheduleManagedTaskAfterCollection", "calculateNextCollectionExecution", "DEFAULT_FAILURE_RETRY_MINUTES", "HISTORY_DUPLICATE_WINDOW_MINUTES", "retry_cooldown_minutes"]
+    helper_tokens = ["migrateHistoryTable", "isDuplicateHistoryRecord", "applyRetentionPolicy", "getAnalyticsHealth", "collectScheduledAnalytics", "refreshAnalyticsAjax", "synchronizeSchedulerForModule", "buildSchedulerRules", "hasSuccessfulCollectionOnSiteDay", "rescheduleManagedTaskAfterCollection", "calculateNextCollectionExecution", "calculateSynchronizedNextExecution", "getCurrentDayCollectionState", "DEFAULT_FAILURE_RETRY_MINUTES", "HISTORY_DUPLICATE_WINDOW_MINUTES", "retry_cooldown_minutes"]
     missing_helper = [token for token in helper_tokens if token not in helper]
     if missing_helper:
         raise AssertionError("Install/upgrade/manual/scheduler helper validation missing: " + ", ".join(missing_helper))

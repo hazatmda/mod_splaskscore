@@ -18,7 +18,7 @@ Pakej Joomla yang menggabungkan komponen pengurusan administrator, modul dashboa
 
 ## Cara Pasang
 
-1. Muat turun `pkg_splaskscore_v1.9.5.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases) selepas versi tersebut diterbitkan. Untuk calon ujian tempatan, gunakan satu-satunya ZIP pengguna di dalam folder `dist/release`.
+1. Muat turun `pkg_splaskscore_v1.9.6.zip` dari tab [Releases](https://github.com/hazatmda/mod_splaskscore/releases) selepas versi tersebut diterbitkan. Untuk calon ujian tempatan, gunakan satu-satunya ZIP pengguna di dalam folder `dist/release`.
 2. Pasang di Joomla: **Extensions > Manage > Install**.
 3. Buka **Components > SPLaSK Score > Tetapan**, masukkan satu token SPLaSK untuk laman Joomla tersebut.
 4. Dalam halaman yang sama, aktifkan **Paparan Dashboard** untuk memaparkan widget pada Dashboard administrator atau nyahaktifkannya untuk menyembunyikan widget.
@@ -68,7 +68,7 @@ Modul ini menyokong Joomla Update Server.
 
 Fail `updates.xml` dan `mod_splaskscore_update.xml` menyediakan metadata kemaskini, versi, dan URL muat turun pakej release yang disemak oleh Joomla.
 
-Untuk calon release semasa, metadata kemaskini menunjuk kepada tag `v1.9.5` dan pakej `mod_splaskscore_v1.9.5.zip`. Installer modul tersebut turut membawa komponen dan kedua-dua plugin sokongan; pakej lengkap `pkg_splaskscore_v1.9.5.zip` disediakan untuk ujian pemasangan penuh.
+Untuk calon release semasa, metadata kemaskini menunjuk kepada tag `v1.9.6` dan pakej `mod_splaskscore_v1.9.6.zip`. Installer modul tersebut turut membawa komponen dan kedua-dua plugin sokongan; pakej lengkap `pkg_splaskscore_v1.9.6.zip` disediakan untuk ujian pemasangan penuh.
 
 ## Skop Analitik Kekal (analytics_scope)
 
@@ -97,7 +97,7 @@ php scripts/test_scheduler_timezone.php /path/to/joomla
 Sebelum membuka sebarang PR atau menerbitkan release, jalankan simulasi installer Joomla dan validasi setempat:
 
 ```bash
-python3 scripts/pre_pr_validation.py --release-tag v1.9.5
+python3 scripts/pre_pr_validation.py --release-tag v1.9.6
 ```
 
 Semakan ini adalah disiplin wajib projek dan merangkumi:
@@ -128,8 +128,8 @@ Jika semakan gagal, betulkan isu sebelum PR dibuat supaya masalah packaging, met
 Selepas memasang pakej pada laman Joomla ujian, jalankan verifier baca-sahaja mengikut senario. Skrip ini membaca fail dan pangkalan data Joomla tanpa mengubahnya:
 
 ```bash
-php scripts/test_joomla_integration.php /path/to/joomla installed 1.9.5
-php scripts/test_joomla_integration.php /path/to/joomla upgrade 1.9.5
+php scripts/test_joomla_integration.php /path/to/joomla installed 1.9.6
+php scripts/test_joomla_integration.php /path/to/joomla upgrade 1.9.6
 php scripts/test_joomla_integration.php /path/to/joomla failed
 php scripts/test_joomla_integration.php /path/to/joomla success
 php scripts/test_joomla_integration.php /path/to/joomla skipped
@@ -139,6 +139,14 @@ php scripts/test_joomla_integration.php /path/to/joomla uninstalled
 Fasa `failed`, `success` dan `skipped` dijalankan selepas mencetuskan senario tersebut melalui **Uji Kutipan Sekarang** atau runner Scheduled Tasks. Verifier memastikan pemasangan tunggal, plugin aktif, jadual DB, versi, pengekalan sejarah ketika naik taraf, status audit dan masa task seterusnya.
 
 ## Changelog
+
+### v1.9.6 (Calon release, 28 September 2026) — Pengekalan retry selepas Save
+
+- Mengekalkan `next_execution` bagi retry kegagalan hari yang sama apabila Tetapan disimpan atau scheduler diselaraskan semula.
+- Menjadikan retry yang sudah terlepas terus layak dijalankan pada kitaran cron hosting berikutnya, bukannya ditunda ke hari berikutnya.
+- Mengekalkan dasar berhenti selepas kejayaan hari semasa dan kembali kepada masa kutipan harian berikutnya apabila retry melintasi tengah malam.
+- Menyelaraskan label sebab pelaksanaan seterusnya dengan tarikh `next_execution` sebenar.
+- Menambah ujian regresi untuk retry aktif, retry terlepas, kejayaan harian dan sempadan tengah malam.
 
 ### v1.9.5 (Calon release, 28 September 2026) — Pembetulan mesej paparan token
 
